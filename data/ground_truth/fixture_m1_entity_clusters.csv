@@ -1,0 +1,7 @@
+entity_id,spec_id
+ENTITY#001,source_alpha//a100
+ENTITY#001,source_beta//b200
+ENTITY#001,source_gamma//c300
+ENTITY#002,source_alpha//a101
+ENTITY#002,source_beta//b201
+ENTITY#002,source_gamma//c301

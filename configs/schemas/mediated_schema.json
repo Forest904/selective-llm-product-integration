@@ -1,0 +1,91 @@
+{
+  "schema_version": "mosaic_product_v1",
+  "domain": "product",
+  "attributes": [
+    {
+      "id": "attr_title",
+      "name": "title",
+      "type": "string",
+      "description": "Human-readable product title from page titles, product names, or equivalent source fields.",
+      "required": true,
+      "nullable": false,
+      "normalization": "trim whitespace, collapse repeated spaces, preserve meaningful casing for display"
+    },
+    {
+      "id": "attr_brand",
+      "name": "brand",
+      "type": "string",
+      "description": "Product brand or manufacturer name.",
+      "required": true,
+      "nullable": true,
+      "normalization": "canonicalize common casing and aliases without inventing unsupported brands"
+    },
+    {
+      "id": "attr_model_number",
+      "name": "model_number",
+      "type": "string",
+      "description": "Manufacturer model number or model identifier used for linkage and entity display.",
+      "required": true,
+      "nullable": true,
+      "normalization": "remove decorative punctuation where safe, preserve alphanumeric identity"
+    },
+    {
+      "id": "attr_category",
+      "name": "category",
+      "type": "string",
+      "description": "Product category or vertical label.",
+      "required": true,
+      "nullable": true,
+      "normalization": "map source category labels to a compact canonical vocabulary"
+    },
+    {
+      "id": "attr_description",
+      "name": "description",
+      "type": "string",
+      "description": "Short product description or feature summary.",
+      "required": true,
+      "nullable": true,
+      "normalization": "trim and preserve source-supported descriptive text"
+    },
+    {
+      "id": "attr_price",
+      "name": "price",
+      "type": "decimal",
+      "description": "Observed product price as a numeric amount when available.",
+      "required": true,
+      "nullable": true,
+      "normalization": "parse numeric amount separately from currency and keep source claim provenance"
+    },
+    {
+      "id": "attr_currency",
+      "name": "currency",
+      "type": "string",
+      "description": "ISO-like currency code or symbol-derived currency for the associated price.",
+      "required": true,
+      "nullable": true,
+      "normalization": "normalize symbols and names to currency codes where unambiguous"
+    },
+    {
+      "id": "attr_specifications",
+      "name": "specifications",
+      "type": "object",
+      "description": "Semi-structured long-tail product specifications preserved as independently traceable claims.",
+      "required": true,
+      "nullable": false,
+      "normalization": "store each key as a specification claim with raw value, parsed value, optional unit, and provenance"
+    }
+  ],
+  "specifications_shape": {
+    "type": "object",
+    "additional_properties": {
+      "type": "object",
+      "required": ["raw_value", "source_claim_ids"],
+      "properties": {
+        "raw_value": {"type": "string"},
+        "normalized_value": {"type": ["string", "number", "boolean", "null"]},
+        "unit": {"type": ["string", "null"]},
+        "source_claim_ids": {"type": "array", "items": {"type": "string"}}
+      }
+    }
+  }
+}

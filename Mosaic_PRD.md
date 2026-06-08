@@ -192,7 +192,7 @@ Mosaic should use a curated subset of the Alaska product integration benchmark b
 
 The dataset selection workflow must:
 
-- download or locate candidate benchmark files;
+- locate manually provided candidate benchmark files;
 - identify available sources, categories, labels, and attributes;
 - compute dataset size, source count, entity count, positive pair count, and conflict count;
 - profile overlap between sources;
@@ -1246,7 +1246,8 @@ The full research project must remain operable from the command line.
 Required commands:
 
 ```bash
-uv run mosaic dataset download
+uv run mosaic dataset select
+uv run mosaic dataset ingest
 uv run mosaic dataset profile
 uv run mosaic schema propose
 uv run mosaic schema evaluate

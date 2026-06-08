@@ -1,0 +1,41 @@
+{
+  "dataset_id": "fixture_m1_products",
+  "benchmark": "fixture",
+  "vertical": "camera",
+  "version": "fixture_v1",
+  "description": "Tiny committed M1 fixture with three heterogeneous sources, cluster truth, malformed input, and fusion conflicts.",
+  "sources": [
+    {
+      "source_id": "source_alpha",
+      "name": "Source Alpha",
+      "source_type": "fixture_json_dir",
+      "origin": "committed fixture",
+      "license": "MIT",
+      "retrieval_date": "2026-06-08T00:00:00Z",
+      "path": "data/fixtures/m1/source_alpha",
+      "format": "alaska_json_dir"
+    },
+    {
+      "source_id": "source_beta",
+      "name": "Source Beta",
+      "source_type": "fixture_json_dir",
+      "origin": "committed fixture",
+      "license": "MIT",
+      "retrieval_date": "2026-06-08T00:00:00Z",
+      "path": "data/fixtures/m1/source_beta",
+      "format": "alaska_json_dir"
+    },
+    {
+      "source_id": "source_gamma",
+      "name": "Source Gamma",
+      "source_type": "fixture_json_dir",
+      "origin": "committed fixture",
+      "license": "MIT",
+      "retrieval_date": "2026-06-08T00:00:00Z",
+      "path": "data/fixtures/m1/source_gamma",
+      "format": "alaska_json_dir"
+    }
+  ],
+  "ground_truth_path": "data/ground_truth/fixture_m1_entity_clusters.csv",
+  "mapping_gold_path": "data/ground_truth/fixture_m1_mapping_gold.csv"
+}

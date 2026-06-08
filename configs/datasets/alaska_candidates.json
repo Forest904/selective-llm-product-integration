@@ -1,0 +1,39 @@
+{
+  "benchmark": "alaska",
+  "paper_url": "https://arxiv.org/abs/2101.11259",
+  "repository_url": "https://github.com/merialdo/research.alaska",
+  "candidates": {
+    "camera": {
+      "source_count": 24,
+      "record_count": 29787,
+      "attribute_count": 4660,
+      "entity_count": 103,
+      "labeled_record_count": 3865,
+      "target_attribute_count": 56,
+      "labeled_attribute_count": 687
+    },
+    "monitor": {
+      "source_count": 26,
+      "record_count": 16662,
+      "attribute_count": 1687,
+      "entity_count": 232,
+      "labeled_record_count": 2273,
+      "target_attribute_count": 87,
+      "labeled_attribute_count": 1026
+    },
+    "notebook": {
+      "source_count": 27,
+      "record_count": 23167,
+      "attribute_count": 3099,
+      "entity_count": 208,
+      "labeled_record_count": 1143,
+      "target_attribute_count": 44,
+      "labeled_attribute_count": 960
+    }
+  },
+  "notes": [
+    "Published metadata is used for provisional ranking.",
+    "Benchmark archives must be obtained manually before real-data ingestion.",
+    "Local profiling is required before the assignment gate is accepted."
+  ]
+}

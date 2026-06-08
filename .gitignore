@@ -227,6 +227,7 @@ pnpm-debug.log*
 data/raw/**
 data/interim/**
 data/processed/**
+data/manifests/dataset_manifest.json
 !data/raw/.gitkeep
 !data/interim/.gitkeep
 !data/processed/.gitkeep

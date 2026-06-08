@@ -1955,7 +1955,7 @@ selective-llm-product-integration/
 │   └── 05_error_analysis.ipynb
 │
 ├── scripts/
-│   ├── download_data.py
+│   ├── validate_dataset_access.py
 │   ├── profile_candidates.py
 │   ├── run_experiment.py
 │   ├── validate_artifacts.py
@@ -1990,7 +1990,8 @@ selective-llm-product-integration/
 The full project must remain operable from the command line.
 
 ```bash
-uv run mosaic dataset download
+uv run mosaic dataset select
+uv run mosaic dataset ingest
 uv run mosaic dataset profile
 uv run mosaic schema propose
 uv run mosaic schema evaluate
@@ -2698,7 +2699,7 @@ Choose the benchmark subset scientifically.
 
 ### Work
 
-* download candidate Alaska data;
+* locate manually provided candidate Alaska data;
 * inspect source/category availability;
 * calculate overlap and ground-truth coverage;
 * profile conflicts and missingness;
@@ -2741,7 +2742,7 @@ source metadata
 raw records
 ingestion errors
 dataset manifest
-download instructions
+manual dataset access instructions
 ```
 
 ### Exit criteria

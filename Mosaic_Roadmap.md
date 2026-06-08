@@ -117,7 +117,7 @@ Prepare the repository and project conventions so the research system can be bui
 - [x] Add README reproduction skeleton and command documentation.
 - [x] Add contribution notes, security notes, citation metadata, and basic development workflow.
 - [x] Add CI skeleton for Python checks and fixture pipeline checks.
-- [x] Add `data/README.md` explaining committed data, generated data, and download instructions.
+- [x] Add `data/README.md` explaining committed data, generated data, and dataset access instructions.
 - [x] Add `artifacts/README.md` explaining regenerated outputs and ignored large artifacts.
 - [x] Define run ID conventions.
 - [x] Define configuration hash conventions.
@@ -199,6 +199,8 @@ M0 intentionally keeps these as scaffold and fixture checks. Real dataset ingest
 
 ## M1: Reproducible Data Foundation
 
+**Status:** In progress. M1 implementation and fixture reproduction are complete; real-data acceptance is pending manual Alaska dataset access.
+
 ### Goal
 
 Select, ingest, profile, and document the benchmark subset that satisfies the assignment requirements.
@@ -208,55 +210,84 @@ Select, ingest, profile, and document the benchmark subset that satisfies the as
 - M0 accepted.
 - Data directories, config directories, and artifact conventions exist.
 - Benchmark source access is understood or documented.
+- Alaska benchmark archives are manually provided under `data/raw/alaska/<vertical>/extracted/`.
+
+### Current Implementation Notes
+
+- Mosaic no longer attempts to download benchmark archives. Dataset acquisition is a manual project startup prerequisite because the official Alaska short links currently redirect to expired SharePoint pages.
+- Preferred Alaska candidates are `notebook` and `monitor`; `camera` is retained for comparison but misses the 200-entity assignment gate in published metadata.
+- Fixture reproduction remains automatic through `uv run mosaic reproduce --fixture`.
 
 ### Implementation Checklist
 
-- Implement dataset discovery/profiling script.
-- Download or locate Alaska benchmark candidates.
-- Evaluate candidate categories against assignment minimums.
-- Compute source count, total record count, entity count, positive pair count or equivalent cluster truth, mediated attribute coverage, overlap, missingness, and conflict count.
-- Profile source schema heterogeneity.
-- Profile model-number coverage and title variation.
-- Profile candidate fusion conflicts.
-- Rank candidate domains using documented scoring.
-- Select final subset or document benchmark fallback if Alaska is unsuitable.
-- Create dataset candidate report.
-- Implement immutable ingestion for CSV, JSON, JSON Lines, and Parquet.
-- Generate stable `record_uid` values with the convention `{source_id}:{source_record_id}`.
-- Reject row position as a stable identifier.
-- Calculate raw checksums.
-- Validate malformed rows and write ingestion errors.
-- Create `dataset_manifest.json`.
-- Generate source profiles and profiling summaries.
-- Infer source attribute types and semantic-role suggestions.
-- Define mediated schema with the PRD's 8 target attributes: title, brand, model number, category, description, price, currency, and specifications.
-- Add schema validation and schema documentation.
-- Define mapping gold format for schema evaluation.
-- Define fusion annotation format if official fusion truth is incomplete.
+- [x] Implement dataset discovery/profiling commands.
+- [x] Document manual Alaska benchmark placement instead of automatic download.
+- [x] Evaluate published candidate metadata against assignment minimums.
+- [x] Compute provisional source count, total record count, entity count, positive pair equivalent, mediated attribute coverage, overlap, and schema-size signals from published metadata.
+- [ ] Compute real-data missingness, conflict count, source overlap, model-number coverage, and title variation after local Alaska files are provided.
+- [x] Profile source schema heterogeneity on the committed M1 fixture.
+- [ ] Profile source schema heterogeneity on the selected Alaska subset.
+- [x] Rank candidate domains using documented scoring.
+- [ ] Select final subset from local Alaska files or document benchmark fallback if Alaska remains unavailable.
+- [x] Create provisional dataset candidate report.
+- [x] Implement immutable ingestion for CSV, JSON, JSON Lines, Parquet, and Alaska JSON directory layouts.
+- [x] Generate stable `record_uid` values with the convention `{source_id}:{source_record_id}`.
+- [x] Reject row position as a stable identifier.
+- [x] Calculate raw checksums.
+- [x] Validate malformed rows and write ingestion errors.
+- [x] Create `dataset_manifest.json` during ingestion runs.
+- [x] Generate source profiles and profiling summaries.
+- [x] Infer source attribute types and semantic-role suggestions.
+- [x] Define mediated schema with the PRD's 8 target attributes: title, brand, model number, category, description, price, currency, and specifications.
+- [x] Add schema validation and schema documentation.
+- [x] Define mapping gold format for schema evaluation.
+- [x] Define fusion annotation format if official fusion truth is incomplete.
 
 ### Deliverables
 
-- Dataset candidate report.
-- Selection score table.
-- Selected dataset manifest.
-- Source metadata artifacts.
-- Ingested raw/source artifacts.
-- Ingestion error artifact.
-- Source profile artifacts.
-- Profiling summary tables or plots.
-- `mediated_schema.json`.
-- Schema documentation.
-- Ground-truth summary.
+- [x] Provisional dataset candidate report.
+- [x] Provisional selection score table.
+- [ ] Selected real dataset manifest.
+- [x] Fixture source metadata artifacts.
+- [x] Fixture ingested raw/source artifacts.
+- [x] Fixture ingestion error artifact.
+- [x] Fixture source profile artifacts.
+- [x] Fixture profiling summary.
+- [x] `mediated_schema.json`.
+- [x] Schema documentation.
+- [x] Fixture ground-truth summary.
+- [ ] Real Alaska ground-truth summary.
+
+### Implemented CLI And Commands
+
+```bash
+uv run mosaic dataset select --benchmark alaska
+uv run mosaic dataset ingest --config configs/datasets/selected_dataset.json
+uv run mosaic dataset profile --config configs/datasets/selected_dataset.json
+uv run mosaic dataset ingest --fixture
+uv run mosaic dataset profile --fixture
+uv run mosaic schema validate --schema configs/schemas/mediated_schema.json
+```
+
+Dataset acquisition is intentionally not a CLI command. Before real-data ingestion, place manually obtained Alaska files under one of:
+
+```text
+data/raw/alaska/notebook/extracted/
+data/raw/alaska/monitor/extracted/
+```
 
 ### Acceptance Gate
 
-- Dataset satisfies at least 3 heterogeneous sources, 1,000 source records, 5 mediated attributes, 200 integrated entities, 300 positive pairs or equivalent cluster truth, and 100 fusion conflicts.
-- Every raw record has stable provenance and checksum metadata.
-- Every source attribute has a profile and representative samples.
-- The selected subset is justified by data, not preference.
+- [ ] Dataset satisfies at least 3 heterogeneous sources, 1,000 source records, 5 mediated attributes, 200 integrated entities, 300 positive pairs or equivalent cluster truth, and 100 fusion conflicts.
+- [x] Fixture raw records have stable provenance and checksum metadata.
+- [ ] Real Alaska raw records have stable provenance and checksum metadata.
+- [x] Fixture source attributes have profiles and representative samples.
+- [ ] Real Alaska source attributes have profiles and representative samples.
+- [ ] The selected subset is justified by local profiling data, not preference.
 
 ### Risks / Watchpoints
 
+- Alaska source access is an external prerequisite; official links may remain expired.
 - Alaska subset may not satisfy every minimum for the chosen category.
 - Fusion ground truth may be partial or absent.
 - Source attributes may be too sparse for meaningful schema alignment.

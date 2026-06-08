@@ -1,0 +1,18 @@
+source_attribute_id,target_attribute_name,confidence_or_label_source,notes
+source_alpha//<page title>,title,fixture_gold,page title carries product title
+source_alpha//brand,brand,fixture_gold,exact brand label
+source_alpha//model number,model_number,fixture_gold,source-specific model field
+source_alpha//category,category,fixture_gold,category label
+source_alpha//description,description,fixture_gold,description label
+source_alpha//price,price,fixture_gold,numeric price
+source_alpha//currency,currency,fixture_gold,currency code
+source_beta//manufacturer,brand,fixture_gold,synonym for brand
+source_beta//model,model_number,fixture_gold,synonym for model number
+source_beta//product type,category,fixture_gold,category synonym
+source_beta//short description,description,fixture_gold,description synonym
+source_beta//sale price,price,fixture_gold,price with currency symbol
+source_gamma//maker,brand,fixture_gold,synonym for brand
+source_gamma//model_id,model_number,fixture_gold,source-specific model identifier
+source_gamma//department,category,fixture_gold,category synonym
+source_gamma//features,description,fixture_gold,free-text feature field
+source_gamma//amount,price,fixture_gold,price with currency code

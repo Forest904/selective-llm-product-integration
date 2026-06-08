@@ -73,6 +73,16 @@ uv run mosaic report build
 
 ## Data And Artifacts
 
-Raw downloaded datasets and generated artifacts are not committed by default.
-See `data/README.md` and `artifacts/README.md` for what belongs in git and what
-must be regenerated.
+Raw benchmark datasets and generated artifacts are not committed by default.
+Users must obtain the selected benchmark data before running real-data pipeline
+commands. For M1, place Alaska Notebook or Monitor files under one of:
+
+```text
+data/raw/alaska/notebook/extracted/
+data/raw/alaska/monitor/extracted/
+```
+
+The official Alaska short links may be expired, so benchmark access is treated
+as a project startup prerequisite rather than an automated CLI step. See
+`data/README.md`, `configs/datasets/README.md`, and `artifacts/README.md` for
+what belongs in git and what must be regenerated.
