@@ -1,0 +1,13 @@
+{
+  "name": "@mosaic/web",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Placeholder for the future Mosaic Next.js application.",
+  "scripts": {
+    "dev": "echo \"Mosaic web app is deferred until the web milestone.\"",
+    "lint": "echo \"Mosaic web lint placeholder.\"",
+    "test": "echo \"Mosaic web test placeholder.\""
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

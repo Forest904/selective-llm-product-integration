@@ -63,7 +63,7 @@ The web app consumes shared services and artifacts. It does not reimplement sche
 
 | Milestone | Name | Primary outcome | Depends on | Unlocks |
 | --- | --- | --- | --- | --- |
-| M0 | Product and Repository Foundation | Reproducible project skeleton | PRD and blueprint | M1, M2 fixture work |
+| M0 | Product and Repository Foundation | Reproducible project skeleton implemented | PRD and blueprint | M1, M2 fixture work |
 | M1 | Reproducible Data Foundation | Selected benchmark subset, manifests, profiles, schema | M0 | M2 |
 | M2 | Deterministic Baseline Pipeline | Pipeline A from raw sources to integrated entities | M1 | M3, M4 baseline results |
 | M3 | LLM-Assisted Research System | Pipeline B with selective LLM use in schema, linkage, and fusion | M2 | M4 assisted results |
@@ -93,6 +93,8 @@ M5 may begin after M4 artifacts are stable enough to provide real examples, char
 
 ## M0: Product And Repository Foundation
 
+**Status:** Implemented and accepted.
+
 ### Goal
 
 Prepare the repository and project conventions so the research system can be built reproducibly.
@@ -105,43 +107,87 @@ Prepare the repository and project conventions so the research system can be bui
 
 ### Implementation Checklist
 
-- Confirm PRD and roadmap are the governing product documents.
-- Establish the monorepo structure for research package, configs, prompts, data, artifacts, reports, tests, API, worker, and web.
-- Configure Python tooling: `uv`, `pyproject.toml`, Ruff, mypy, and pytest.
-- Configure frontend tooling skeleton only if needed early: `pnpm`, TypeScript, and Next.js placeholders.
-- Add `.env.example` with non-secret configuration names.
-- Add Makefile commands for install, lint, test, reproduce, dev, and report generation.
-- Add README reproduction skeleton.
-- Add contribution notes and basic development workflow.
-- Add CI skeleton for Python checks and fixture pipeline checks.
-- Add `data/README.md` explaining committed data, generated data, and download instructions.
-- Add `artifacts/README.md` explaining regenerated outputs and ignored large artifacts.
-- Define run ID conventions.
-- Define configuration hash conventions.
-- Define artifact naming conventions.
-- Define prompt version naming conventions.
-- Define where logs, metrics, figures, and report outputs live.
+- [x] Confirm PRD, roadmap, and blueprint are the governing project documents.
+- [x] Establish the monorepo structure for research package, configs, prompts, data, artifacts, reports, tests, API, worker, and web.
+- [x] Configure Python tooling: `uv`, `pyproject.toml`, Ruff, mypy, pytest, and a Typer CLI entry point named `mosaic`.
+- [x] Configure frontend placeholders: root `package.json`, `pnpm-workspace.yaml`, and `apps/web/package.json` without initializing a full Next.js application.
+- [x] Add `docker-compose.yml` skeleton for future PostgreSQL and Redis services, without making containers required for M0 checks.
+- [x] Add `.env.example` with non-secret configuration names.
+- [x] Add Makefile commands for install, lint, test, reproduce, dev, and report generation.
+- [x] Add README reproduction skeleton and command documentation.
+- [x] Add contribution notes, security notes, citation metadata, and basic development workflow.
+- [x] Add CI skeleton for Python checks and fixture pipeline checks.
+- [x] Add `data/README.md` explaining committed data, generated data, and download instructions.
+- [x] Add `artifacts/README.md` explaining regenerated outputs and ignored large artifacts.
+- [x] Define run ID conventions.
+- [x] Define configuration hash conventions.
+- [x] Define artifact naming conventions.
+- [x] Define prompt version naming conventions.
+- [x] Define where logs, metrics, figures, and report outputs live.
 
 ### Deliverables
 
-- Working repository skeleton.
-- Install, lint, test, reproduce, dev, and report commands.
-- Initial README and environment documentation.
-- Initial risk register.
-- Directory-level README files for data and artifacts.
-- CI skeleton.
+- Working repository skeleton with `apps`, `packages`, `configs`, `prompts`, `data`, `artifacts`, `database`, `scripts`, `tests`, `reports`, and `.github/workflows`.
+- Install, lint, test, reproduce, dev, and report commands in `Makefile`.
+- Initial README, `.env.example`, contribution notes, security notes, and citation metadata.
+- Initial risk register in `docs/risk_register.md`.
+- Directory-level README files for data, artifacts, configs, prompts, reports, apps, and placeholder packages.
+- Python CI skeleton in `.github/workflows/python.yml`.
+- Fixture smoke tests for import, CLI help, `mosaic doctor`, `mosaic reproduce --fixture`, `mosaic report build`, and required scaffold paths.
+
+### Implemented CLI And Commands
+
+Reserved M0 command contract:
+
+```bash
+uv run mosaic doctor
+uv run mosaic reproduce --fixture
+uv run mosaic report build
+```
+
+Accepted aggregate commands:
+
+```bash
+make install
+make lint
+make test
+make reproduce
+make dev
+make report
+```
+
+M0 intentionally keeps these as scaffold and fixture checks. Real dataset ingestion, experiment execution, and report generation are unlocked by later milestones.
+
+### Implemented Conventions
+
+- Run IDs use `run_YYYYMMDDTHHMMSSZ_<shortslug>`.
+- Configuration hashes use canonical JSON/YAML serialization, SHA-256, and display as `cfg_<12 hex chars>`.
+- Generated artifacts use `<stage>/<run_id>/<artifact_family>.<format>`.
+- Prompt versions live in `prompts/<stage>/vYYYYMMDD_<slug>/`.
+- Logs live in `artifacts/runs/<run_id>/logs/`.
+- Metrics live in `artifacts/runs/<run_id>/metrics/`.
+- Figures live in `artifacts/figures/`.
+- Report sources live in `reports/`.
+- Generated report outputs live in `artifacts/reports/`.
 
 ### Acceptance Gate
 
-- A clean clone can install dependencies and run an empty or fixture test suite.
-- There is no ambiguity about where code, configs, prompts, data, artifacts, tests, and reports belong.
-- No secrets or raw credentials are committed.
+- [x] A clean clone can install dependencies and run the fixture test suite.
+- [x] There is no ambiguity about where code, configs, prompts, data, artifacts, tests, and reports belong.
+- [x] No secrets or raw credentials are committed.
+- [x] `make install` succeeds.
+- [x] `make lint` succeeds with Ruff and mypy.
+- [x] `make test` succeeds with 5 passing tests.
+- [x] `make reproduce` succeeds through the fixture reproduction scaffold.
+- [x] `make dev` succeeds through the development scaffold check.
+- [x] `make report` succeeds through the report generation scaffold.
 
 ### Risks / Watchpoints
 
-- Overbuilding the web skeleton before the research pipeline exists.
-- Committing generated artifacts that should be reproducible.
-- Leaving environment setup implicit.
+- Overbuilding the web skeleton before the research pipeline exists. Current mitigation: web remains placeholder-only in M0.
+- Committing generated artifacts that should be reproducible. Current mitigation: `.gitignore` excludes generated data, artifacts, logs, caches, local env files, and frontend build outputs while preserving README and `.gitkeep` placeholders.
+- Leaving environment setup implicit. Current mitigation: README, `.env.example`, Makefile targets, CI, and scaffold checks document the setup path.
+- Local shells may carry an unrelated active virtual environment. Current mitigation: `uv` ignores the mismatched environment and uses the project `.venv`.
 
 ### Unlocks
 

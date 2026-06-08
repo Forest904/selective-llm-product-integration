@@ -216,3 +216,36 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Node / frontend placeholder workspace
+node_modules/
+.next/
+out/
+pnpm-debug.log*
+
+# Mosaic generated data and artifacts
+data/raw/**
+data/interim/**
+data/processed/**
+!data/raw/.gitkeep
+!data/interim/.gitkeep
+!data/processed/.gitkeep
+
+artifacts/runs/**
+artifacts/models/**
+artifacts/figures/**
+artifacts/tables/**
+artifacts/errors/**
+artifacts/exports/**
+artifacts/reports/**
+!artifacts/runs/.gitkeep
+!artifacts/models/.gitkeep
+!artifacts/figures/.gitkeep
+!artifacts/tables/.gitkeep
+!artifacts/errors/.gitkeep
+!artifacts/exports/.gitkeep
+!artifacts/reports/.gitkeep
+
+# Local logs and temporary outputs
+logs/
+*.tmp

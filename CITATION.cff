@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+title: "Mosaic: Selective LLM Assistance for End-to-End Product Data Integration"
+message: "If you use this research scaffold, please cite it using this metadata."
+authors:
+  - family-names: "Project"
+    given-names: "Mosaic"
+version: 0.0.0
+repository-code: "https://github.com/"
+license: "NOASSERTION"
