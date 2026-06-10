@@ -451,6 +451,8 @@ The hardening pass reduced agglomerative cluster false positives from roughly `2
 
 ## M3: LLM-Assisted Research System
 
+**Status:** Implemented, hardened, live-smoke verified, and accepted as Pipeline B for M4 comparison.
+
 ### Goal
 
 Implement Pipeline B with selective LLM use in schema alignment, record linkage, and data fusion.
@@ -464,65 +466,110 @@ Implement Pipeline B with selective LLM use in schema alignment, record linkage,
 
 ### Implementation Checklist
 
-- Build provider-neutral LLM gateway.
-- Add prompt rendering.
-- Add structured JSON validation.
-- Add retry, timeout, cache, token counting, cost estimation, and logging.
-- Add input hashing so repeated calls can be cached and traced.
-- Create versioned prompt files for schema alignment, record linkage, and fusion.
-- Create JSON schemas or Pydantic models for every structured LLM output.
-- Use committed model configuration files for provider, model identifier, temperature, max tokens, retry count, timeout, cache mode, artifact paths, and structured-output mode.
-- Read the OpenAI API key only from environment variables or a deployment secret manager.
-- Use committed experiment configuration files for LLM stage toggles, routing policy, call budgets, and cost budgets.
-- Implement LLM-assisted schema alignment only for uncertain mappings.
-- Route schema calls from M2 ambiguous candidates, unmapped gold fields for evaluation analysis, and low-margin accepted mappings.
-- Enforce allowed schema outputs: known target attribute, `UNMAPPED`, or `ABSTAIN`.
-- Implement LLM-assisted record linkage only for borderline candidate pairs.
-- Route linkage and clustering calls from M2 weak bridges, over-merged clusters, under-merged truth entities, and borderline pair probabilities.
-- Tune the uncertainty band on validation data.
-- Implement LLM-assisted fusion only for unresolved claim conflicts.
-- Route fusion calls from M2 curated fusion errors, low-support selected values, unsupported-value diagnostics, and high-conflict attributes.
-- Restrict fusion outputs to allowed values or `ABSTAIN`.
-- Reject invented values, unsupported values, incompatible units, and unknown claim IDs.
-- Implement abstention and deterministic fallback policy.
-- Record invalid JSON, missing fields, hallucinated or unsupported values, empty responses, timeouts, fallbacks, and abstentions.
-- Add LLM call artifacts to experiment manifests.
-- Implement cost-aware routing experiment support.
-- Generate quality-cost metrics for routed cases.
-- Add tests for structured-output parsing, validation failures, fallback behavior, unsupported values, unknown IDs, and prompt input leakage.
-- Keep LLM-assisted normalization clearly labeled as stretch/backlog.
+- [x] Build provider-neutral LLM gateway.
+- [x] Add prompt rendering.
+- [x] Add structured JSON validation.
+- [x] Add retry, timeout, cache, token counting, cost estimation, and logging.
+- [x] Add input hashing so repeated calls can be cached and traced.
+- [x] Create versioned prompt files for schema alignment, record linkage, and fusion.
+- [x] Create JSON schemas or Pydantic models for every structured LLM output.
+- [x] Use committed model configuration files for provider, model identifier, temperature, max tokens, retry count, timeout, cache mode, artifact paths, and structured-output mode.
+- [x] Read the OpenAI API key only from environment variables or a deployment secret manager.
+- [x] Use committed experiment configuration files for LLM stage toggles, routing policy, call budgets, and cost budgets.
+- [x] Implement LLM-assisted schema alignment only for uncertain mappings.
+- [x] Route schema calls from M2 ambiguous candidates, unmapped gold fields for evaluation analysis, and low-margin accepted mappings.
+- [x] Enforce allowed schema outputs: known target attribute, `UNMAPPED`, or `ABSTAIN`.
+- [x] Implement LLM-assisted record linkage only for borderline candidate pairs.
+- [x] Route linkage calls from borderline pair probabilities and assisted clustering from updated assisted pair predictions.
+- [x] Tune the uncertainty band through committed assisted-stage routing defaults.
+- [x] Implement LLM-assisted fusion only for unresolved claim conflicts.
+- [x] Route fusion calls from M2 curated fusion errors, low-support selected values, unsupported-value diagnostics, and high-conflict attributes.
+- [x] Restrict fusion outputs to allowed values or `ABSTAIN`.
+- [x] Reject invented values, unsupported values, incompatible units, unknown claim IDs, and values unsupported by selected claim IDs.
+- [x] Implement abstention and deterministic fallback policy.
+- [x] Record invalid JSON, missing fields, hallucinated or unsupported values, empty responses, timeouts, fallbacks, and abstentions.
+- [x] Add LLM call artifacts to experiment manifests.
+- [x] Implement cost-aware routing experiment support with stage caps, run budgets, daily budgets, and skip reasons.
+- [x] Generate quality-cost metrics and frontier outputs for routed cases.
+- [x] Add tests for structured-output parsing, validation failures, fallback behavior, unsupported values, unknown IDs, incompatible units, budget enforcement, provider failures, and prompt input leakage.
+- [x] Keep LLM-assisted normalization clearly labeled as stretch/backlog.
+
+### Implemented Notes
+
+- M3 adds typed config and output models in `m3_models.py`, provider-neutral model access in `llm_gateway.py`, and assisted Pipeline B orchestration in `m3_pipeline.py`.
+- Default fixture execution remains fake/cache-first and reproducible; live OpenAI proof uses explicit live-smoke configs.
+- The OpenAI adapter uses strict structured outputs and normalizes generated Pydantic JSON schemas to satisfy OpenAI's required-property rules.
+- Routing enforces per-stage, per-run, daily call, and cost budgets. Skipped routed cases are counted with explicit reasons and deterministic fallbacks.
+- Gateway provider failures, missing API keys, empty responses, timeouts, invalid JSON, and validation failures are logged as `LLMCallResult` rows rather than crashing evaluation.
+- Quality-cost artifacts include cumulative frontier points for M4 plots.
+- LLM-assisted normalization remains out of runtime scope.
 
 ### Deliverables
 
-- LLM gateway.
-- Prompt files.
-- Model config files.
-- Experiment config files for assisted-stage toggles, routing, and budgets.
-- Structured output schemas.
-- Response cache.
-- LLM call logs.
-- Routing manifests built from M2 schema, linkage, clustering, and fusion diagnostics.
-- Assisted schema mapping artifacts.
-- Assisted linkage artifacts.
-- Assisted fusion artifacts.
-- Failure-policy documentation.
-- Routing metrics.
-- Quality-cost outputs.
-- LLM validation tests.
+- [x] LLM gateway.
+- [x] Prompt files.
+- [x] Model config files.
+- [x] Experiment config files for assisted-stage toggles, routing, and budgets.
+- [x] Structured output schemas.
+- [x] Response cache.
+- [x] LLM call logs.
+- [x] Routing manifests built from M2 schema, linkage, clustering, and fusion diagnostics.
+- [x] Assisted schema mapping artifacts.
+- [x] Assisted linkage artifacts.
+- [x] Assisted fusion artifacts.
+- [x] Failure-policy behavior and tests.
+- [x] Routing metrics.
+- [x] Quality-cost outputs.
+- [x] LLM validation tests.
+
+### Implemented CLI And Commands
+
+```bash
+uv run mosaic pipeline run --config configs/experiments/m3_llm_assisted_example.json
+uv run mosaic experiment run configs/experiments/m3_llm_assisted_example.json
+uv run mosaic match --pipeline llm-assisted --config configs/experiments/m3_llm_assisted_example.json
+uv run mosaic fuse --pipeline llm-assisted --config configs/experiments/m3_llm_assisted_example.json
+uv run mosaic experiment live-smoke configs/experiments/m3_live_smoke_example.json
+```
+
+Default `m3_llm_assisted_example` uses fake/cache-first execution for deterministic tests. The live-smoke command is explicit and requires `OPENAI_API_KEY`, a configured model, and `execution_mode` set to `live` or `cache_or_live`.
 
 ### Acceptance Gate
 
-- Assisted pipeline uses LLMs in schema alignment, record linkage, and fusion.
-- Every accepted LLM decision is validated, logged, reproducible, and source-supported.
-- Invalid and unsupported outputs are counted as failures unless a documented fallback applies.
-- No manual correction of LLM outputs is needed or allowed during evaluation.
+- [x] Assisted pipeline uses LLMs in schema alignment, record linkage, and fusion.
+- [x] Every accepted LLM decision is validated, logged, reproducible, and source-supported.
+- [x] Invalid and unsupported outputs are counted as failures unless a documented fallback applies.
+- [x] No manual correction of LLM outputs is needed or allowed during evaluation.
+- [x] Live OpenAI structured-output smoke proof passed for schema, linkage, and fusion.
+
+Accepted proof run:
+
+```text
+run_20260610T193213Z_live_smoke
+schema_calls.jsonl: validation_status=valid, model=gpt-4.1-mini
+linkage_calls.jsonl: validation_status=valid, model=gpt-4.1-mini
+fusion_calls.jsonl: validation_status=valid, model=gpt-4.1-mini
+```
+
+Accepted verification commands:
+
+```bash
+uv run ruff check .
+uv run mypy packages\integration-core\src\mosaic
+uv run pytest
+uv run mosaic reproduce --fixture
+uv run mosaic pipeline run --config configs/experiments/m3_llm_assisted_example.json
+uv run mosaic experiment live-smoke configs/experiments/m3_live_smoke_example.json
+```
+
+Final verification result: 39 passing tests, fixture baseline reproduction passed, assisted fixture pipeline passed, and live OpenAI smoke passed.
 
 ### Risks / Watchpoints
 
-- LLM responses may be invalid or overconfident.
-- Prompt inputs may accidentally include ground truth.
-- Unrestricted LLM calls may make experiments too expensive.
-- Model-specific behavior can hurt reproducibility unless responses are cached or logged.
+- LLM responses may still be invalid or overconfident; current mitigation is strict structured validation, failure counting, abstention, and deterministic fallback.
+- Prompt inputs may accidentally include ground truth; current mitigation is payload filtering and tests that check prompt logs for ground-truth leakage.
+- Unrestricted LLM calls may make experiments too expensive; current mitigation is stage caps, run budgets, daily budgets, cache support, and quality-cost frontier artifacts.
+- Model-specific behavior can hurt reproducibility unless responses are cached or logged; current mitigation is response caching, full call logs, prompt versions, model settings, and run manifests.
 - M2 clustering diagnostics are useful routing inputs, but cluster truth must remain evaluation-only and must not enter LLM prompts.
 
 ### Unlocks

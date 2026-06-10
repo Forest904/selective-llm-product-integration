@@ -239,6 +239,8 @@ artifacts/tables/**
 artifacts/errors/**
 artifacts/exports/**
 artifacts/reports/**
+artifacts/llm_cache/**
+artifacts/llm_calls/**
 !artifacts/runs/.gitkeep
 !artifacts/models/.gitkeep
 !artifacts/figures/.gitkeep

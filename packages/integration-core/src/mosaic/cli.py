@@ -1,7 +1,10 @@
+import os
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 import typer
+from pydantic import BaseModel
 
 from mosaic.alaska import (
     local_alaska_candidate_metrics,
@@ -10,9 +13,18 @@ from mosaic.alaska import (
     write_dataset_config,
 )
 from mosaic.ingestion import ingest_dataset
+from mosaic.llm_gateway import LLMGateway
 from mosaic.m1_models import load_dataset_config
 from mosaic.m2_models import PipelineRunResult, load_baseline_pipeline_config
 from mosaic.m2_pipeline import StageName, run_baseline_pipeline
+from mosaic.m3_models import (
+    FusionLLMDecision,
+    LinkageLLMDecision,
+    SchemaLLMDecision,
+    load_llm_model_config,
+    load_m3_experiment_config,
+)
+from mosaic.m3_pipeline import run_assisted_pipeline
 from mosaic.profiling import profile_dataset, write_profile_summary_table
 from mosaic.schema_validation import validate_mediated_schema
 
@@ -23,12 +35,14 @@ report_app = typer.Typer(help="Report generation commands.")
 schema_app = typer.Typer(help="Mediated schema commands.")
 claims_app = typer.Typer(help="Claim extraction commands.")
 export_app = typer.Typer(help="Export commands.")
+experiment_app = typer.Typer(help="Experiment execution commands.")
 app.add_typer(dataset_app, name="dataset")
 app.add_typer(pipeline_app, name="pipeline")
 app.add_typer(report_app, name="report")
 app.add_typer(schema_app, name="schema")
 app.add_typer(claims_app, name="claims")
 app.add_typer(export_app, name="export")
+app.add_typer(experiment_app, name="experiment")
 
 REQUIRED_SCAFFOLD_PATHS = (
     ".env.example",
@@ -281,11 +295,15 @@ def match(
     ] = Path("configs/pipelines/baseline_m2.json"),
 ) -> None:
     """Generate pairwise features and baseline match predictions."""
-    if pipeline != "baseline":
-        typer.echo("M2 supports only --pipeline baseline.")
+    if pipeline not in {"baseline", "llm-assisted"}:
+        typer.echo("supported pipelines: baseline, llm-assisted")
         raise typer.Exit(code=1)
-    result = _run_pipeline_stage(config, "match")
-    typer.echo(f"wrote pair predictions for {result.run_id}")
+    if pipeline == "llm-assisted":
+        result = _run_assisted_pipeline_stage(config, "match")
+        typer.echo(f"wrote assisted pair predictions for {result.run_id}")
+    else:
+        result = _run_pipeline_stage(config, "match")
+        typer.echo(f"wrote pair predictions for {result.run_id}")
 
 
 @app.command("cluster")
@@ -324,11 +342,15 @@ def fuse(
     ] = Path("configs/pipelines/baseline_m2.json"),
 ) -> None:
     """Fuse deterministic claims into baseline integrated entities."""
-    if pipeline != "baseline":
-        typer.echo("M2 supports only --pipeline baseline.")
+    if pipeline not in {"baseline", "llm-assisted"}:
+        typer.echo("supported pipelines: baseline, llm-assisted")
         raise typer.Exit(code=1)
-    result = _run_pipeline_stage(config, "fuse")
-    typer.echo(f"wrote fused values for {result.run_id}")
+    if pipeline == "llm-assisted":
+        result = _run_assisted_pipeline_stage(config, "export")
+        typer.echo(f"wrote assisted fused values for {result.run_id}")
+    else:
+        result = _run_pipeline_stage(config, "fuse")
+        typer.echo(f"wrote fused values for {result.run_id}")
 
 
 @app.command("evaluate")
@@ -362,9 +384,111 @@ def pipeline_run(
         typer.Option(help="Baseline pipeline config JSON path."),
     ] = Path("configs/pipelines/baseline_m2.json"),
 ) -> None:
-    """Run the deterministic baseline pipeline end to end."""
-    result = _run_pipeline_stage(config, "export")
-    typer.echo(f"baseline pipeline completed: {result.run_id}")
+    """Run a baseline pipeline config or an M3 assisted experiment config."""
+    if _looks_like_m3_experiment_config(config):
+        result = _run_assisted_pipeline_stage(config, "export")
+        typer.echo(f"assisted pipeline completed: {result.run_id}")
+    else:
+        result = _run_pipeline_stage(config, "export")
+        typer.echo(f"baseline pipeline completed: {result.run_id}")
+
+
+@experiment_app.command("run")
+def experiment_run(
+    config: Annotated[
+        Path,
+        typer.Argument(help="Experiment config JSON path."),
+    ] = Path("configs/experiments/m3_llm_assisted_example.json"),
+) -> None:
+    """Run an experiment configuration."""
+    result = _run_assisted_pipeline_stage(config, "export")
+    typer.echo(f"experiment completed: {result.run_id}")
+
+
+@experiment_app.command("live-smoke")
+def experiment_live_smoke(
+    config: Annotated[
+        Path,
+        typer.Argument(help="Experiment config JSON path."),
+    ] = Path("configs/experiments/m3_llm_assisted_example.json"),
+) -> None:
+    """Run one live schema/linkage/fusion LLM call when explicitly configured."""
+    root = _repo_root()
+    config_path = config if config.is_absolute() else root / config
+    experiment_config = load_m3_experiment_config(config_path)
+    model_config = load_llm_model_config(root / experiment_config.model_config_path)
+    if model_config.execution_mode not in {"live", "cache_or_live"}:
+        typer.echo("live smoke skipped: execution_mode is not live or cache_or_live")
+        return
+    if not model_config.model:
+        typer.echo("live smoke skipped: model is not configured")
+        return
+    if not os.environ.get("OPENAI_API_KEY"):
+        typer.echo("live smoke skipped: OPENAI_API_KEY is not set")
+        return
+
+    run_id = "run_" + datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ_live_smoke")
+    gateway = LLMGateway(model_config, root, run_id)
+    calls: list[tuple[str, str, type[BaseModel], str, dict[str, Any]]] = [
+        (
+            "schema",
+            experiment_config.prompt_versions.schema_prompt,
+            SchemaLLMDecision,
+            "mosaic_schema_decision",
+            {
+                "attribute_name": "maker",
+                "deterministic_candidates": [
+                    {"target_attribute_name": "brand", "score_total": 0.82}
+                ],
+                "allowed_targets": ["brand", "UNMAPPED", "ABSTAIN"],
+            },
+        ),
+        (
+            "linkage",
+            experiment_config.prompt_versions.linkage,
+            LinkageLLMDecision,
+            "mosaic_linkage_decision",
+            {
+                "candidate_pair_id": "smoke_pair",
+                "left_record": {"brand": "AOC", "model_number": "24B1"},
+                "right_record": {"brand": "AOC", "model_number": "24B1"},
+                "match_probability": 0.52,
+            },
+        ),
+        (
+            "fusion",
+            experiment_config.prompt_versions.fusion,
+            FusionLLMDecision,
+            "mosaic_fusion_decision",
+            {
+                "entity_id": "smoke_entity",
+                "attribute": "brand",
+                "candidate_claims": [
+                    {
+                        "claim_id": "c1",
+                        "source_id": "source_a",
+                        "raw_value": "AOC",
+                        "normalized_value": "AOC",
+                        "unit": None,
+                    }
+                ],
+                "allowed_outputs": ["AOC", "ABSTAIN"],
+            },
+        ),
+    ]
+    for stage, prompt_version, output_model, schema_name, payload in calls:
+        result = gateway.call_structured(
+            stage=stage,
+            prompt_version=prompt_version,
+            template_path=root / prompt_version / "template.md",
+            payload=payload,
+            output_model=output_model,
+            schema_name=schema_name,
+        )
+        if result.validation_status != "valid":
+            typer.echo(f"live smoke failed at {stage}: {result.failure_type}")
+            raise typer.Exit(code=1)
+    typer.echo(f"live smoke completed: {run_id}")
 
 
 @report_app.command("build")
@@ -402,3 +526,18 @@ def _run_pipeline_stage(config: Path, stage: StageName) -> PipelineRunResult:
     config_path = config if config.is_absolute() else root / config
     pipeline_config = load_baseline_pipeline_config(config_path)
     return run_baseline_pipeline(pipeline_config, root, stop_after=stage)
+
+
+def _run_assisted_pipeline_stage(config: Path, stage: StageName) -> PipelineRunResult:
+    root = _repo_root()
+    config_path = config if config.is_absolute() else root / config
+    experiment_config = load_m3_experiment_config(config_path)
+    return run_assisted_pipeline(experiment_config, root, stop_after=stage)
+
+
+def _looks_like_m3_experiment_config(config: Path) -> bool:
+    root = _repo_root()
+    config_path = config if config.is_absolute() else root / config
+    if not config_path.exists():
+        return False
+    return '"llm_assistance"' in config_path.read_text(encoding="utf-8")
