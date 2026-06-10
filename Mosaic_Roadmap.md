@@ -308,6 +308,8 @@ Each vertical directory must contain `{vertical}_specs/` and `{vertical}_ground_
 
 ## M2: Deterministic Baseline Pipeline
 
+**Status:** Implemented, hardened, and accepted as the deterministic baseline for M3 comparison.
+
 ### Goal
 
 Implement Pipeline A end to end with no LLM decisions.
@@ -320,69 +322,130 @@ Implement Pipeline A end to end with no LLM decisions.
 
 ### Implementation Checklist
 
-- Build deterministic schema alignment with name, type, value, and context evidence.
-- Support unmapped attributes and non-forced mappings.
-- Produce mapping candidates, accepted baseline mappings, score decompositions, and schema metrics.
-- Build deterministic normalizers for title, brand, model number, category, price, currency, measurements, URLs, and specifications.
-- Preserve raw values, canonical values, units, normalization method, and confidence.
-- Implement multi-pass blocking with rule attribution.
-- Include identifier blocks, rare model tokens, title token blocks, character signatures, category-aware retrieval, and specification signatures where feasible.
-- Compute blocking metrics, including candidate-pair count, pair completeness, reduction ratio, candidates per record, duplicate candidate rate, runtime, and memory where available.
-- Generate pairwise linkage features.
-- Implement transparent match/non-match rule baseline.
-- Implement logistic regression matcher as the main classical model.
-- Calibrate thresholds using validation data.
-- Use entity-safe train/validation/test splits.
-- Prevent ground-truth leakage into features or prompts.
-- Implement constraint-aware agglomerative clustering.
-- Retain connected-components clustering as a comparison baseline.
-- Log accepted and rejected cluster merges.
-- Extract attribute claims from clusters.
-- Implement deterministic attribute-specific fusion policies.
-- Export baseline integrated entities.
-- Compute baseline component and end-to-end metrics.
-- Add unit tests for normalizers, schema scoring, blocking keys, similarity features, clustering constraints, and fusion rules.
-- Add invariant tests for pair validity, cluster membership, claim references, and fused-value support.
-- Add golden tests for obvious match, obvious non-match, punctuation-only model difference, variant conflict, bundle confusion, ambiguous schema field, wrong unit, stale price, and copied specification error.
-- Add stage integration tests for ingestion to profiling, profiling to mapping, normalization to blocking, blocking to matching, matching to clustering, clustering to claims, and claims to fusion.
+- [x] Build deterministic schema alignment with name, type, value, and context evidence.
+- [x] Support unmapped attributes and non-forced mappings.
+- [x] Produce mapping candidates, accepted baseline mappings, score decompositions, and schema metrics.
+- [x] Split schema evaluation into core schema metrics and detailed monitor schema metrics.
+- [x] Add exact normalized-name matching and monitor-label synonyms before weighted fuzzy scoring.
+- [x] Add schema error artifacts for false positives, false negatives, ambiguous top candidates, and unmapped gold fields.
+- [x] Build deterministic normalizers for title, brand, model number, category, price, currency, measurements, URLs, booleans, and specifications.
+- [x] Preserve raw values, canonical values, units, normalization method, confidence, source record, and source attribute.
+- [x] Implement multi-pass blocking with rule attribution.
+- [x] Include brand/model blocks, rare model/title tokens, character signatures, category-aware retrieval, and specification signatures where feasible.
+- [x] Compute blocking metrics, including candidate-pair count, pair completeness, reduction ratio, candidates per record, duplicate candidate rate, runtime, and memory where available.
+- [x] Generate pairwise linkage features without ground-truth leakage.
+- [x] Implement transparent match/non-match rule baseline.
+- [x] Implement logistic regression matcher as the main classical model using `scikit-learn`.
+- [x] Calibrate thresholds using validation data.
+- [x] Use entity-safe train/validation/test splits with fixed seed `13`.
+- [x] Prevent ground-truth leakage into features or prompts.
+- [x] Implement constraint-aware agglomerative clustering as the primary clusterer.
+- [x] Decouple pair prediction threshold from cluster merge threshold.
+- [x] Add cluster merge constraints for same-source duplication, incompatible brands, incompatible model families, conflicting screen size/resolution, and oversized clusters.
+- [x] Retain connected-components clustering as a comparison baseline only.
+- [x] Log accepted and rejected cluster merges with reasons.
+- [x] Add cluster evidence and error artifacts for over-merge, under-merge, weak-bridge, and largest-cluster diagnostics.
+- [x] Extract attribute claims from clusters.
+- [x] Implement deterministic attribute-specific fusion policies.
+- [x] Add bootstrap and curated fusion gold subsets with separate metric reporting.
+- [x] Add fusion error artifacts for curated errors, unsupported selections, and high-conflict attributes.
+- [x] Export baseline integrated entities.
+- [x] Compute baseline component and end-to-end metrics.
+- [x] Validate key output rows through Pydantic artifact models at write boundaries.
+- [x] Generate an M2 baseline summary report.
+- [x] Add unit tests for normalizers, schema scoring, blocking keys, similarity features, clustering constraints, fusion rules, and artifact validation.
+- [x] Add invariant tests for pair validity, cluster membership, claim references, fused-value support, and leakage-safe features.
+- [x] Add golden tests for obvious match, obvious non-match, punctuation-only model difference, variant conflict, bundle confusion, ambiguous schema field, wrong unit, stale price, and copied specification error.
+- [x] Add stage integration tests for ingestion to profiling, profiling to mapping, normalization to blocking, blocking to matching, matching to clustering, clustering to claims, and claims to fusion.
 
 ### Deliverables
 
-- Baseline mapping outputs.
-- Schema evaluation metrics.
-- Normalized records and values.
-- Candidate pairs and blocking metrics.
-- Pairwise feature artifacts.
-- Pair predictions.
-- Linkage metrics.
-- Entity clusters and memberships.
-- Cluster metrics.
-- Attribute claims.
-- Fused values.
-- Baseline integrated entities.
-- Fusion metrics.
-- Baseline error candidates.
-- Baseline pipeline tests.
+- [x] `configs/schemas/monitor_mediated_schema.json` with core Mosaic attributes plus detailed monitor-specific mediated attributes.
+- [x] `configs/pipelines/baseline_m2.json` for full local Alaska monitor runs.
+- [x] `configs/pipelines/fixture_m2.json` for CI-safe fixture reproduction.
+- [x] M2 artifact models in `packages/integration-core/src/mosaic/m2_models.py`.
+- [x] Deterministic baseline implementation in `packages/integration-core/src/mosaic/m2_pipeline.py`.
+- [x] Baseline mapping outputs.
+- [x] Schema evaluation metrics, including `core_schema_metrics` and `monitor_detail_schema_metrics`.
+- [x] Normalized records and values.
+- [x] Candidate pairs and blocking metrics.
+- [x] Pairwise feature artifacts.
+- [x] Pair predictions.
+- [x] Linkage metrics.
+- [x] Entity clusters and memberships.
+- [x] Cluster metrics and cluster diagnostics.
+- [x] Attribute claims.
+- [x] Fused values.
+- [x] Baseline integrated entities.
+- [x] Bootstrap and curated fusion metrics.
+- [x] Baseline error candidates for schema, clustering, and fusion.
+- [x] `reports/m2_baseline_summary.md`.
+- [x] Baseline pipeline tests in `tests/test_m2_baseline.py`.
+
+### Implemented CLI And Commands
+
+```bash
+uv run mosaic pipeline run --config configs/pipelines/baseline_m2.json
+uv run mosaic schema propose --config configs/pipelines/baseline_m2.json
+uv run mosaic schema evaluate --config configs/pipelines/baseline_m2.json
+uv run mosaic normalize --config configs/pipelines/baseline_m2.json
+uv run mosaic block --config configs/pipelines/baseline_m2.json
+uv run mosaic match --config configs/pipelines/baseline_m2.json
+uv run mosaic cluster --config configs/pipelines/baseline_m2.json
+uv run mosaic claims extract --config configs/pipelines/baseline_m2.json
+uv run mosaic fuse --config configs/pipelines/baseline_m2.json
+uv run mosaic evaluate --config configs/pipelines/baseline_m2.json
+uv run mosaic export integrated --config configs/pipelines/baseline_m2.json
+uv run mosaic reproduce --fixture
+```
+
+Fixture reproduction runs the full M2 fixture baseline. Full Alaska monitor reproduction depends on the manually supplied local Alaska files documented in M1.
+
+### Accepted Baseline Results
+
+Latest full local Alaska monitor hardening run:
+
+- Run ID: `run_20260610T164102Z_baseline_m2_alaska_monit_2e9a3d55`
+- Schema F1: `0.4833`
+- Core schema F1: `0.8980`
+- Monitor detail schema F1: `0.4687`
+- Candidate pairs: `588531`
+- Blocking pair completeness: `0.9656`
+- Linkage test F1: `0.9286`
+- Agglomerative cluster F1: `0.1298`
+- Connected-components cluster F1: `0.0003`
+- Curated fusion accuracy: `0.7143`
+- Bootstrap fusion accuracy: `0.6026`
+
+The hardening pass reduced agglomerative cluster false positives from roughly `280987` to `7951`, while preserving diagnostic artifacts for the remaining over-merge and under-merge cases.
 
 ### Acceptance Gate
 
-- CLI can run from raw sources to final integrated entities with no LLM use.
-- Baseline artifacts are reproducible from committed configs and documented data inputs.
-- Required assignment metrics can be computed for baseline pipeline components.
-- Every final baseline value can be traced to source claims.
+- [x] CLI can run from raw sources to final integrated entities with no LLM use.
+- [x] Baseline artifacts are reproducible from committed configs and documented data inputs.
+- [x] Required assignment metrics can be computed for baseline pipeline components.
+- [x] Every final baseline value can be traced to source claims.
+- [x] Fixture reproduction succeeds through `make reproduce`.
+- [x] Full local Alaska monitor baseline succeeds through `uv run mosaic pipeline run --config configs/pipelines/baseline_m2.json`.
+- [x] `make test` succeeds.
+- [x] `make lint` succeeds.
 
 ### Risks / Watchpoints
 
-- Blocking false negatives can cap linkage recall.
-- Logistic regression may need careful feature scaling and calibration.
-- Connected-components clustering may over-merge through weak bridges.
-- Majority fusion may select stale or copied values.
+- Blocking false negatives can cap linkage recall. Current baseline has high pair completeness, but M3 should still inspect missed truth entities.
+- Monitor-detail schema alignment remains much weaker than core schema alignment.
+- Agglomerative clustering is substantially safer after hardening, but cluster quality is still the weakest baseline component and should be a primary M3 routing target.
+- Connected-components clustering over-merges badly and is retained only as a comparison baseline.
+- Bootstrap fusion labels are majority-derived diagnostics, not manual truth.
+- The curated fusion subset is intentionally small and should be expanded before final M4 reporting.
+- Majority-style fusion may still select stale, copied, or low-support values.
 
 ### Unlocks
 
 - LLM-assisted schema, linkage, and fusion adjudication.
 - Baseline comparison tables.
 - Error analysis for deterministic failure modes.
+- M3 routing targets based on ambiguous schema mappings, weak cluster bridges, over-merged clusters, under-merged truth entities, curated fusion errors, and high-conflict fused attributes.
 
 ---
 
@@ -394,8 +457,8 @@ Implement Pipeline B with selective LLM use in schema alignment, record linkage,
 
 ### Prerequisites
 
-- M2 accepted.
-- Baseline outputs expose uncertainty, scores, conflicts, and candidate cases.
+- M2 accepted and hardened.
+- Baseline outputs expose uncertainty, scores, conflicts, candidate cases, and stage-specific error artifacts.
 - Prompt directory and model config conventions exist.
 
 ### Implementation Checklist
@@ -409,10 +472,13 @@ Implement Pipeline B with selective LLM use in schema alignment, record linkage,
 - Create JSON schemas or Pydantic models for every structured LLM output.
 - Create model configuration files with provider, model identifier, temperature, max tokens, retry count, timeout, cache mode, and structured-output mode.
 - Implement LLM-assisted schema alignment only for uncertain mappings.
+- Route schema calls from M2 ambiguous candidates, unmapped gold fields for evaluation analysis, and low-margin accepted mappings.
 - Enforce allowed schema outputs: known target attribute, `UNMAPPED`, or `ABSTAIN`.
 - Implement LLM-assisted record linkage only for borderline candidate pairs.
+- Route linkage and clustering calls from M2 weak bridges, over-merged clusters, under-merged truth entities, and borderline pair probabilities.
 - Tune the uncertainty band on validation data.
 - Implement LLM-assisted fusion only for unresolved claim conflicts.
+- Route fusion calls from M2 curated fusion errors, low-support selected values, unsupported-value diagnostics, and high-conflict attributes.
 - Restrict fusion outputs to allowed values or `ABSTAIN`.
 - Reject invented values, unsupported values, incompatible units, and unknown claim IDs.
 - Implement abstention and deterministic fallback policy.
@@ -431,6 +497,7 @@ Implement Pipeline B with selective LLM use in schema alignment, record linkage,
 - Structured output schemas.
 - Response cache.
 - LLM call logs.
+- Routing manifests built from M2 schema, linkage, clustering, and fusion diagnostics.
 - Assisted schema mapping artifacts.
 - Assisted linkage artifacts.
 - Assisted fusion artifacts.
@@ -452,6 +519,7 @@ Implement Pipeline B with selective LLM use in schema alignment, record linkage,
 - Prompt inputs may accidentally include ground truth.
 - Unrestricted LLM calls may make experiments too expensive.
 - Model-specific behavior can hurt reproducibility unless responses are cached or logged.
+- M2 clustering diagnostics are useful routing inputs, but cluster truth must remain evaluation-only and must not enter LLM prompts.
 
 ### Unlocks
 
@@ -898,4 +966,4 @@ When updating the roadmap, keep milestone IDs stable where possible so implement
 
 ## 9. Immediate Next Step
 
-Begin with M0. Do not start broad website implementation before M1 through M4 are on track, because the website depends on stable research artifacts and the academic release is the first required gate.
+Begin M3 using the accepted M2 baseline diagnostics as routing inputs. Prioritize selective LLM adjudication for ambiguous schema mappings, borderline linkage decisions, weak cluster bridges, over-merged and under-merged cluster cases, curated fusion errors, low-support fused values, and high-conflict attributes. Do not start broad website implementation before M4 is on track, because the website depends on stable research artifacts and the academic release is the first required gate.

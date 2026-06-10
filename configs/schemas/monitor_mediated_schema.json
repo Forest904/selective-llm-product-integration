@@ -1,0 +1,887 @@
+{
+  "schema_version": "mosaic_monitor_v1",
+  "domain": "product_monitor",
+  "attributes": [
+    {
+      "id": "attr_brand",
+      "name": "brand",
+      "type": "string",
+      "description": "Product brand or manufacturer name.",
+      "required": true,
+      "nullable": true,
+      "normalization": "canonicalize common casing and aliases without inventing unsupported brands"
+    },
+    {
+      "id": "attr_category",
+      "name": "category",
+      "type": "string",
+      "description": "Product category or vertical label.",
+      "required": true,
+      "nullable": true,
+      "normalization": "map source category labels to a compact canonical vocabulary"
+    },
+    {
+      "id": "attr_currency",
+      "name": "currency",
+      "type": "string",
+      "description": "ISO-like currency code or symbol-derived currency for the associated price.",
+      "required": true,
+      "nullable": true,
+      "normalization": "normalize symbols and names to currency codes where unambiguous"
+    },
+    {
+      "id": "attr_description",
+      "name": "description",
+      "type": "string",
+      "description": "Short product description or feature summary.",
+      "required": true,
+      "nullable": true,
+      "normalization": "trim and preserve source-supported descriptive text"
+    },
+    {
+      "id": "attr_model_number",
+      "name": "model_number",
+      "type": "string",
+      "description": "Manufacturer model number or model identifier used for linkage and entity display.",
+      "required": true,
+      "nullable": true,
+      "normalization": "remove decorative punctuation where safe, preserve alphanumeric identity"
+    },
+    {
+      "id": "attr_price",
+      "name": "price",
+      "type": "decimal",
+      "description": "Observed product price as a numeric amount when available.",
+      "required": true,
+      "nullable": true,
+      "normalization": "parse numeric amount separately from currency and keep source claim provenance"
+    },
+    {
+      "id": "attr_specifications",
+      "name": "specifications",
+      "type": "object",
+      "description": "Semi-structured long-tail product specifications preserved as independently traceable claims.",
+      "required": true,
+      "nullable": false,
+      "normalization": "store each key as a specification claim with raw value, parsed value, optional unit, and provenance"
+    },
+    {
+      "id": "attr_title",
+      "name": "title",
+      "type": "string",
+      "description": "Human-readable product title from page titles, product names, or equivalent source fields.",
+      "required": true,
+      "nullable": false,
+      "normalization": "trim whitespace, collapse repeated spaces, preserve meaningful casing for display"
+    },
+    {
+      "id": "attr_bluetooth",
+      "name": "bluetooth",
+      "type": "string",
+      "description": "Monitor-specific mediated attribute for Bluetooth from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_color",
+      "name": "color",
+      "type": "string",
+      "description": "Monitor-specific mediated attribute for Color from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_color_feet",
+      "name": "color_feet",
+      "type": "string",
+      "description": "Monitor-specific mediated attribute for Color Feet from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_contrast_ratio_dynamic",
+      "name": "contrast_ratio_dynamic",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Contrast Ratio Dynamic from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_contrast_ratio_static",
+      "name": "contrast_ratio_static",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Contrast Ratio Static from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_digital_horizontal_refresh_rate_max",
+      "name": "digital_horizontal_refresh_rate_max",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Digital Horizontal Refresh Rate Max from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_digital_horizontal_refresh_rate_range",
+      "name": "digital_horizontal_refresh_rate_range",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Digital Horizontal Refresh Rate Range from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_digital_vertical_refresh_rate_max",
+      "name": "digital_vertical_refresh_rate_max",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Digital Vertical Refresh Rate Max from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_digital_vertical_refresh_rate_range",
+      "name": "digital_vertical_refresh_rate_range",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Digital Vertical Refresh Rate Range from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_displayport_quantity",
+      "name": "displayport_quantity",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Displayport Quantity from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_dvi_port_quantity",
+      "name": "dvi_port_quantity",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Dvi Port Quantity from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_dvid_port_quantity",
+      "name": "dvid_port_quantity",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Dvid Port Quantity from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_dvii_port_quantity",
+      "name": "dvii_port_quantity",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Dvii Port Quantity from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_ethernet_port_quantity",
+      "name": "ethernet_port_quantity",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Ethernet Port Quantity from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_has_displayport",
+      "name": "has_displayport",
+      "type": "boolean",
+      "description": "Monitor-specific mediated attribute for Has Displayport from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_has_dvi_port",
+      "name": "has_dvi_port",
+      "type": "boolean",
+      "description": "Monitor-specific mediated attribute for Has Dvi Port from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_has_dvid_port",
+      "name": "has_dvid_port",
+      "type": "boolean",
+      "description": "Monitor-specific mediated attribute for Has Dvid Port from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_has_ethernet_port",
+      "name": "has_ethernet_port",
+      "type": "boolean",
+      "description": "Monitor-specific mediated attribute for Has Ethernet Port from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_has_full_hd",
+      "name": "has_full_hd",
+      "type": "boolean",
+      "description": "Monitor-specific mediated attribute for Has Full Hd from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_has_hdmi_port",
+      "name": "has_hdmi_port",
+      "type": "boolean",
+      "description": "Monitor-specific mediated attribute for Has Hdmi Port from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_has_headphone_port",
+      "name": "has_headphone_port",
+      "type": "boolean",
+      "description": "Monitor-specific mediated attribute for Has Headphone Port from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_has_microphone",
+      "name": "has_microphone",
+      "type": "boolean",
+      "description": "Monitor-specific mediated attribute for Has Microphone from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_has_microphone_input",
+      "name": "has_microphone_input",
+      "type": "boolean",
+      "description": "Monitor-specific mediated attribute for Has Microphone Input from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_has_speakers",
+      "name": "has_speakers",
+      "type": "boolean",
+      "description": "Monitor-specific mediated attribute for Has Speakers from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_has_speakers_output",
+      "name": "has_speakers_output",
+      "type": "boolean",
+      "description": "Monitor-specific mediated attribute for Has Speakers Output from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_has_subwoofer",
+      "name": "has_subwoofer",
+      "type": "boolean",
+      "description": "Monitor-specific mediated attribute for Has Subwoofer from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_has_usb_port",
+      "name": "has_usb_port",
+      "type": "boolean",
+      "description": "Monitor-specific mediated attribute for Has Usb Port from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_has_vga_port",
+      "name": "has_vga_port",
+      "type": "boolean",
+      "description": "Monitor-specific mediated attribute for Has Vga Port from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_hd_type",
+      "name": "hd_type",
+      "type": "string",
+      "description": "Monitor-specific mediated attribute for Hd Type from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_hdmi_port_quantity",
+      "name": "hdmi_port_quantity",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Hdmi Port Quantity from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_headphone_port_quantity",
+      "name": "headphone_port_quantity",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Headphone Port Quantity from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_headphone_port_type",
+      "name": "headphone_port_type",
+      "type": "string",
+      "description": "Monitor-specific mediated attribute for Headphone Port Type from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_horizontal_refresh_rate_max",
+      "name": "horizontal_refresh_rate_max",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Horizontal Refresh Rate Max from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_horizontal_refresh_rate_range",
+      "name": "horizontal_refresh_rate_range",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Horizontal Refresh Rate Range from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_input_frequency",
+      "name": "input_frequency",
+      "type": "string",
+      "description": "Monitor-specific mediated attribute for Input Frequency from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_minidisplayport_quantity",
+      "name": "minidisplayport_quantity",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Minidisplayport Quantity from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_monitor_depth",
+      "name": "monitor_depth",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Monitor Depth from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_monitor_depth_with_stand",
+      "name": "monitor_depth_with_stand",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Monitor Depth With Stand from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_monitor_dimension",
+      "name": "monitor_dimension",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Monitor Dimension from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_monitor_dimension_with_stand",
+      "name": "monitor_dimension_with_stand",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Monitor Dimension With Stand from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_monitor_height",
+      "name": "monitor_height",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Monitor Height from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_monitor_height_with_stand",
+      "name": "monitor_height_with_stand",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Monitor Height With Stand from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_monitor_weight",
+      "name": "monitor_weight",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Monitor Weight from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_monitor_weight_with_stand",
+      "name": "monitor_weight_with_stand",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Monitor Weight With Stand from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_monitor_width",
+      "name": "monitor_width",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Monitor Width from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_monitor_width_with_stand",
+      "name": "monitor_width_with_stand",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Monitor Width With Stand from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_mount_model",
+      "name": "mount_model",
+      "type": "string",
+      "description": "Monitor-specific mediated attribute for Mount Model from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_mount_type",
+      "name": "mount_type",
+      "type": "string",
+      "description": "Monitor-specific mediated attribute for Mount Type from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_non_operating_working_altitude",
+      "name": "non_operating_working_altitude",
+      "type": "string",
+      "description": "Monitor-specific mediated attribute for Non Operating Working Altitude from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_number_of_colors",
+      "name": "number_of_colors",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Number Of Colors from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_operating_working_altitude",
+      "name": "operating_working_altitude",
+      "type": "string",
+      "description": "Monitor-specific mediated attribute for Operating Working Altitude from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_packaging_depth",
+      "name": "packaging_depth",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Packaging Depth from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_packaging_dimension",
+      "name": "packaging_dimension",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Packaging Dimension from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_packaging_height",
+      "name": "packaging_height",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Packaging Height from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_packaging_weight",
+      "name": "packaging_weight",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Packaging Weight from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_packaging_width",
+      "name": "packaging_width",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Packaging Width from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_pixel_pitch",
+      "name": "pixel_pitch",
+      "type": "string",
+      "description": "Monitor-specific mediated attribute for Pixel Pitch from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_power_consumption_class",
+      "name": "power_consumption_class",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Power Consumption Class from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_power_consumption_max",
+      "name": "power_consumption_max",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Power Consumption Max from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_power_consumption_standy",
+      "name": "power_consumption_standy",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Power Consumption Standy from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_response_time",
+      "name": "response_time",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Response Time from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_screen_brightness",
+      "name": "screen_brightness",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Screen Brightness from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_screen_size_diagonal",
+      "name": "screen_size_diagonal",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Screen Size Diagonal from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_screen_size_horizontal",
+      "name": "screen_size_horizontal",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Screen Size Horizontal from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_screen_size_vertical",
+      "name": "screen_size_vertical",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Screen Size Vertical from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_screen_type",
+      "name": "screen_type",
+      "type": "string",
+      "description": "Monitor-specific mediated attribute for Screen Type from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_speakers_quantity",
+      "name": "speakers_quantity",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Speakers Quantity from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_supported_aspect_ratio",
+      "name": "supported_aspect_ratio",
+      "type": "string",
+      "description": "Monitor-specific mediated attribute for Supported Aspect Ratio from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_supported_languages",
+      "name": "supported_languages",
+      "type": "string",
+      "description": "Monitor-specific mediated attribute for Supported Languages from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_supported_languages_number",
+      "name": "supported_languages_number",
+      "type": "string",
+      "description": "Monitor-specific mediated attribute for Supported Languages Number from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_supported_resolution",
+      "name": "supported_resolution",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Supported Resolution from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_usb_port2_quantity",
+      "name": "usb_port2_quantity",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Usb Port2 Quantity from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_usb_port2_upstream_quantity",
+      "name": "usb_port2_upstream_quantity",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Usb Port2 Upstream Quantity from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_usb_port3_quantity",
+      "name": "usb_port3_quantity",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Usb Port3 Quantity from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_usb_port3_upstream_quantity",
+      "name": "usb_port3_upstream_quantity",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Usb Port3 Upstream Quantity from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_usb_port_quantity",
+      "name": "usb_port_quantity",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Usb Port Quantity from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_usb_port_version",
+      "name": "usb_port_version",
+      "type": "string",
+      "description": "Monitor-specific mediated attribute for Usb Port Version from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_vertical_refresh_rate_max",
+      "name": "vertical_refresh_rate_max",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Vertical Refresh Rate Max from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_vertical_refresh_rate_range",
+      "name": "vertical_refresh_rate_range",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Vertical Refresh Rate Range from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_vga_port_quantity",
+      "name": "vga_port_quantity",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Vga Port Quantity from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_warranty_duration",
+      "name": "warranty_duration",
+      "type": "string",
+      "description": "Monitor-specific mediated attribute for Warranty Duration from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_wifi",
+      "name": "wifi",
+      "type": "string",
+      "description": "Monitor-specific mediated attribute for Wifi from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_working_humidity",
+      "name": "working_humidity",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Working Humidity from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_working_temperature_max",
+      "name": "working_temperature_max",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Working Temperature Max from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_working_temperature_min",
+      "name": "working_temperature_min",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Working Temperature Min from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    },
+    {
+      "id": "attr_working_temperature_range",
+      "name": "working_temperature_range",
+      "type": "decimal",
+      "description": "Monitor-specific mediated attribute for Working Temperature Range from the Alaska monitor schema labels.",
+      "required": false,
+      "nullable": true,
+      "normalization": "deterministic monitor-specific normalization with raw claim provenance"
+    }
+  ],
+  "specifications_shape": {
+    "type": "object",
+    "additional_properties": {
+      "type": "object",
+      "required": [
+        "raw_value",
+        "source_claim_ids"
+      ],
+      "properties": {
+        "raw_value": {
+          "type": "string"
+        },
+        "normalized_value": {
+          "type": [
+            "string",
+            "number",
+            "boolean",
+            "null"
+          ]
+        },
+        "unit": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source_claim_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

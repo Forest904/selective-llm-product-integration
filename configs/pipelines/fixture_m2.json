@@ -1,0 +1,43 @@
+{
+  "pipeline_id": "baseline_m2_fixture",
+  "dataset_config": "configs/datasets/fixture_dataset.json",
+  "schema_path": "configs/schemas/mediated_schema.json",
+  "random_seed": 13,
+  "artifact_root": "artifacts/runs",
+  "llm_decisions": false,
+  "schema": {
+    "name_weight": 0.45,
+    "type_weight": 0.2,
+    "value_weight": 0.25,
+    "context_weight": 0.1,
+    "accept_threshold": 0.55,
+    "accept_margin": 0.03
+  },
+  "blocking": {
+    "max_block_size": 50,
+    "rare_token_max_frequency": 20,
+    "title_token_limit": 6,
+    "qgram_size": 3
+  },
+  "matcher": {
+    "train_fraction": 0.6,
+    "validation_fraction": 0.2,
+    "test_fraction": 0.2,
+    "default_threshold": 0.5,
+    "threshold_grid": [0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8]
+  },
+  "clustering": {
+    "min_match_probability": 0.5,
+    "cluster_min_match_probability": 0.5,
+    "enforce_brand_constraint": true,
+    "enforce_model_constraint": true,
+    "enforce_same_source_constraint": true,
+    "enforce_spec_signature_constraint": true,
+    "max_cluster_size": 10
+  },
+  "fusion": {
+    "bootstrap_fusion_gold_path": "data/ground_truth/fusion_annotation_format.jsonl",
+    "curated_fusion_gold_path": null,
+    "numeric_tolerance": 0.05
+  }
+}

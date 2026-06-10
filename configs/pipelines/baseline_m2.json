@@ -1,0 +1,43 @@
+{
+  "pipeline_id": "baseline_m2_alaska_monitor",
+  "dataset_config": "configs/datasets/selected_dataset.json",
+  "schema_path": "configs/schemas/monitor_mediated_schema.json",
+  "random_seed": 13,
+  "artifact_root": "artifacts/runs",
+  "llm_decisions": false,
+  "schema": {
+    "name_weight": 0.45,
+    "type_weight": 0.2,
+    "value_weight": 0.25,
+    "context_weight": 0.1,
+    "accept_threshold": 0.58,
+    "accept_margin": 0.05
+  },
+  "blocking": {
+    "max_block_size": 120,
+    "rare_token_max_frequency": 50,
+    "title_token_limit": 4,
+    "qgram_size": 3
+  },
+  "matcher": {
+    "train_fraction": 0.6,
+    "validation_fraction": 0.2,
+    "test_fraction": 0.2,
+    "default_threshold": 0.5,
+    "threshold_grid": [0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9]
+  },
+  "clustering": {
+    "min_match_probability": 0.5,
+    "cluster_min_match_probability": 0.72,
+    "enforce_brand_constraint": true,
+    "enforce_model_constraint": true,
+    "enforce_same_source_constraint": true,
+    "enforce_spec_signature_constraint": true,
+    "max_cluster_size": 30
+  },
+  "fusion": {
+    "bootstrap_fusion_gold_path": "data/ground_truth/monitor_fusion_gold.jsonl",
+    "curated_fusion_gold_path": "data/ground_truth/monitor_fusion_curated_gold.jsonl",
+    "numeric_tolerance": 0.05
+  }
+}
