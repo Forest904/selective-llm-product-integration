@@ -71,9 +71,9 @@ For exact traceability, consult `Mosaic_PRD.md`.
 Follow the blueprint stack unless a deliberate architecture decision changes it:
 
 - **Research/data:** Python 3.12, Polars, PyArrow/Parquet, DuckDB, scikit-learn, RapidFuzz, datasketch, NetworkX, Pydantic, MLflow, Typer, pytest, Ruff, mypy, uv.
-- **Backend:** FastAPI, Pydantic, SQLAlchemy, Alembic, PostgreSQL, Redis, Celery or Dramatiq.
+- **Backend:** FastAPI, Pydantic, SQLAlchemy, Alembic, PostgreSQL-backed job orchestration.
 - **Frontend:** Next.js, React, TypeScript, App Router, TanStack Query/Table, React Hook Form, Zod, Tailwind CSS, shadcn/ui, Plotly or ECharts.
-- **Storage/execution:** PostgreSQL for operational metadata, Parquet for immutable artifacts, filesystem or S3-compatible object storage for datasets/exports/logs, Redis for queue state, DuckDB for analytics, Docker Compose for initial deployment.
+- **Storage/execution:** PostgreSQL for operational metadata, review queues, job state, retries, cancellation, and progress records; Parquet for immutable artifacts; filesystem or S3-compatible object storage for datasets/exports/logs; DuckDB for analytics; Docker Compose for initial deployment.
 
 ## Planned Repo Structure
 

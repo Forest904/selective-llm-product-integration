@@ -1765,8 +1765,7 @@ Pydantic
 SQLAlchemy
 Alembic
 PostgreSQL
-Redis
-Celery or Dramatiq
+PostgreSQL-backed job orchestration
 ```
 
 FastAPI keeps the API layer in Python, allowing the web service to reuse the pipeline’s domain models and validation schemas rather than duplicating them in another backend language. Its documented development workflow includes an integrated CLI and Uvicorn-based server. ([FastAPI][3])
@@ -1808,15 +1807,14 @@ Next.js App Router provides the file-system routing and React server/client arch
 PostgreSQL
 Parquet
 local filesystem or S3-compatible object storage
-Redis
 ```
 
 Use each for a distinct role:
 
 * **PostgreSQL:** operational metadata, users, decisions, reviews;
+* **PostgreSQL job tables:** pending work, claimed jobs, progress, retries, cancellation, failures, and artifact links;
 * **Parquet:** large immutable pipeline artifacts;
 * **object storage:** datasets, exports, logs, model artifacts;
-* **Redis:** task queue and transient state;
 * **DuckDB:** analytical queries across Parquet outputs.
 
 # Deployment
@@ -1834,7 +1832,6 @@ frontend container
 API container
 worker container
 PostgreSQL
-Redis
 object storage
 reverse proxy
 ```
@@ -3364,9 +3361,10 @@ Run long pipeline operations safely from the application.
 
 ### Work
 
-* configure queue;
+* configure PostgreSQL-backed job tables;
 * create worker;
 * define stage jobs;
+* claim pending jobs from PostgreSQL;
 * support retries and cancellation;
 * persist progress;
 * stream status to clients.

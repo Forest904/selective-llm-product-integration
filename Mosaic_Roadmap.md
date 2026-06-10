@@ -111,7 +111,7 @@ Prepare the repository and project conventions so the research system can be bui
 - [x] Establish the monorepo structure for research package, configs, prompts, data, artifacts, reports, tests, API, worker, and web.
 - [x] Configure Python tooling: `uv`, `pyproject.toml`, Ruff, mypy, pytest, and a Typer CLI entry point named `mosaic`.
 - [x] Configure frontend placeholders: root `package.json`, `pnpm-workspace.yaml`, and `apps/web/package.json` without initializing a full Next.js application.
-- [x] Add `docker-compose.yml` skeleton for future PostgreSQL and Redis services, without making containers required for M0 checks.
+- [x] Add `docker-compose.yml` skeleton for future PostgreSQL service, without making containers required for M0 checks.
 - [x] Add `.env.example` with non-secret configuration names.
 - [x] Add Makefile commands for install, lint, test, reproduce, dev, and report generation.
 - [x] Add README reproduction skeleton and command documentation.
@@ -472,7 +472,7 @@ Implement Pipeline B with selective LLM use in schema alignment, record linkage,
 - Create versioned prompt files for schema alignment, record linkage, and fusion.
 - Create JSON schemas or Pydantic models for every structured LLM output.
 - Use committed model configuration files for provider, model identifier, temperature, max tokens, retry count, timeout, cache mode, artifact paths, and structured-output mode.
-- Read OpenAI API keys and optional account scoping only from environment variables or a deployment secret manager.
+- Read the OpenAI API key only from environment variables or a deployment secret manager.
 - Use committed experiment configuration files for LLM stage toggles, routing policy, call budgets, and cost budgets.
 - Implement LLM-assisted schema alignment only for uncertain mappings.
 - Route schema calls from M2 ambiguous candidates, unmapped gold fields for evaluation analysis, and low-margin accepted mappings.
@@ -689,7 +689,7 @@ Expose real project execution and review workflows through backend services and 
 - Add backend API endpoints for projects, sources, schemas, pipeline runs, linkage, clusters, fusion, experiments, review, and exports.
 - Generate or document OpenAPI schema.
 - Add typed API client for frontend usage.
-- Add worker or job orchestration for long-running pipeline stages.
+- Add PostgreSQL-backed worker or job orchestration for long-running pipeline stages.
 - Add job progress, retries, cancellation, warnings, failure states, and artifact links.
 - Build project dashboard.
 - Build source catalog and profile views.
