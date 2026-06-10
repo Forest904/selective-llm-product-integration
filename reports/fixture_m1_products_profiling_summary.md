@@ -21,7 +21,7 @@
 - Missingness rate: 0.130
 - Schema heterogeneity: 0.920
 - Overlap score: 1.000
-- Model-number coverage: 0.333
+- Model-number coverage: 1.000
 - Title signal coverage: 1.000
 - Assignment gate satisfied: False
-- Selection score: 44.9375
+- Selection score: 48.2708

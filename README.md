@@ -38,8 +38,8 @@ make report
 ```
 
 `make install` bootstraps `uv` through Python if it is not already available.
-The current milestone provides fixture/scaffold commands only; later milestones
-will replace those placeholders with real dataset and pipeline execution.
+Fixture commands remain available for CI-safe reproduction, and M1 real-data
+commands run once the local Alaska files are present.
 
 ## Development Commands
 
@@ -57,6 +57,9 @@ The reserved Mosaic CLI contract starts here:
 ```bash
 uv run mosaic doctor
 uv run mosaic reproduce --fixture
+uv run mosaic dataset select --benchmark alaska
+uv run mosaic dataset ingest --config configs/datasets/selected_dataset.json
+uv run mosaic dataset profile --config configs/datasets/selected_dataset.json
 uv run mosaic report build
 ```
 
@@ -75,14 +78,17 @@ uv run mosaic report build
 
 Raw benchmark datasets and generated artifacts are not committed by default.
 Users must obtain the selected benchmark data before running real-data pipeline
-commands. For M1, place Alaska Notebook or Monitor files under one of:
+commands. For M1, place Alaska files under:
 
 ```text
+data/raw/alaska/camera/extracted/
 data/raw/alaska/notebook/extracted/
 data/raw/alaska/monitor/extracted/
 ```
 
-The official Alaska short links may be expired, so benchmark access is treated
-as a project startup prerequisite rather than an automated CLI step. See
-`data/README.md`, `configs/datasets/README.md`, and `artifacts/README.md` for
-what belongs in git and what must be regenerated.
+Each vertical directory should contain `{vertical}_specs/` and
+`{vertical}_ground_truths/`. The M1 selection command profiles local evidence
+and writes `configs/datasets/selected_dataset.json`; Monitor is the selected
+subset when all three local Alaska verticals are available. See `data/README.md`,
+`configs/datasets/README.md`, and `artifacts/README.md` for what belongs in git
+and what must be regenerated.

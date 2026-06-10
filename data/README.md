@@ -17,7 +17,8 @@ Planned layout:
 - `ground_truth/`: labels or cluster truth files.
 - `fixtures/`: small committed test fixtures.
 
-M1 adds a tiny committed fixture under `fixtures/m1/` and fixture labels under
-`ground_truth/`. Full Alaska benchmark files must be manually placed under
-`raw/alaska/<vertical>/extracted/` and remain immutable afterward. Preferred
-verticals are `notebook` and `monitor`.
+M1 keeps a tiny committed fixture under `fixtures/m1/` and fixture labels under
+`ground_truth/` for CI-safe checks. Full Alaska benchmark files must be manually
+placed under `raw/alaska/<vertical>/extracted/` and remain immutable afterward.
+The real M1 selection is generated from local profiling evidence, with Monitor
+selected when all three Alaska verticals are available.

@@ -34,7 +34,7 @@ def profile_dataset(
     repo_root: Path,
     ingested_root: Path | None = None,
     artifacts_root: Path | None = None,
-    evidence_level: Literal["published_metadata", "local_profile", "fixture"] = "local_profile",
+    evidence_level: Literal["local_profile", "fixture"] = "local_profile",
 ) -> ProfileResult:
     dataset_root = ingested_root or repo_root / "data" / "interim" / "m1" / config.dataset_id
     artifacts_dir = artifacts_root or repo_root / "artifacts" / "tables"
@@ -59,6 +59,9 @@ def profile_dataset(
         parsed_records=parsed_records,
         profile_rows=profile_rows,
         cluster_sizes=[len(records) for records in ground_truth.values()],
+        labeled_record_count=len(
+            {spec_id for records in ground_truth.values() for spec_id in records}
+        ),
         fusion_conflict_count=fusion_conflict_count,
         evidence_level=evidence_level,
     )
@@ -239,8 +242,9 @@ def _candidate_metrics(
     parsed_records: list[dict[str, Any]],
     profile_rows: list[dict[str, Any]],
     cluster_sizes: list[int],
+    labeled_record_count: int,
     fusion_conflict_count: int,
-    evidence_level: Literal["published_metadata", "local_profile", "fixture"],
+    evidence_level: Literal["local_profile", "fixture"],
 ) -> CandidateMetrics:
     source_count = len({record["source_id"] for record in parsed_records})
     record_count = len(parsed_records)
@@ -255,6 +259,8 @@ def _candidate_metrics(
     title_roles = [
         row for row in profile_rows if "title" in json.loads(str(row["semantic_role_suggestions"]))
     ]
+    model_sources = {str(row["source_id"]) for row in model_roles}
+    title_sources = {str(row["source_id"]) for row in title_roles}
     mediated_coverage = _mediated_coverage(profile_rows)
     schema_heterogeneity = _schema_heterogeneity(profile_rows)
     missingness_rate = 1 - mean(non_null_rates) if non_null_rates else 1.0
@@ -274,8 +280,8 @@ def _candidate_metrics(
         mediated_coverage=mediated_coverage,
         schema_heterogeneity=schema_heterogeneity,
         overlap_score=_overlap_score(cluster_sizes, record_count),
-        model_number_coverage=len(model_roles) / len(profile_rows) if profile_rows else 0,
-        title_signal_coverage=len(title_roles) / source_count if source_count else 0,
+        model_number_coverage=len(model_sources) / source_count if source_count else 0,
+        title_signal_coverage=len(title_sources) / source_count if source_count else 0,
         fusion_conflict_count=fusion_conflict_count,
     )
     return CandidateMetrics(
@@ -284,14 +290,14 @@ def _candidate_metrics(
         record_count=record_count,
         attribute_count=len(profile_rows),
         entity_count=entity_count,
-        labeled_record_count=sum(cluster_sizes),
+        labeled_record_count=labeled_record_count,
         positive_pair_count=positive_pair_count,
         mediated_attribute_coverage=mediated_coverage,
         missingness_rate=missingness_rate,
         schema_heterogeneity=schema_heterogeneity,
         overlap_score=_overlap_score(cluster_sizes, record_count),
-        model_number_coverage=len(model_roles) / len(profile_rows) if profile_rows else 0,
-        title_signal_coverage=len(title_roles) / source_count if source_count else 0,
+        model_number_coverage=len(model_sources) / source_count if source_count else 0,
+        title_signal_coverage=len(title_sources) / source_count if source_count else 0,
         fusion_conflict_count=fusion_conflict_count,
         satisfies_assignment_gate=satisfies_gate,
         selection_score=score,
@@ -407,6 +413,7 @@ def write_profile_summary_table(
     path.parent.mkdir(parents=True, exist_ok=True)
     pl.DataFrame([metric.model_dump() for metric in metrics]).write_parquet(path)
     report_path = repo_root / "reports" / "dataset_candidate_report.md"
+    report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text(_candidate_report(metrics, path, repo_root), encoding="utf-8")
     return path
 
@@ -417,6 +424,7 @@ def _candidate_report(metrics: list[CandidateMetrics], table_path: Path, repo_ro
         + " | ".join(
             [
                 metric.vertical,
+                metric.evidence_level,
                 str(metric.source_count),
                 str(metric.record_count),
                 str(metric.entity_count),
@@ -429,15 +437,8 @@ def _candidate_report(metrics: list[CandidateMetrics], table_path: Path, repo_ro
         + " |"
         for metric in sorted(metrics, key=lambda item: item.selection_score, reverse=True)
     )
-    selected = max(metrics, key=lambda item: item.selection_score) if metrics else None
-    fallback = ""
-    if selected and not any(metric.satisfies_assignment_gate for metric in metrics):
-        fallback = (
-            "\n## Benchmark Fallback Watchpoint\n\n"
-            "No candidate satisfies every assignment gate with the currently available evidence. "
-            "Manually place and profile local Alaska records before relaxing the "
-            "benchmark choice.\n"
-        )
+    gated = [metric for metric in metrics if metric.satisfies_assignment_gate]
+    selected = max(gated, key=lambda item: item.selection_score) if gated else None
     return f"""# Dataset Candidate Report
 
 M1 ranks candidate product domains with hard assignment gates first and a documented
@@ -445,12 +446,11 @@ selection score second.
 
 Score table artifact: `{repo_relative(table_path, repo_root)}`
 
-| Vertical | Sources | Records | Entities | Positive pairs | Fusion conflicts | Gate | Score |
-| --- | ---: | ---: | ---: | ---: | ---: | --- | ---: |
+| Vertical | Evidence | Sources | Records | Entities | Positive pairs | Conflicts | Gate | Score |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | --- | ---: |
 {rows}
 
 ## Recommendation
 
 Selected candidate: `{selected.vertical if selected else "none"}`.
-{fallback}
 """

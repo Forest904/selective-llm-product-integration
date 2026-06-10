@@ -171,9 +171,10 @@ def summarize_ground_truth(ground_truth_path: str | None, repo_root: Path) -> Gr
         if entity_id and spec_id:
             clusters[entity_id].add(spec_id)
     cluster_sizes = [len(records) for records in clusters.values()]
+    labeled_records = {spec_id for records in clusters.values() for spec_id in records}
     return GroundTruthSummary(
         entity_count=len(clusters),
-        labeled_record_count=sum(cluster_sizes),
+        labeled_record_count=len(labeled_records),
         positive_pair_count=positive_pairs_from_cluster_sizes(cluster_sizes),
     )
 

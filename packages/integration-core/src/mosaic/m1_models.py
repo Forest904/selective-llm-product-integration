@@ -141,7 +141,7 @@ class CandidateMetrics(BaseModel):
     fusion_conflict_count: int
     satisfies_assignment_gate: bool
     selection_score: float
-    evidence_level: Literal["published_metadata", "local_profile", "fixture"]
+    evidence_level: Literal["local_profile", "fixture"]
 
 
 class IngestedRecord(BaseModel):

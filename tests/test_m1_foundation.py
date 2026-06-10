@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
+import mosaic.cli as cli_module
 import polars as pl
 import pytest
+from mosaic.alaska import local_alaska_dataset_configs, select_best_candidate
 from mosaic.cli import app
 from mosaic.ingestion import ingest_dataset, iter_source_records, summarize_ground_truth
-from mosaic.m1_models import DatasetConfig, SourceInput, load_dataset_config
+from mosaic.m1_models import CandidateMetrics, DatasetConfig, SourceInput, load_dataset_config
 from mosaic.m1_utils import positive_pairs_from_cluster_sizes, sha256_text, stable_record_uid
 from mosaic.profiling import profile_dataset
 from mosaic.schema_validation import validate_mediated_schema
@@ -114,6 +117,82 @@ def test_fixture_ground_truth_summary() -> None:
     assert summary.positive_pair_count == 6
 
 
+def test_ground_truth_summary_deduplicates_repeated_pairs(tmp_path: Path) -> None:
+    ground_truth_path = tmp_path / "entity_resolution_gt.csv"
+    ground_truth_path.write_text(
+        "entity_id,spec_id\n"
+        "ENTITY#001,www.ebay.com//14633\n"
+        "ENTITY#001,www.ebay.com//14633\n"
+        "ENTITY#001,www.ebay.com//20380\n"
+        "ENTITY#002,ca.pcpartpicker.com//1\n",
+        encoding="utf-8",
+    )
+
+    summary = summarize_ground_truth("entity_resolution_gt.csv", tmp_path)
+
+    assert summary.entity_count == 2
+    assert summary.labeled_record_count == 3
+    assert summary.positive_pair_count == 1
+
+
+def test_canonical_alaska_layout_discovery(tmp_path: Path) -> None:
+    _write_alaska_source(
+        tmp_path,
+        vertical="monitor",
+        source_id="www.ebay.com",
+        record_id="14633",
+        payload={"<page title>": "Monitor", "manufacturer": "Dell", "model": "U2412M"},
+    )
+    _write_alaska_ground_truth(tmp_path, vertical="monitor", spec_ids=["www.ebay.com//14633"])
+
+    configs = local_alaska_dataset_configs(tmp_path)
+
+    assert len(configs) == 1
+    config = configs[0]
+    assert config.dataset_id == "alaska_monitor_m1"
+    assert config.ground_truth_path == (
+        "data/raw/alaska/monitor/extracted/monitor_ground_truths/"
+        "monitor_entity_resolution_gt.csv"
+    )
+    assert config.mapping_gold_path == (
+        "data/raw/alaska/monitor/extracted/monitor_ground_truths/"
+        "monitor_schema_matching_gt.csv"
+    )
+    assert [source.source_id for source in config.sources] == ["www.ebay.com"]
+    assert config.sources[0].path == (
+        "data/raw/alaska/monitor/extracted/monitor_specs/www.ebay.com"
+    )
+
+
+def test_select_best_candidate_prefers_gated_metrics() -> None:
+    camera = _candidate_metric("camera", score=95, gate=False)
+    monitor = _candidate_metric("monitor", score=80, gate=True)
+    notebook = _candidate_metric("notebook", score=75, gate=True)
+
+    selected = select_best_candidate([camera, monitor, notebook])
+
+    assert selected.vertical == "monitor"
+
+
+def test_dataset_select_writes_local_selected_monitor_config(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_gated_monitor_benchmark(tmp_path)
+    monkeypatch.setattr(cli_module, "_repo_root", lambda: tmp_path)
+
+    result = runner.invoke(app, ["dataset", "select"])
+
+    assert result.exit_code == 0
+    assert "selected Alaska vertical: monitor" in result.output
+    assert "gate=True" in result.output
+    selected_config = load_dataset_config(
+        tmp_path / "configs" / "datasets" / "selected_dataset.json"
+    )
+    assert selected_config.dataset_id == "alaska_monitor_m1"
+    assert selected_config.vertical == "monitor"
+
+
 def test_mediated_schema_validation_accepts_required_schema() -> None:
     schema = validate_mediated_schema(REPO_ROOT / "configs" / "schemas" / "mediated_schema.json")
 
@@ -188,5 +267,125 @@ def test_missing_dataset_config_mentions_manual_placement() -> None:
     )
 
     assert result.exit_code != 0
-    assert "Manually place Alaska" in result.output
+    assert "Place Alaska" in result.output
     assert "data/raw/alaska/<vertical>/extracted/" in result.output
+
+
+def _write_alaska_source(
+    repo_root: Path,
+    *,
+    vertical: str,
+    source_id: str,
+    record_id: str,
+    payload: dict[str, str],
+) -> None:
+    source_dir = (
+        repo_root
+        / "data"
+        / "raw"
+        / "alaska"
+        / vertical
+        / "extracted"
+        / f"{vertical}_specs"
+        / source_id
+    )
+    source_dir.mkdir(parents=True, exist_ok=True)
+    source_file = source_dir / f"{record_id}.json"
+    source_file.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+
+def _write_alaska_ground_truth(repo_root: Path, *, vertical: str, spec_ids: list[str]) -> None:
+    ground_truth_dir = (
+        repo_root
+        / "data"
+        / "raw"
+        / "alaska"
+        / vertical
+        / "extracted"
+        / f"{vertical}_ground_truths"
+    )
+    ground_truth_dir.mkdir(parents=True, exist_ok=True)
+    rows = "\n".join(f"ENTITY#001,{spec_id}" for spec_id in spec_ids)
+    (ground_truth_dir / f"{vertical}_entity_resolution_gt.csv").write_text(
+        f"entity_id,spec_id\n{rows}\n",
+        encoding="utf-8",
+    )
+    (ground_truth_dir / f"{vertical}_schema_matching_gt.csv").write_text(
+        "source_attribute_id,target_attribute_name\n"
+        f"{spec_ids[0].split('//', 1)[0]}//model,model_number\n",
+        encoding="utf-8",
+    )
+
+
+def _write_gated_monitor_benchmark(repo_root: Path) -> None:
+    vertical = "monitor"
+    sources = ("source-a.example", "source-b.example", "source-c.example")
+    ground_truth_dir = (
+        repo_root
+        / "data"
+        / "raw"
+        / "alaska"
+        / vertical
+        / "extracted"
+        / f"{vertical}_ground_truths"
+    )
+    ground_truth_dir.mkdir(parents=True, exist_ok=True)
+    ground_truth_rows = ["entity_id,spec_id"]
+    for entity_index in range(200):
+        entity_id = f"ENTITY#{entity_index:03}"
+        for variant in range(5):
+            source_id = sources[variant % len(sources)]
+            record_id = f"{entity_index}_{variant}"
+            _write_alaska_source(
+                repo_root,
+                vertical=vertical,
+                source_id=source_id,
+                record_id=record_id,
+                payload={
+                    "<page title>": f"Monitor {entity_index} listing {variant}",
+                    "manufacturer": "Dell",
+                    "model": f"M{entity_index:03}",
+                    "category": "monitor",
+                    "description": f"Display listing {variant}",
+                    "price": str(100 + variant),
+                    "currency": "USD",
+                },
+            )
+            ground_truth_rows.append(f"{entity_id},{source_id}//{record_id}")
+    (ground_truth_dir / f"{vertical}_entity_resolution_gt.csv").write_text(
+        "\n".join(ground_truth_rows) + "\n",
+        encoding="utf-8",
+    )
+    (ground_truth_dir / f"{vertical}_schema_matching_gt.csv").write_text(
+        "source_attribute_id,target_attribute_name\n"
+        "source-a.example//<page title>,title\n"
+        "source-a.example//model,model_number\n"
+        "source-a.example//manufacturer,brand\n"
+        "source-a.example//category,category\n"
+        "source-a.example//description,description\n"
+        "source-a.example//price,price\n"
+        "source-a.example//currency,currency\n",
+        encoding="utf-8",
+    )
+
+
+def _candidate_metric(vertical: str, *, score: float, gate: bool) -> CandidateMetrics:
+    return CandidateMetrics(
+        vertical=vertical,
+        source_count=3,
+        record_count=1000,
+        attribute_count=10,
+        entity_count=200 if gate else 100,
+        labeled_record_count=500,
+        positive_pair_count=300,
+        mediated_attribute_coverage=5,
+        missingness_rate=0.1,
+        schema_heterogeneity=0.5,
+        overlap_score=0.4,
+        model_number_coverage=0.6,
+        title_signal_coverage=0.6,
+        fusion_conflict_count=100 if gate else 50,
+        satisfies_assignment_gate=gate,
+        selection_score=score,
+        evidence_level="local_profile",
+    )

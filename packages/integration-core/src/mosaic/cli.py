@@ -4,15 +4,14 @@ from typing import Annotated
 import typer
 
 from mosaic.alaska import (
-    create_dataset_config_from_alaska_dir,
-    published_candidate_metrics,
-    write_candidate_config,
+    local_alaska_candidate_metrics,
+    local_alaska_dataset_configs,
+    select_best_candidate,
     write_dataset_config,
-    write_published_selection,
 )
 from mosaic.ingestion import ingest_dataset
 from mosaic.m1_models import load_dataset_config
-from mosaic.profiling import profile_dataset
+from mosaic.profiling import profile_dataset, write_profile_summary_table
 from mosaic.schema_validation import validate_mediated_schema
 
 app = typer.Typer(help="Mosaic reproducible research pipeline CLI.")
@@ -109,35 +108,42 @@ def reproduce(
 def dataset_select(
     benchmark: Annotated[str, typer.Option(help="Benchmark to rank.")] = "alaska",
 ) -> None:
-    """Rank candidate domains and write the M1 score table/report."""
+    """Profile local candidate domains and write the M1 score table/report."""
     if benchmark != "alaska":
         typer.echo(f"unsupported benchmark: {benchmark}")
         raise typer.Exit(code=1)
 
     root = _repo_root()
-    write_candidate_config(root / "configs" / "datasets" / "alaska_candidates.json")
-    table_path = write_published_selection(root)
-    selected = max(published_candidate_metrics(), key=lambda metric: metric.selection_score)
-    extracted_root = root / "data" / "raw" / "alaska" / selected.vertical / "extracted"
-    if extracted_root.exists():
-        dataset_config = create_dataset_config_from_alaska_dir(
-            dataset_id=f"alaska_{selected.vertical}_m1",
-            vertical=selected.vertical,
-            extracted_root=extracted_root,
-            repo_root=root,
-        )
-        selected_path = write_dataset_config(
-            dataset_config,
-            root / "configs" / "datasets" / "selected_dataset.json",
-        )
-        typer.echo(f"wrote selected dataset config: {selected_path.relative_to(root)}")
-    else:
+    local_configs = local_alaska_dataset_configs(root)
+    if not local_configs:
         typer.echo(
-            "selected dataset config not written because local Alaska records were not found. "
-            "Manually place the benchmark under "
-            f"data/raw/alaska/{selected.vertical}/extracted/ and rerun this command."
+            "local Alaska records were not found. Place the benchmark under "
+            "data/raw/alaska/<vertical>/extracted/ and rerun this command."
         )
-    typer.echo(f"wrote selection score table: {table_path.relative_to(root)}")
+        raise typer.Exit(code=1)
+
+    local_metrics = []
+    configs_by_vertical = {config.vertical: config for config in local_configs}
+    for dataset_config in local_configs:
+        local_metrics.append(local_alaska_candidate_metrics(dataset_config, root))
+
+    table_path = write_profile_summary_table(local_metrics, root)
+    try:
+        selected = select_best_candidate(local_metrics)
+    except ValueError as exc:
+        typer.echo(str(exc))
+        typer.echo(f"wrote local selection score table: {table_path.relative_to(root)}")
+        raise typer.Exit(code=1) from exc
+    selected_path = write_dataset_config(
+        configs_by_vertical[selected.vertical],
+        root / "configs" / "datasets" / "selected_dataset.json",
+    )
+    typer.echo(f"wrote selected dataset config: {selected_path.relative_to(root)}")
+    typer.echo(
+        f"selected Alaska vertical: {selected.vertical} "
+        f"(gate={selected.satisfies_assignment_gate}, score={selected.selection_score})"
+    )
+    typer.echo(f"wrote local selection score table: {table_path.relative_to(root)}")
 
 
 @dataset_app.command("ingest")
@@ -161,23 +167,14 @@ def dataset_ingest(
 
 @dataset_app.command("profile")
 def dataset_profile(
-    benchmark: Annotated[str, typer.Option(help="Benchmark to profile.")] = "alaska",
     config: Annotated[
         Path | None,
         typer.Option(help="Dataset config JSON path."),
     ] = None,
     fixture: Annotated[bool, typer.Option(help="Use the committed M1 fixture config.")] = False,
 ) -> None:
-    """Profile source records, or write provisional Alaska metadata if no config is provided."""
+    """Profile ingested source records."""
     root = _repo_root()
-    if config is None and not fixture:
-        if benchmark != "alaska":
-            typer.echo(f"unsupported benchmark: {benchmark}")
-            raise typer.Exit(code=1)
-        table_path = write_published_selection(root)
-        typer.echo(f"wrote provisional Alaska profile table: {table_path.relative_to(root)}")
-        return
-
     config_path = _resolve_dataset_config(root, config, fixture)
     dataset_config = load_dataset_config(config_path)
     records_path = (
@@ -233,8 +230,8 @@ def _resolve_dataset_config(root: Path, config: Path | None, fixture: bool) -> P
         resolved = config if config.is_absolute() else root / config
     if not resolved.exists():
         raise typer.BadParameter(
-            f"dataset config not found: {resolved}. Manually place Alaska under "
+            f"dataset config not found: {resolved}. Place Alaska under "
             "`data/raw/alaska/<vertical>/extracted/`, run `mosaic dataset select`, "
-            "or pass --fixture."
+            "or pass `--fixture` for fixture-only checks."
         )
     return resolved

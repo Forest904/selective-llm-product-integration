@@ -199,7 +199,7 @@ M0 intentionally keeps these as scaffold and fixture checks. Real dataset ingest
 
 ## M1: Reproducible Data Foundation
 
-**Status:** In progress. M1 implementation and fixture reproduction are complete; real-data acceptance is pending manual Alaska dataset access.
+**Status:** Implemented on local Alaska data. Fixture reproduction remains available for CI-safe checks.
 
 ### Goal
 
@@ -209,27 +209,26 @@ Select, ingest, profile, and document the benchmark subset that satisfies the as
 
 - M0 accepted.
 - Data directories, config directories, and artifact conventions exist.
-- Benchmark source access is understood or documented.
 - Alaska benchmark archives are manually provided under `data/raw/alaska/<vertical>/extracted/`.
 
 ### Current Implementation Notes
 
-- Mosaic no longer attempts to download benchmark archives. Dataset acquisition is a manual project startup prerequisite because the official Alaska short links currently redirect to expired SharePoint pages.
-- Preferred Alaska candidates are `notebook` and `monitor`; `camera` is retained for comparison but misses the 200-entity assignment gate in published metadata.
+- Mosaic does not download benchmark archives; local Alaska files are a project prerequisite.
+- Local profiling selects `monitor` as the M1 subset because it satisfies all assignment gates: 26 sources, 16,662 records, 232 entities, 2,273 unique labeled records, 12,985 positive pairs, and 5,874 candidate fusion conflicts.
+- `camera` is retained for comparison but misses the 200-entity gate with 103 entities.
 - Fixture reproduction remains automatic through `uv run mosaic reproduce --fixture`.
 
 ### Implementation Checklist
 
 - [x] Implement dataset discovery/profiling commands.
 - [x] Document manual Alaska benchmark placement instead of automatic download.
-- [x] Evaluate published candidate metadata against assignment minimums.
-- [x] Compute provisional source count, total record count, entity count, positive pair equivalent, mediated attribute coverage, overlap, and schema-size signals from published metadata.
-- [ ] Compute real-data missingness, conflict count, source overlap, model-number coverage, and title variation after local Alaska files are provided.
+- [x] Evaluate local Alaska candidate data against assignment minimums.
+- [x] Compute real-data source count, total record count, entity count, positive pair equivalent, mediated attribute coverage, missingness, source overlap, model-number coverage, title signal, and fusion conflicts.
 - [x] Profile source schema heterogeneity on the committed M1 fixture.
-- [ ] Profile source schema heterogeneity on the selected Alaska subset.
+- [x] Profile source schema heterogeneity on the selected Alaska subset.
 - [x] Rank candidate domains using documented scoring.
-- [ ] Select final subset from local Alaska files or document benchmark fallback if Alaska remains unavailable.
-- [x] Create provisional dataset candidate report.
+- [x] Select final subset from local Alaska files.
+- [x] Create local-evidence dataset candidate report.
 - [x] Implement immutable ingestion for CSV, JSON, JSON Lines, Parquet, and Alaska JSON directory layouts.
 - [x] Generate stable `record_uid` values with the convention `{source_id}:{source_record_id}`.
 - [x] Reject row position as a stable identifier.
@@ -245,9 +244,11 @@ Select, ingest, profile, and document the benchmark subset that satisfies the as
 
 ### Deliverables
 
-- [x] Provisional dataset candidate report.
-- [x] Provisional selection score table.
-- [ ] Selected real dataset manifest.
+- [x] Local-evidence dataset candidate report.
+- [x] Local-evidence selection score table.
+- [x] Selected real dataset manifest.
+- [x] `configs/datasets/selected_dataset.json` for `alaska_monitor_m1`.
+- [x] `reports/alaska_monitor_m1_profiling_summary.md`.
 - [x] Fixture source metadata artifacts.
 - [x] Fixture ingested raw/source artifacts.
 - [x] Fixture ingestion error artifact.
@@ -256,7 +257,7 @@ Select, ingest, profile, and document the benchmark subset that satisfies the as
 - [x] `mediated_schema.json`.
 - [x] Schema documentation.
 - [x] Fixture ground-truth summary.
-- [ ] Real Alaska ground-truth summary.
+- [x] Real Alaska ground-truth summary.
 
 ### Implemented CLI And Commands
 
@@ -269,26 +270,29 @@ uv run mosaic dataset profile --fixture
 uv run mosaic schema validate --schema configs/schemas/mediated_schema.json
 ```
 
-Dataset acquisition is intentionally not a CLI command. Before real-data ingestion, place manually obtained Alaska files under one of:
+Dataset acquisition is intentionally not a CLI command. Before real-data ingestion, place manually obtained Alaska files under:
 
 ```text
+data/raw/alaska/camera/extracted/
 data/raw/alaska/notebook/extracted/
 data/raw/alaska/monitor/extracted/
 ```
 
+Each vertical directory must contain `{vertical}_specs/` and `{vertical}_ground_truths/`.
+
 ### Acceptance Gate
 
-- [ ] Dataset satisfies at least 3 heterogeneous sources, 1,000 source records, 5 mediated attributes, 200 integrated entities, 300 positive pairs or equivalent cluster truth, and 100 fusion conflicts.
+- [x] Dataset satisfies at least 3 heterogeneous sources, 1,000 source records, 5 mediated attributes, 200 integrated entities, 300 positive pairs or equivalent cluster truth, and 100 fusion conflicts.
 - [x] Fixture raw records have stable provenance and checksum metadata.
-- [ ] Real Alaska raw records have stable provenance and checksum metadata.
+- [x] Real Alaska raw records have stable provenance and checksum metadata.
 - [x] Fixture source attributes have profiles and representative samples.
-- [ ] Real Alaska source attributes have profiles and representative samples.
-- [ ] The selected subset is justified by local profiling data, not preference.
+- [x] Real Alaska source attributes have profiles and representative samples.
+- [x] The selected subset is justified by local profiling data, not preference.
 
 ### Risks / Watchpoints
 
-- Alaska source access is an external prerequisite; official links may remain expired.
-- Alaska subset may not satisfy every minimum for the chosen category.
+- Alaska source access is an external prerequisite for clean-clone real-data runs.
+- Changing the selected vertical later would invalidate downstream M2-M4 metrics unless selection artifacts are regenerated.
 - Fusion ground truth may be partial or absent.
 - Source attributes may be too sparse for meaningful schema alignment.
 - Candidate subset may be large enough for blocking but too expensive for naive LLM use.
