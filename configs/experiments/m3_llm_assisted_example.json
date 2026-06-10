@@ -1,0 +1,14 @@
+{
+  "experiment_id": "m3_llm_assisted_example",
+  "model_config": "configs/models/openai_m3_example.json",
+  "llm_assistance": {
+    "schema": true,
+    "linkage": true,
+    "fusion": true,
+    "normalization": false
+  },
+  "routing": {
+    "daily_call_budget": null,
+    "daily_cost_budget_usd": null
+  }
+}

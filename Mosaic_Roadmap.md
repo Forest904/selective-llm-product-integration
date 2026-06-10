@@ -460,6 +460,7 @@ Implement Pipeline B with selective LLM use in schema alignment, record linkage,
 - M2 accepted and hardened.
 - Baseline outputs expose uncertainty, scores, conflicts, candidate cases, and stage-specific error artifacts.
 - Prompt directory and model config conventions exist.
+- M3 config scaffolding exists: `.env.example` is limited to credentials and deployment connection URLs, `configs/models/openai_m3_example.json` holds non-secret OpenAI model behavior, and `configs/experiments/m3_llm_assisted_example.json` holds non-secret assisted-stage and routing defaults.
 
 ### Implementation Checklist
 
@@ -470,7 +471,9 @@ Implement Pipeline B with selective LLM use in schema alignment, record linkage,
 - Add input hashing so repeated calls can be cached and traced.
 - Create versioned prompt files for schema alignment, record linkage, and fusion.
 - Create JSON schemas or Pydantic models for every structured LLM output.
-- Create model configuration files with provider, model identifier, temperature, max tokens, retry count, timeout, cache mode, and structured-output mode.
+- Use committed model configuration files for provider, model identifier, temperature, max tokens, retry count, timeout, cache mode, artifact paths, and structured-output mode.
+- Read OpenAI API keys and optional account scoping only from environment variables or a deployment secret manager.
+- Use committed experiment configuration files for LLM stage toggles, routing policy, call budgets, and cost budgets.
 - Implement LLM-assisted schema alignment only for uncertain mappings.
 - Route schema calls from M2 ambiguous candidates, unmapped gold fields for evaluation analysis, and low-margin accepted mappings.
 - Enforce allowed schema outputs: known target attribute, `UNMAPPED`, or `ABSTAIN`.
@@ -494,6 +497,7 @@ Implement Pipeline B with selective LLM use in schema alignment, record linkage,
 - LLM gateway.
 - Prompt files.
 - Model config files.
+- Experiment config files for assisted-stage toggles, routing, and budgets.
 - Structured output schemas.
 - Response cache.
 - LLM call logs.
@@ -854,7 +858,8 @@ Make Mosaic deployable, reliable, safe, and presentable as a public research and
 ### Security And Secret Handling
 
 - Never commit API keys, database credentials, object-storage secrets, or session secrets.
-- Use environment variables and `.env.example`.
+- Use `.env.example` only for credential names and deployment-specific connection URLs.
+- Keep model behavior, prompt versions, routing settings, budgets, cache paths, call-log paths, and experiment choices in committed non-secret config files under `configs/`.
 - Treat source text as untrusted input in LLM prompts.
 - Delimit source content and require enumerated structured outputs.
 - Validate all LLM-returned IDs against known inputs.

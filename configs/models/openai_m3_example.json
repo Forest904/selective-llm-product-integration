@@ -1,0 +1,14 @@
+{
+  "provider": "openai",
+  "model": "",
+  "temperature": 0,
+  "max_output_tokens": 1024,
+  "timeout_seconds": 60,
+  "max_retries": 2,
+  "cache_mode": "off",
+  "cache_root": "artifacts/llm_cache",
+  "call_log_root": "artifacts/llm_calls",
+  "structured_output": {
+    "enabled": true
+  }
+}
