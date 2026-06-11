@@ -334,6 +334,71 @@ class LLMGateway:
 
 
 def _fake_response(stage: str, payload: Mapping[str, Any]) -> dict[str, Any]:
+    if stage == "schema_batch":
+        return {
+            "decisions": [
+                {
+                    "case_id": str(case.get("case_id", "")),
+                    "source_attribute": str(case.get("attribute_name", "")),
+                    "target_attribute": str(
+                        (list(case.get("deterministic_candidates", [])) or [{}])[0].get(
+                            "target_attribute_name", "UNMAPPED"
+                        )
+                    ),
+                    "decision": "unmapped"
+                    if str(
+                        (list(case.get("deterministic_candidates", [])) or [{}])[0].get(
+                            "target_attribute_name", "UNMAPPED"
+                        )
+                    )
+                    == "UNMAPPED"
+                    else "match",
+                    "confidence": 0.8,
+                    "supporting_evidence": ["fake batch provider selected available evidence"],
+                    "abstain": False,
+                }
+                for case in payload.get("cases", [])
+            ]
+        }
+    if stage == "linkage_batch":
+        return {
+            "decisions": [
+                {
+                    "case_id": str(case.get("case_id", "")),
+                    "decision": "match"
+                    if float(case.get("match_probability", 0.0)) >= 0.5
+                    else "non_match",
+                    "confidence": 0.8,
+                    "supporting_evidence": ["fake batch provider mirrored pair evidence"],
+                    "contradicting_evidence": [],
+                    "abstain": False,
+                }
+                for case in payload.get("cases", [])
+            ]
+        }
+    if stage == "fusion_batch":
+        decisions = []
+        for case in payload.get("cases", []):
+            allowed = [str(value) for value in case.get("allowed_outputs", [])]
+            selected = allowed[0] if allowed else "ABSTAIN"
+            claims = list(case.get("candidate_claims", []))
+            supporting = [
+                str(claim.get("claim_id"))
+                for claim in claims
+                if str(claim.get("normalized_value")) == selected
+            ]
+            decisions.append(
+                {
+                    "case_id": str(case.get("case_id", "")),
+                    "selected_value": selected,
+                    "confidence": 0.8 if selected != "ABSTAIN" else 0.0,
+                    "supporting_claim_ids": supporting,
+                    "contradicting_claim_ids": [],
+                    "reason": "fake batch provider selected a claim-supported value",
+                    "abstain": selected == "ABSTAIN",
+                }
+            )
+        return {"decisions": decisions}
     if stage == "schema":
         candidates = list(payload.get("deterministic_candidates", []))
         best = candidates[0] if candidates else {}

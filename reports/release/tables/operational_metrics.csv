@@ -1,12 +1,4 @@
-abstention_count,abstention_rate,average_latency_ms,cache_hit_count,configuration_id,eligible_count,estimated_cost_usd,fallback_count,fallback_rate,input_tokens,invalid_output_count,invalid_output_rate,llm_call_count,output_tokens,run_id,selected_count,unsupported_value_count
-0,0.0,0.0,0,A0,0,0,0,0.0,0,0,0.0,0,0,run_20260610T223336Z_baseline_m2_alaska_monit_94c36c99,0,0
-0,0.0,2811.5866666666666,25,B-All,175835,0.0507724,34,0.4533,77895,2,0.0267,75,12259,run_20260610T223940Z_m4_b_all_alaska_monitor_ee07e4e0,75,0
-0,0.0,0.0,25,B-S,31345,0.0210804,24,0.96,37833,0,0.0,25,3717,run_20260610T224950Z_m4_b_schema_only_alaska__3ad3c7ac,25,0
-0,0.0,17.36,25,B-L,175832,0.0153168,5,0.2,20684,0,0.0,25,4402,run_20260610T225555Z_m4_b_linkage_only_alaska_adc49d58,25,0
-0,0.0,15.76,25,B-F,31342,0.014375200000000001,5,0.2,19378,2,0.08,25,4140,run_20260610T230230Z_m4_b_fusion_only_alaska__77a9fa23,25,0
-0,0.0,0.02,50,B-SL,175835,0.0363972,29,0.58,58517,0,0.0,50,8119,run_20260610T230838Z_m4_b_schema_linkage_alas_695df767,50,0
-0,0.0,0.06,50,B-LF,175832,0.029692000000000003,10,0.2,40062,2,0.04,50,8542,run_20260610T231510Z_m4_b_linkage_fusion_alas_9308f9f6,50,0
-0,0.0,0.0,0,Budget-0,175832,0.0,0,0.0,0,0,0.0,0,0,run_20260610T232150Z_m4_budget_cap_0_alaska_m_14e204d9,0,0
-0,0.0,0.13333333333333333,15,Budget-5,175832,0.0087484,10,0.6667,12483,0,0.0,15,2347,run_20260610T232946Z_m4_budget_cap_5_alaska_m_a31cf723,15,0
-0,0.0,0.0,30,Budget-10,175832,0.018432,17,0.5667,26860,0,0.0,30,4805,run_20260610T233810Z_m4_budget_cap_10_alaska__6eed9008,30,0
-0,0.0,3.333333333333334,75,Budget-25,175835,0.0507724,34,0.4533,77895,2,0.0267,75,12259,run_20260610T234635Z_m4_budget_cap_25_alaska__69f2f76c,75,0
+abstention_count,abstention_rate,accepted_count,average_latency_ms,cache_hit_count,configuration_id,defaulted_count,eligible_count,estimated_cost_usd,fallback_count,fallback_rate,input_tokens,invalid_output_count,invalid_output_rate,llm_call_count,output_tokens,report_label,run_id,selected_count,unselected_default_count,unsupported_value_count
+0,0.0,0,0.0,0,fixture-A0,0,0,0,0,0.0,0,0,0.0,0,0,Deterministic,run_20260611T135307Z_baseline_m2_fixture_c6c23ded,0,0,0
+0,0.0,47,0.0,24,fixture-C-LLM,0,47,0.0,0,0.0,28161,0,0.0,24,2770,LLM,run_20260611T135308Z_m4_c_llm_primary_fixture_065b2876,47,0,0
+0,0.0,7,0.391304347826087,23,fixture-B-All,16,23,0.0,16,0.6957,13792,0,0.0,23,1418,Hybrid,run_20260611T135309Z_m3_llm_assisted_example_baabc273,23,0,8

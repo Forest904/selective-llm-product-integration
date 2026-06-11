@@ -8,13 +8,14 @@ fontsize: 10pt
 
 # Introduction
 
-Mosaic compares a deterministic product data integration pipeline with a selective
-LLM-assisted pipeline for schema alignment, record linkage, and data fusion. The
-research question is where LLM decisions improve an otherwise reproducible
-integration workflow, and where deterministic methods remain preferable because
-they are cheaper, faster, easier to audit, or less prone to unsupported outputs.
+Mosaic compares three product data integration pipelines: a fully deterministic
+baseline, a bounded LLM-primary pipeline, and a selective hybrid pipeline for
+schema alignment, record linkage, and data fusion. The research question is
+where LLM decisions improve an otherwise reproducible integration workflow, and
+where deterministic methods remain preferable because they are cheaper, faster,
+easier to audit, or less prone to unsupported outputs.
 
-This build is the full live academic release; assisted metrics come from live or cached OpenAI calls.
+This build is a fixture-equivalent reproduction report, not the final live submission.
 
 The assignment asks for a traditional baseline, an LLM-assisted pipeline that
 uses the model in multiple integration stages, component metrics, operational
@@ -30,25 +31,25 @@ dataset is separated from the labeled evaluation subset: all source records are
 processed, while schema, linkage, clustering, and fusion metrics are computed
 where gold labels are available.
 
-Dataset id: `alaska_monitor_m1`
+Dataset id: `fixture_m1_products`
 
 | sources | records | entities | positive_pairs | attributes |
 | --- | --- | --- | --- | --- |
-| 26 | 16662 | 232 | 12985 | 94 |
+| 3 | 6 | 2 | 6 | 8 |
 
 Repository: https://github.com/Forest904/selective-llm-product-integration.git
 
 The Alaska Monitor data is deliberately larger than the labeled evaluation
 subset. This matters for grading because the pipeline must run over realistic
 source scale even when labels are sparse. Blocking and normalization see every
-one of the 16662 source records. Linkage, clustering, and
+one of the 6 source records. Linkage, clustering, and
 fusion quality are then measured wherever the entity-resolution, schema, and
 fusion gold files can support a precise comparison. The report therefore
 separates operational scale from labeled quality: candidate-pair count and
 reduction ratio describe the full run, while precision, recall, F1, and fusion
 accuracy describe the labeled slice.
 
-The dataset contains 26 sources from the same monitor
+The dataset contains 3 sources from the same monitor
 vertical, but those sources disagree heavily on attribute names and product
 detail. Some sources expose common catalog fields, while others expose dozens
 of display-specific specifications. That heterogeneity is the reason Mosaic
@@ -79,12 +80,12 @@ are rejected and counted.
 
 Pipeline A0 uses deterministic schema scoring, rule-based normalization,
 blocking, a classical linkage model, constrained clustering, claim extraction,
-and deterministic fusion. Pipeline B keeps the same deterministic backbone but
-routes uncertain schema mappings, borderline linkage pairs, and high-conflict
-fusion cases to an OpenAI model with strict structured outputs. Unsupported
-values, invalid JSON, missing fields, abstentions, and timeouts are logged and
-measured. Deterministic fallback is used when a routed LLM decision is invalid
-or unsafe.
+and deterministic fusion. Pipeline C-LLM uses the same scaffolding but makes
+bounded primary model decisions for schema, linkage, and fusion; invalid,
+abstained, low-confidence, or unsupported outputs default to LLM-pipeline
+conservative values rather than deterministic fallbacks. Pipeline B-All keeps
+the deterministic backbone and routes only uncertain cases to an OpenAI model
+with strict structured outputs and deterministic fallback.
 
 The reported assisted model is configured through committed JSON files. The
 default M4 live model is `gpt-4.1-mini`, temperature `0`, strict structured
@@ -136,15 +137,16 @@ requires the explicit `--fixture` path.
 # Experimental Protocol
 
 The grading-focused matrix includes A0, B-All, stage ablations, and
-routing-budget variants. Every run records the code commit, configuration hash,
-prompt versions, model settings, metrics, and artifact paths in a release
-manifest.
+routing-budget variants, plus C-LLM as the practical LLM-primary comparison
+point. Every run records the code commit, configuration hash, prompt versions,
+model settings, metrics, and artifact paths in a release manifest.
 
 Release manifest: `reports/release/m4_release_manifest.json`
 
 | config | schema | linkage | fusion |
 | --- | --- | --- | --- |
 | A0 | deterministic | deterministic | deterministic |
+| C-LLM | LLM primary | LLM primary | LLM primary |
 | B-All | LLM routed | LLM routed | LLM routed |
 | B-S | LLM routed | deterministic | deterministic |
 | B-L | deterministic | LLM routed | deterministic |
@@ -172,33 +174,35 @@ how much quality is retained when the number of routed calls is capped.
 
 ![Component quality overview](reports/release/figures/component_quality.png)
 
-| config | schema_f1 | pairs | linkage_f1 | cluster_f1 | fusion_acc | e2e |
-| --- | --- | --- | --- | --- | --- | --- |
-| A0 | 0.4833 | 428372 | 0.9415 | 0.1403 | 0.7143 | 0.5699 |
-| B-All | 0.4833 | 428368 | 0.9415 | 0.1402 | 0.7143 | 0.5698 |
-| B-S | 0.4833 | 428368 | 0.9415 | 0.1402 | 0.7143 | 0.5698 |
-| B-L | 0.4833 | 428372 | 0.9415 | 0.1403 | 0.7143 | 0.5699 |
-| B-F | 0.4833 | 428372 | 0.9415 | 0.1403 | 0.7143 | 0.5699 |
-| B-SL | 0.4833 | 428368 | 0.9415 | 0.1402 | 0.7143 | 0.5698 |
-| B-LF | 0.4833 | 428372 | 0.9415 | 0.1403 | 0.7143 | 0.5699 |
-| Budget-0 | 0.4833 | 428372 | 0.9415 | 0.1403 | 0.7143 | 0.5699 |
-| Budget-5 | 0.4833 | 428372 | 0.9415 | 0.1403 | 0.7143 | 0.5699 |
-| Budget-10 | 0.4833 | 428372 | 0.9415 | 0.1403 | 0.7143 | 0.5699 |
-| Budget-25 | 0.4833 | 428368 | 0.9415 | 0.1402 | 0.7143 | 0.5698 |
+## Three-Way Pipeline Comparison
+
+
+
+| pipeline | config | schema_f1 | pairs | linkage_f1 | cluster_f1 | fusion_acc | e2e |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Deterministic | fixture-A0 | 0.9697 | 8 | 0.0 | 1.0 | 0.0 | 0.4924 |
+| LLM | fixture-C-LLM | 1.0 | 8 | 0.0 | 1.0 | 0.0 | 0.5 |
+| Hybrid | fixture-B-All | 1.0 | 8 | 0.0 | 1.0 | 0.0 | 0.5 |
 
 Full metric tables are written to
 `reports/release/tables/metrics_summary.csv`.
 
-On this release, B-All records schema F1 0.4833,
-linkage test F1 0.9415, clustering F1
-0.1402, fusion accuracy
-0.7143, and end-to-end summary
-0.5698. The deterministic A0 reference
-records schema F1 0.4833, linkage test F1
-0.9415, clustering F1
-0.1403, fusion accuracy
-0.7143, and end-to-end summary
-0.5699.
+On this release, the LLM-primary pipeline records schema F1
+, linkage test F1
+, clustering F1
+, fusion accuracy
+, and end-to-end summary
+. B-All records schema F1
+,
+linkage test F1 , clustering F1
+, fusion accuracy
+, and end-to-end summary
+. The deterministic A0 reference
+records schema F1 , linkage test F1
+, clustering F1
+, fusion accuracy
+, and end-to-end summary
+.
 
 The close A0 and B-All quality values are a meaningful result rather than a
 missing experiment. The selective routing policy is conservative, and many
@@ -210,13 +214,7 @@ results alongside F1.
 
 ## Linkage Confusion Matrix
 
-| config | tp | fp | tn | fn | precision | recall |
-| --- | --- | --- | --- | --- | --- | --- |
-| A0 | 1932 | 137 | 215 | 103 | 0.9338 | 0.9494 |
-| B-All | 1932 | 137 | 215 | 103 | 0.9338 | 0.9494 |
-| B-L | 1932 | 137 | 215 | 103 | 0.9338 | 0.9494 |
-| B-SL | 1932 | 137 | 215 | 103 | 0.9338 | 0.9494 |
-| B-LF | 1932 | 137 | 215 | 103 | 0.9338 | 0.9494 |
+
 
 The linkage confusion matrix shows that the test split remains stable across
 the assisted linkage variants. This is desirable when routed examples are
@@ -230,32 +228,23 @@ the underlying gold-label sparsity.
 
 Operational metrics summarize cost and reliability of selective LLM use.
 
-| config | calls | tokens_in | tokens_out | cost_usd | fallback_rate | invalid_rate |
-| --- | --- | --- | --- | --- | --- | --- |
-| A0 | 0 | 0 | 0 | 0.0 | 0.0 | 0.0 |
-| B-All | 75 | 77895 | 12259 | 0.0508 | 0.4533 | 0.0267 |
-| B-S | 25 | 37833 | 3717 | 0.0211 | 0.96 | 0.0 |
-| B-L | 25 | 20684 | 4402 | 0.0153 | 0.2 | 0.0 |
-| B-F | 25 | 19378 | 4140 | 0.0144 | 0.2 | 0.08 |
-| B-SL | 50 | 58517 | 8119 | 0.0364 | 0.58 | 0.0 |
-| B-LF | 50 | 40062 | 8542 | 0.0297 | 0.2 | 0.04 |
-| Budget-0 | 0 | 0 | 0 | 0.0 | 0.0 | 0.0 |
-| Budget-5 | 15 | 12483 | 2347 | 0.0087 | 0.6667 | 0.0 |
-| Budget-10 | 30 | 26860 | 4805 | 0.0184 | 0.5667 | 0.0 |
-| Budget-25 | 75 | 77895 | 12259 | 0.0508 | 0.4533 | 0.0267 |
+| pipeline | config | calls | accepted | defaulted | tokens_in | tokens_out | cost_usd | fallback_rate | invalid_rate |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Deterministic | fixture-A0 | 0 | 0 | 0 | 0 | 0 | 0.0 | 0.0 | 0.0 |
+| LLM | fixture-C-LLM | 24 | 47 | 0 | 28161 | 2770 | 0.0 | 0.0 | 0.0 |
+| Hybrid | fixture-B-All | 23 | 7 | 16 | 13792 | 1418 | 0.0 | 0.6957 | 0.0 |
+
+## LLM Intervention Funnel
+
+
 
 ## Routing Budget Results
 
-| config | calls | cost_usd | schema_f1 | linkage_f1 | fusion_acc | e2e |
-| --- | --- | --- | --- | --- | --- | --- |
-| Budget-0 | 0 | 0.0 | 0.4833 | 0.9415 | 0.7143 | 0.5699 |
-| Budget-5 | 15 | 0.0087 | 0.4833 | 0.9415 | 0.7143 | 0.5699 |
-| Budget-10 | 30 | 0.0184 | 0.4833 | 0.9415 | 0.7143 | 0.5699 |
-| Budget-25 | 75 | 0.0508 | 0.4833 | 0.9415 | 0.7143 | 0.5698 |
+
 
 The routing-budget variants show the cost envelope for the live release.
-B-All issued 75 model calls with an
-estimated cost of $0.0508. The
+B-All issued 0 model calls with an
+estimated cost of $0.0. The
 budgeted runs preserve the same deterministic backbone, so any quality movement
 comes only from the subset of routed decisions allowed by the cap. This makes
 the budget frontier interpretable: the x-axis is not total pipeline work, but
@@ -281,47 +270,47 @@ The appendix stores structured source-level cases in
 
 | case_id | stage | explanation |
 | --- | --- | --- |
-| schema_ca.pcpartpicker.com//displayport | schema_alignment | The source attribute was mapped to the wrong mediated-schema field, which can propagate into normalization and fusion. |
-| fusion_1_entity_009725 | fusion | The fused value disagrees with the curated or bootstrap fusion gold value, usually because conflicting source claims normalize to close but not identical values |
-| fusion_2_entity_009725 | fusion | The fused value disagrees with the curated or bootstrap fusion gold value, usually because conflicting source claims normalize to close but not identical values |
+| schema_source_alpha//price | schema_alignment | The source attribute was mapped to the wrong mediated-schema field, which can propagate into normalization and fusion. |
+| fusion_1_entity_000001 | fusion | The fused value disagrees with the curated or bootstrap fusion gold value, usually because conflicting source claims normalize to close but not identical values |
+| fixture_placeholder_3 | fixture_only | Fixture-only placeholder. This cannot satisfy the M4 submission gate. |
 
 ## Detailed Cases
 
-### schema_ca.pcpartpicker.com//displayport
+### schema_source_alpha//price
 
 Stage: `schema_alignment`
 
-System output: `{'source_attribute_id': 'ca.pcpartpicker.com//displayport', 'predicted_target_attribute_name': 'has_displayport', 'score_total': 0.747416, 'method': 'determinis`
+System output: `{'source_attribute_id': 'source_alpha//price', 'predicted_target_attribute_name': 'UNMAPPED', 'score_total': 1.0, 'method': 'deterministic_schema_v1'}`
 
-Expected output: `{'gold_target_attribute_name': 'displayport_quantity'}`
+Expected output: `{'gold_target_attribute_name': 'price'}`
 
 Explanation: The source attribute was mapped to the wrong mediated-schema field, which can propagate into normalization and fusion.
 
-Source evidence: `ca.pcpartpicker.com:1` title='Lenovo LT1952p 19.0" Monitor (2448MB6) - PCPartPicker Canada' brand='Lenovo' model='LT1952p'; `ca.pcpartpicker.com:101` title='Lenovo LT2252p 60Hz 22.0" Monitor (2572MB6) - PCPartPicker Canada' brand='Lenovo' model='LT2252p'; `ca.pcpartpicker.com:102` title='Lenovo LT2252p 75Hz 22.0" Monitor (2572MB1) - PCPartPicker Canada' brand='Lenovo' model='LT2252p'
+Source evidence: No source record excerpt was available in the fixture artifact.
 
-### fusion_1_entity_009725
-
-Stage: `fusion`
-
-System output: `{'entity_id': 'entity_009725', 'attribute': 'contrast_ratio_static', 'predicted_value': '450:1'}`
-
-Expected output: `{'truth_entity_id': 'ENTITY#002', 'expected_value': '500:1'}`
-
-Explanation: The fused value disagrees with the curated or bootstrap fusion gold value, usually because conflicting source claims normalize to close but not identical values.
-
-Source evidence: `www.officedepot.com:289` title='Elo 1000 Series 1515L Touch Screen Monitor by Office Depot' brand='Elo' model='1515L'; `www.ohc24.ch:387` title='OHC24 Shop : Monitor > Monitor search help > Elo - 1515L AccuTouch E344320' brand='' model=''
-
-### fusion_2_entity_009725
+### fusion_1_entity_000001
 
 Stage: `fusion`
 
-System output: `{'entity_id': 'entity_009725', 'attribute': 'screen_brightness', 'predicted_value': '230'}`
+System output: `{'entity_id': 'entity_000001', 'attribute': 'price', 'predicted_value': '305.00'}`
 
-Expected output: `{'truth_entity_id': 'ENTITY#002', 'expected_value': '250'}`
+Expected output: `{'truth_entity_id': 'ENTITY#001', 'expected_value': 'None'}`
 
 Explanation: The fused value disagrees with the curated or bootstrap fusion gold value, usually because conflicting source claims normalize to close but not identical values.
 
-Source evidence: `www.officedepot.com:289` title='Elo 1000 Series 1515L Touch Screen Monitor by Office Depot' brand='Elo' model='1515L'; `www.ohc24.ch:387` title='OHC24 Shop : Monitor > Monitor search help > Elo - 1515L AccuTouch E344320' brand='' model=''
+Source evidence: `source_alpha:a100` title='Canon EOS 4000D DSLR Camera Kit' brand='Canon' model='EOS4000D'; `source_beta:b200` title='Canon 4000D 18MP Digital SLR' brand='Canon' model='4000D'; `source_gamma:c300` title='EOS 4000D Camera from Canon' brand='Canon' model='EOS4000D'
+
+### fixture_placeholder_3
+
+Stage: `fixture_only`
+
+System output: `No additional labeled error was available.`
+
+Expected output: `N/A`
+
+Explanation: Fixture-only placeholder. This cannot satisfy the M4 submission gate.
+
+Source evidence: No source record excerpt was available in the fixture artifact.
 
 
 The error cases are selected from real run artifacts, not fixture placeholders.
@@ -434,7 +423,7 @@ make report
 
 | requirement | artifact | evidence |
 | --- | --- | --- |
-| Baseline and assisted runs | reports/release/m4_release_manifest.json | A0, B-All, ablations, and budgets |
+| Baseline and assisted runs | reports/release/m4_release_manifest.json | A0, C-LLM, B-All, ablations, and budgets |
 | Component metrics | reports/release/tables/metrics_summary.csv | Schema, blocking, linkage, clustering, fusion |
 | Operational metrics | reports/release/tables/operational_metrics.csv | Calls, tokens, cost, fallbacks, invalid outputs |
 | Concrete error cases | reports/appendix/m4_error_cases.json | Source records, outputs, expected values |

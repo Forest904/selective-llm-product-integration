@@ -1,0 +1,37 @@
+{
+  "experiment_id": "m4_c_llm_primary_fixture",
+  "baseline_pipeline_config": "configs/pipelines/fixture_m2.json",
+  "model_config": "configs/models/openai_m3_example.json",
+  "artifact_root": "artifacts/runs",
+  "decision_mode": "primary",
+  "llm_assistance": {
+    "schema": true,
+    "linkage": true,
+    "fusion": true,
+    "normalization": false
+  },
+  "prompt_versions": {
+    "schema": "prompts/schema/v20260611_m4_primary_batch",
+    "linkage": "prompts/linkage/v20260611_m4_primary_batch",
+    "fusion": "prompts/fusion/v20260611_m4_primary_batch"
+  },
+  "routing": {
+    "per_run_call_budget": 100,
+    "schema_confidence_threshold": 0.7,
+    "linkage_confidence_threshold": 0.72,
+    "fusion_confidence_threshold": 0.7,
+    "max_cases_per_stage": null,
+    "schema_batch_size": 2,
+    "linkage_batch_size": 2,
+    "fusion_batch_size": 2,
+    "primary_linkage_case_cap": 20,
+    "primary_fusion_case_cap": 20
+  },
+  "fallback_policy": {
+    "invalid_json": "primary_default",
+    "missing_fields": "primary_default",
+    "unsupported_output": "primary_default",
+    "abstention": "primary_default",
+    "timeout": "primary_default"
+  }
+}

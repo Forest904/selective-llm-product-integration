@@ -13,6 +13,8 @@ M4 release configs use the selected Alaska Monitor dataset and the committed
 `configs/models/openai_m4_gpt41mini_live.json` model settings. The grading
 matrix is:
 
+- `m4_c_llm_primary_alaska_monitor.json` for C-LLM, the bounded LLM-primary
+  comparison pipeline;
 - `m4_b_all_alaska_monitor.json` for B-All;
 - `m4_b_schema_only_alaska_monitor.json`, `m4_b_linkage_only_alaska_monitor.json`,
   and `m4_b_fusion_only_alaska_monitor.json` for single-stage ablations;

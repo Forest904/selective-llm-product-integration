@@ -133,6 +133,7 @@ def test_full_live_manifest_shape_is_accepted() -> None:
             {"configuration_id": config}
             for config in [
                 "A0",
+                "C-LLM",
                 "B-All",
                 "B-S",
                 "B-L",

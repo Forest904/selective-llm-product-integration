@@ -71,16 +71,21 @@ class RoutingConfig(BaseModel):
     linkage_confidence_threshold: float = 0.72
     fusion_confidence_threshold: float = 0.7
     max_cases_per_stage: int | None = 25
+    schema_batch_size: int = 10
+    linkage_batch_size: int = 10
+    fusion_batch_size: int = 5
+    primary_linkage_case_cap: int = 5000
+    primary_fusion_case_cap: int = 1000
 
 
 class FallbackPolicyConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    invalid_json: Literal["deterministic"] = "deterministic"
-    missing_fields: Literal["deterministic"] = "deterministic"
-    unsupported_output: Literal["deterministic"] = "deterministic"
-    abstention: Literal["deterministic"] = "deterministic"
-    timeout: Literal["deterministic"] = "deterministic"
+    invalid_json: Literal["deterministic", "primary_default"] = "deterministic"
+    missing_fields: Literal["deterministic", "primary_default"] = "deterministic"
+    unsupported_output: Literal["deterministic", "primary_default"] = "deterministic"
+    abstention: Literal["deterministic", "primary_default"] = "deterministic"
+    timeout: Literal["deterministic", "primary_default"] = "deterministic"
 
 
 class M3ExperimentConfig(BaseModel):
@@ -92,6 +97,7 @@ class M3ExperimentConfig(BaseModel):
         default="configs/models/openai_m3_example.json", alias="model_config"
     )
     artifact_root: str = "artifacts/runs"
+    decision_mode: Literal["assist", "primary"] = "assist"
     llm_assistance: LLMAssistanceConfig = Field(default_factory=LLMAssistanceConfig)
     prompt_versions: PromptVersionConfig = Field(default_factory=PromptVersionConfig)
     routing: RoutingConfig = Field(default_factory=RoutingConfig)
@@ -116,6 +122,16 @@ class SchemaLLMDecision(BaseModel):
         return value
 
 
+class SchemaLLMBatchDecisionItem(SchemaLLMDecision):
+    case_id: str
+
+
+class SchemaLLMBatchDecision(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    decisions: list[SchemaLLMBatchDecisionItem]
+
+
 class LinkageLLMDecision(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -131,6 +147,16 @@ class LinkageLLMDecision(BaseModel):
         if not 0.0 <= value <= 1.0:
             raise ValueError("confidence must be between 0 and 1")
         return value
+
+
+class LinkageLLMBatchDecisionItem(LinkageLLMDecision):
+    case_id: str
+
+
+class LinkageLLMBatchDecision(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    decisions: list[LinkageLLMBatchDecisionItem]
 
 
 class FusionLLMDecision(BaseModel):
@@ -149,6 +175,16 @@ class FusionLLMDecision(BaseModel):
         if not 0.0 <= value <= 1.0:
             raise ValueError("confidence must be between 0 and 1")
         return value
+
+
+class FusionLLMBatchDecisionItem(FusionLLMDecision):
+    case_id: str
+
+
+class FusionLLMBatchDecision(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    decisions: list[FusionLLMBatchDecisionItem]
 
 
 class LLMCallResult(BaseModel):

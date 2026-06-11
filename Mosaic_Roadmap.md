@@ -39,7 +39,7 @@ The pipeline is the product core. Every operation must be runnable through scrip
 
 ### Baseline-First
 
-Pipeline A must be complete before Pipeline B is interpreted as successful. Deterministic schema alignment, normalization, blocking, matching, clustering, and fusion establish the reference point for every LLM comparison.
+Pipeline A must be complete before Pipeline B or Pipeline C is interpreted as successful. Deterministic schema alignment, normalization, blocking, matching, clustering, and fusion establish the reference point for every LLM comparison.
 
 ### Evaluation-First
 
@@ -49,9 +49,15 @@ Every stage needs metrics, acceptance checks, and error examples. Report figures
 
 Every mapping, normalized value, candidate pair, match decision, cluster, claim, fused value, LLM response, and export must trace back to source data, configuration, code version, prompt/model version where applicable, and run ID.
 
-### Selective LLM Use
+### Three-Pipeline Research Comparison
 
-The LLM is an adjudicator for uncertain cases, not the default decision-maker. Mosaic must measure when model calls help, when they fail, and what they cost.
+Mosaic compares three reportable pipelines:
+
+- **Deterministic (`A0`)**: no LLM decisions; this is the reproducible baseline and engineering control.
+- **LLM (`C-LLM`)**: a bounded, practical LLM-primary extreme. Deterministic code still performs ingestion, normalization mechanics, blocking scaffolding, clustering constraints, artifact writing, and metrics, but configured schema, linkage, and fusion decisions are made by the model. Invalid, abstained, low-confidence, unsupported, or unselected cases default to explicit missing/non-match outcomes rather than deterministic fallbacks.
+- **Hybrid (`B-All`)**: the proposed selective LLM-assisted pipeline. The LLM adjudicates uncertain schema, linkage, and fusion cases while deterministic methods remain the default path and fallback.
+
+Mosaic must measure where the LLM-primary extreme helps, where deterministic methods remain preferable, and whether the hybrid design gives a better quality, cost, latency, and reproducibility trade-off.
 
 ### Website-As-Client
 
@@ -66,8 +72,8 @@ The web app consumes shared services and artifacts. It does not reimplement sche
 | M0 | Product and Repository Foundation | Reproducible project skeleton implemented | PRD and blueprint | M1, M2 fixture work |
 | M1 | Reproducible Data Foundation | Selected benchmark subset, manifests, profiles, schema | M0 | M2 |
 | M2 | Deterministic Baseline Pipeline | Pipeline A from raw sources to integrated entities | M1 | M3, M4 baseline results |
-| M3 | LLM-Assisted Research System | Pipeline B with selective LLM use in schema, linkage, and fusion | M2 | M4 assisted results |
-| M4 | Experiments, Report, and Academic Release | Assignment-ready PDF, repo, metrics, and final dataset | M2, M3 | M5, M6 |
+| M3 | LLM-Assisted Research System | Pipeline B hybrid plus Pipeline C LLM-primary comparison machinery | M2 | M4 three-pipeline results |
+| M4 | Experiments, Report, and Academic Release | Assignment-ready PDF, repo, metrics, final dataset, and Deterministic / LLM / Hybrid comparison | M2, M3 | M5, M6 |
 | M5 | Educational Demo Website | Learning site and animated assignment pipeline | M4 artifacts | M7 public demo |
 | M6 | Operational Integration Workbench | Backend, worker, database, and real review workflows | M4 artifacts, M5 UI foundation where reusable | M7 production hardening |
 | M7 | Production Hardening and Public Demo | Deployable, documented, secure public-facing system | M5, M6 | Full Mosaic vision |
@@ -451,11 +457,11 @@ The hardening pass reduced agglomerative cluster false positives from roughly `2
 
 ## M3: LLM-Assisted Research System
 
-**Status:** Implemented, hardened, live-smoke verified, and accepted as Pipeline B for M4 comparison.
+**Status:** Pipeline B is implemented, hardened, live-smoke verified, and accepted for M4 comparison. Pipeline C LLM-primary mode is implemented in code and fixture tests; the full live M4 release rerun is the remaining validation step.
 
 ### Goal
 
-Implement Pipeline B with selective LLM use in schema alignment, record linkage, and data fusion.
+Implement the shared LLM decision infrastructure for Pipeline B selective hybrid behavior and Pipeline C bounded LLM-primary behavior across schema alignment, record linkage, and data fusion.
 
 ### Prerequisites
 
@@ -493,6 +499,12 @@ Implement Pipeline B with selective LLM use in schema alignment, record linkage,
 - [x] Generate quality-cost metrics and frontier outputs for routed cases.
 - [x] Add tests for structured-output parsing, validation failures, fallback behavior, unsupported values, unknown IDs, incompatible units, budget enforcement, provider failures, and prompt input leakage.
 - [x] Keep LLM-assisted normalization clearly labeled as stretch/backlog.
+- [x] Add `decision_mode` so existing hybrid behavior remains `assist` and the new LLM-primary behavior runs as `primary`.
+- [x] Add batched structured-output prompts for LLM-primary schema, linkage, and fusion decisions.
+- [x] Add C-LLM experiment configs for Alaska Monitor and fixture reproduction.
+- [x] In primary mode, default schema failures to `UNMAPPED`, linkage failures and unselected pairs to `non_match`, and fusion failures to abstained or missing values.
+- [x] Reject missing, duplicate, unsupported, or unknown batch case IDs before accepting LLM-primary decisions.
+- [x] Add fixture-level tests for C-LLM primary behavior and routing/intervention counts.
 
 ### Implemented Notes
 
@@ -503,6 +515,9 @@ Implement Pipeline B with selective LLM use in schema alignment, record linkage,
 - Gateway provider failures, missing API keys, empty responses, timeouts, invalid JSON, and validation failures are logged as `LLMCallResult` rows rather than crashing evaluation.
 - Quality-cost artifacts include cumulative frontier points for M4 plots.
 - LLM-assisted normalization remains out of runtime scope.
+- C-LLM uses the same deterministic scaffolding for ingestion, blocking, normalization mechanics, clustering constraints, artifact writing, and metric computation, but reportable schema, linkage, and fusion decisions inside the configured budget are LLM-primary.
+- C-LLM uses batch prompts under the `v20260611_m4_primary_batch` prompt family. Batch validation rejects unknown case IDs, duplicate IDs, unsupported schema targets, unsupported fusion values, and unknown claim IDs.
+- The Alaska Monitor C-LLM config uses all schema attributes, a moderate linkage cap, and a fusion cap for conflict/error/high-disagreement cases so the LLM-primary comparison remains practical for a student release.
 
 ### Deliverables
 
@@ -521,6 +536,10 @@ Implement Pipeline B with selective LLM use in schema alignment, record linkage,
 - [x] Routing metrics.
 - [x] Quality-cost outputs.
 - [x] LLM validation tests.
+- [x] C-LLM primary-mode configs.
+- [x] Batch primary-mode prompts.
+- [x] Primary-mode routing/intervention metrics.
+- [x] C-LLM fixture tests.
 
 ### Implemented CLI And Commands
 
@@ -537,6 +556,7 @@ Default `m3_llm_assisted_example` uses fake/cache-first execution for determinis
 ### Acceptance Gate
 
 - [x] Assisted pipeline uses LLMs in schema alignment, record linkage, and fusion.
+- [x] LLM-primary mode can run schema, linkage, and fusion decisions without deterministic fallback for reportable decisions.
 - [x] Every accepted LLM decision is validated, logged, reproducible, and source-supported.
 - [x] Invalid and unsupported outputs are counted as failures unless a documented fallback applies.
 - [x] No manual correction of LLM outputs is needed or allowed during evaluation.
@@ -569,6 +589,8 @@ Final verification result: 39 passing tests, fixture baseline reproduction passe
 - LLM responses may still be invalid or overconfident; current mitigation is strict structured validation, failure counting, abstention, and deterministic fallback.
 - Prompt inputs may accidentally include ground truth; current mitigation is payload filtering and tests that check prompt logs for ground-truth leakage.
 - Unrestricted LLM calls may make experiments too expensive; current mitigation is stage caps, run budgets, daily budgets, cache support, and quality-cost frontier artifacts.
+- C-LLM quality may intentionally degrade when model calls abstain, fail validation, or fall outside the configured cap; the report must frame this as part of the bounded LLM-primary comparison, not as a production recommendation.
+- The full C-LLM live run can be slow and expensive without batching, caps, and cache reuse. The release command should keep the configured cap practical and make reruns cache-friendly.
 - Model-specific behavior can hurt reproducibility unless responses are cached or logged; current mitigation is response caching, full call logs, prompt versions, model settings, and run manifests.
 - M2 clustering diagnostics are useful routing inputs, but cluster truth must remain evaluation-only and must not enter LLM prompts.
 
@@ -596,7 +618,9 @@ Produce the assignment-ready research release: PDF report, GitHub-ready reposito
 ### Implementation Checklist
 
 - Run baseline configuration A0.
+- Run bounded LLM-primary configuration C-LLM.
 - Run LLM-assisted configuration B-All.
+- Compare Deterministic / LLM / Hybrid results as the main report framing.
 - Run stage ablations where feasible: schema-only, linkage-only, fusion-only, schema-linkage, linkage-fusion, and schema-linkage-fusion.
 - Run no-abstention or no-fallback experiment if feasible and safe to interpret.
 - Run routing-budget experiments for eligible uncertain cases.
@@ -606,6 +630,8 @@ Produce the assignment-ready research release: PDF report, GitHub-ready reposito
 - Generate clustering metrics where labels support them.
 - Generate fusion accuracy for attributes with ground truth.
 - Generate end-to-end quality summary.
+- Generate a three-way delta table for A0, C-LLM, and B-All.
+- Generate an LLM intervention funnel with eligible, selected, called, accepted, invalid, defaulted, fallback, and unselected-default counts where applicable.
 - Generate optional operational metrics: reduction ratio, completeness, LLM calls, tokens, cost, latency, cache hit rate, invalid-output rate, abstention rate, fallback rate, and unsupported-value rate.
 - Select at least three concrete error cases.
 - For each error case, capture source records, system output, expected output, explanation, and stage of origin.
@@ -634,8 +660,10 @@ Produce the assignment-ready research release: PDF report, GitHub-ready reposito
 ### Acceptance Gate
 
 - Every assignment requirement is traceable to an artifact, metric, or report section.
+- The main results compare Deterministic (`A0`), LLM (`C-LLM`), and Hybrid (`B-All`) using consistent labels and artifact-backed metrics.
 - A clean clone can regenerate reported outputs or documented fixture-equivalent outputs.
-- The report clearly explains where LLMs help, where deterministic methods remain preferable, and how cost, latency, hallucinations, and reproducibility affect design.
+- The report clearly explains that C-LLM is a bounded practical LLM-primary pipeline, not an exhaustive LLM over every possible pair.
+- The report clearly explains where LLMs help, where deterministic methods remain preferable, why the hybrid design exists, and how cost, latency, hallucinations, and reproducibility affect design.
 
 ### Risks / Watchpoints
 
@@ -643,6 +671,8 @@ Produce the assignment-ready research release: PDF report, GitHub-ready reposito
 - Optional experiments may distract from required metrics.
 - Error examples may be too abstract unless source-level records are included.
 - Reproducibility may fail if data download or LLM response handling is underdocumented.
+- The C-LLM run can dominate runtime and cost if caps are set too high; batching, cache reuse, and a documented practical cap are required.
+- The C-LLM pipeline defaults unselected or invalid linkage cases to non-match and invalid fusion cases to missing values, so quality may drop in ways that are useful for comparison but unsafe to present as a deployment design.
 
 ### Unlocks
 
@@ -921,10 +951,12 @@ Required before submission:
 
 - Dataset satisfies assignment minimums.
 - Pipeline A runs end to end without LLM decisions.
-- Pipeline B uses LLMs in schema alignment, record linkage, and fusion.
+- Pipeline C runs as a bounded LLM-primary practical extreme for schema, linkage, and fusion decisions without deterministic fallback for reportable decisions.
+- Pipeline B uses LLMs selectively in schema alignment, record linkage, and fusion as the proposed hybrid design.
 - Prompts and model settings are committed.
 - Invalid outputs, abstentions, fallbacks, cost, and latency are measured.
 - Schema, linkage, fusion, and end-to-end metrics are generated.
+- Deterministic / LLM / Hybrid tables and plots are generated from release artifacts.
 - At least three concrete source-level error cases are documented.
 - Final integrated dataset is exportable.
 - Report PDF is polished and includes GitHub link.
@@ -1018,4 +1050,4 @@ When updating the roadmap, keep milestone IDs stable where possible so implement
 
 ## 9. Immediate Next Step
 
-Begin M3 using the accepted M2 baseline diagnostics as routing inputs. Prioritize selective LLM adjudication for ambiguous schema mappings, borderline linkage decisions, weak cluster bridges, over-merged and under-merged cluster cases, curated fusion errors, low-support fused values, and high-conflict attributes. Do not start broad website implementation before M4 is on track, because the website depends on stable research artifacts and the academic release is the first required gate.
+Complete the C-LLM live release rerun after the practical cap adjustment, rebuild the report, and verify that the release tables and figures show Deterministic / LLM / Hybrid comparisons from `A0`, `C-LLM`, and `B-All`. Do not start broad website implementation before M4 is accepted, because the website depends on stable research artifacts and the academic release is the first required gate.

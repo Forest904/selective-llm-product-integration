@@ -1,0 +1,44 @@
+{
+  "experiment_id": "m4_c_llm_primary_alaska_monitor",
+  "baseline_pipeline_config": "configs/pipelines/baseline_m2.json",
+  "model_config": "configs/models/openai_m4_gpt41mini_live.json",
+  "artifact_root": "artifacts/runs",
+  "decision_mode": "primary",
+  "llm_assistance": {
+    "schema": true,
+    "linkage": true,
+    "fusion": true,
+    "normalization": false
+  },
+  "prompt_versions": {
+    "schema": "prompts/schema/v20260611_m4_primary_batch",
+    "linkage": "prompts/linkage/v20260611_m4_primary_batch",
+    "fusion": "prompts/fusion/v20260611_m4_primary_batch"
+  },
+  "routing": {
+    "daily_call_budget": null,
+    "daily_cost_budget_usd": null,
+    "per_run_call_budget": 1000,
+    "per_run_cost_budget_usd": null,
+    "schema_low_margin_threshold": 0.08,
+    "schema_unmapped_min_score": 0.35,
+    "schema_confidence_threshold": 0.7,
+    "linkage_min_probability": 0.35,
+    "linkage_max_probability": 0.75,
+    "linkage_confidence_threshold": 0.72,
+    "fusion_confidence_threshold": 0.7,
+    "max_cases_per_stage": null,
+    "schema_batch_size": 10,
+    "linkage_batch_size": 10,
+    "fusion_batch_size": 5,
+    "primary_linkage_case_cap": 2500,
+    "primary_fusion_case_cap": 1000
+  },
+  "fallback_policy": {
+    "invalid_json": "primary_default",
+    "missing_fields": "primary_default",
+    "unsupported_output": "primary_default",
+    "abstention": "primary_default",
+    "timeout": "primary_default"
+  }
+}

@@ -1,3 +1,4 @@
 # Fusion Prompts
 
-Data-fusion prompt versions will live here.
+Data-fusion prompt versions live here. The `v20260611_m4_primary_batch`
+version is used by the C-LLM bounded LLM-primary pipeline.

@@ -27,6 +27,7 @@ M4_ARTIFACT_DIR = Path("artifacts/reports/m4")
 DEFAULT_RELEASE_MANIFEST = M4_ARTIFACT_DIR / "m4_release_manifest.json"
 DEFAULT_FIXTURE_MANIFEST = M4_ARTIFACT_DIR / "m4_fixture_manifest.json"
 DEFAULT_FULL_EXPERIMENTS = (
+    Path("configs/experiments/m4_c_llm_primary_alaska_monitor.json"),
     Path("configs/experiments/m4_b_all_alaska_monitor.json"),
     Path("configs/experiments/m4_b_schema_only_alaska_monitor.json"),
     Path("configs/experiments/m4_b_linkage_only_alaska_monitor.json"),
@@ -58,7 +59,10 @@ def run_m4_release(
     runs: list[dict[str, Any]] = []
     if fixture:
         baseline_config_path = repo_root / "configs/pipelines/fixture_m2.json"
-        assisted_config_paths = [repo_root / "configs/experiments/m3_llm_assisted_example.json"]
+        assisted_config_paths = [
+            repo_root / "configs/experiments/m4_c_llm_primary_fixture.json",
+            repo_root / "configs/experiments/m3_llm_assisted_example.json",
+        ]
     else:
         if not live:
             raise RuntimeError("full M4 release requires --live for reported assisted runs")
@@ -238,6 +242,11 @@ def aggregate_operational_metrics(
         "eligible_count": sum(int(payload.get("eligible_count", 0) or 0) for payload in payloads),
         "selected_count": selected_count,
         "llm_call_count": sum(int(payload.get("llm_call_count", 0) or 0) for payload in payloads),
+        "accepted_count": sum(int(payload.get("accepted_count", 0) or 0) for payload in payloads),
+        "defaulted_count": sum(int(payload.get("defaulted_count", 0) or 0) for payload in payloads),
+        "unselected_default_count": sum(
+            int(payload.get("unselected_default_count", 0) or 0) for payload in payloads
+        ),
         "cache_hit_count": sum(int(payload.get("cache_hit_count", 0) or 0) for payload in payloads),
         "invalid_output_count": sum(
             int(payload.get("invalid_output_count", 0) or 0) for payload in payloads
@@ -291,6 +300,7 @@ def _validate_report_manifest(manifest: dict[str, Any], *, fixture: bool) -> Non
     run_ids = {str(run.get("configuration_id")) for run in manifest.get("runs", [])}
     required = {
         "A0",
+        "C-LLM",
         "B-All",
         "B-S",
         "B-L",
@@ -326,6 +336,11 @@ def _run_entry(
         "config_path": repo_relative(config_path, repo_root),
         "configuration_hash": manifest.get("configuration_hash"),
         "llm_decisions": bool(manifest.get("llm_decisions")),
+        "decision_mode": manifest.get(
+            "decision_mode",
+            "deterministic" if role == "baseline" else "assist",
+        ),
+        "primary_defaults": manifest.get("primary_defaults", {}),
         "artifacts": manifest.get("artifacts", {}),
         "metrics": manifest.get("metrics", {}),
         "model_config": model_config or manifest.get("model_config"),
@@ -335,6 +350,8 @@ def _run_entry(
 
 def _display_configuration_id(experiment_id: str) -> str:
     mapping = {
+        "m4_c_llm_primary_alaska_monitor": "C-LLM",
+        "m4_c_llm_primary_fixture": "fixture-C-LLM",
         "m4_b_all_alaska_monitor": "B-All",
         "m4_b_schema_only_alaska_monitor": "B-S",
         "m4_b_linkage_only_alaska_monitor": "B-L",
@@ -373,6 +390,7 @@ def _summarize_run(run: dict[str, Any], repo_root: Path) -> dict[str, Any]:
     cm = confusion_matrix(linkage)
     return {
         "configuration_id": run["configuration_id"],
+        "report_label": _report_label(run["configuration_id"]),
         "run_id": run["run_id"],
         "schema_f1": _round(schema.get("f1")),
         "core_schema_f1": _round(schema.get("core_schema_metrics", {}).get("f1")),
@@ -403,8 +421,9 @@ def _operational_summary(run: dict[str, Any], repo_root: Path) -> dict[str, Any]
         path = artifacts.get(key)
         if path:
             payloads.append(_read_json(repo_root / path))
-    metrics = aggregate_operational_metrics(payloads)
+    metrics: dict[str, Any] = aggregate_operational_metrics(payloads)
     metrics["configuration_id"] = run["configuration_id"]
+    metrics["report_label"] = _report_label(run["configuration_id"])
     metrics["run_id"] = run["run_id"]
     metrics["invalid_output_rate"] = _rate(
         int(metrics["invalid_output_count"]), int(metrics["llm_call_count"])
@@ -415,6 +434,17 @@ def _operational_summary(run: dict[str, Any], repo_root: Path) -> dict[str, Any]
     metrics["fallback_rate"] = _rate(int(metrics["fallback_count"]), int(metrics["llm_call_count"]))
     metrics["unsupported_value_count"] = _unsupported_value_count(run, repo_root)
     return metrics
+
+
+def _report_label(configuration_id: str) -> str:
+    return {
+        "A0": "Deterministic",
+        "C-LLM": "LLM",
+        "B-All": "Hybrid",
+        "fixture-A0": "Deterministic",
+        "fixture-C-LLM": "LLM",
+        "fixture-B-All": "Hybrid",
+    }.get(configuration_id, configuration_id)
 
 
 def _dataset_summary(repo_root: Path, manifest: dict[str, Any]) -> dict[str, Any]:
@@ -875,6 +905,7 @@ def _report_markdown(
     metrics_table = _markdown_table(
         [
             {
+                "pipeline": row["report_label"],
                 "config": row["configuration_id"],
                 "schema_f1": row["schema_f1"],
                 "pairs": row["candidate_pairs"],
@@ -889,8 +920,11 @@ def _report_markdown(
     operational_table = _markdown_table(
         [
             {
+                "pipeline": row["report_label"],
                 "config": row["configuration_id"],
                 "calls": row["llm_call_count"],
+                "accepted": row["accepted_count"],
+                "defaulted": row["defaulted_count"],
                 "tokens_in": row["input_tokens"],
                 "tokens_out": row["output_tokens"],
                 "cost_usd": _round(row["estimated_cost_usd"]),
@@ -913,6 +947,7 @@ def _report_markdown(
     experiment_table = _markdown_table(
         [
             _experiment_row("A0", "deterministic", "deterministic", "deterministic"),
+            _experiment_row("C-LLM", "LLM primary", "LLM primary", "LLM primary"),
             _experiment_row("B-All", "LLM routed", "LLM routed", "LLM routed"),
             _experiment_row("B-S", "LLM routed", "deterministic", "deterministic"),
             _experiment_row("B-L", "deterministic", "LLM routed", "deterministic"),
@@ -924,8 +959,41 @@ def _report_markdown(
     summary_by_config = {str(row["configuration_id"]): row for row in summaries}
     operational_by_config = {str(row["configuration_id"]): row for row in operational}
     baseline = summary_by_config.get("A0", {})
+    llm_primary = summary_by_config.get("C-LLM", {})
     assisted = summary_by_config.get("B-All", {})
+    llm_ops = operational_by_config.get("C-LLM", {})
     assisted_ops = operational_by_config.get("B-All", {})
+    three_way_table = _markdown_table(
+        [
+            {
+                "pipeline": row.get("report_label"),
+                "config": row.get("configuration_id"),
+                "schema_f1": row.get("schema_f1"),
+                "linkage_f1": row.get("linkage_test_f1"),
+                "cluster_f1": row.get("cluster_f1"),
+                "fusion_acc": row.get("fusion_accuracy"),
+                "e2e": row.get("end_to_end_quality"),
+            }
+            for row in (baseline, llm_primary, assisted)
+            if row
+        ]
+    )
+    funnel_table = _markdown_table(
+        [
+            {
+                "pipeline": row.get("report_label"),
+                "eligible": row.get("eligible_count"),
+                "selected": row.get("selected_count"),
+                "calls": row.get("llm_call_count"),
+                "accepted": row.get("accepted_count"),
+                "defaulted": row.get("defaulted_count"),
+                "invalid": row.get("invalid_output_count"),
+                "cost_usd": _round(row.get("estimated_cost_usd")),
+            }
+            for row in (llm_ops, assisted_ops)
+            if row
+        ]
+    )
     confusion_table = _markdown_table(
         [
             {
@@ -967,7 +1035,7 @@ def _report_markdown(
             {
                 "requirement": "Baseline and assisted runs",
                 "artifact": "reports/release/m4_release_manifest.json",
-                "evidence": "A0, B-All, ablations, and budgets",
+                "evidence": "A0, C-LLM, B-All, ablations, and budgets",
             },
             {
                 "requirement": "Component metrics",
@@ -1007,11 +1075,12 @@ fontsize: 10pt
 
 # Introduction
 
-Mosaic compares a deterministic product data integration pipeline with a selective
-LLM-assisted pipeline for schema alignment, record linkage, and data fusion. The
-research question is where LLM decisions improve an otherwise reproducible
-integration workflow, and where deterministic methods remain preferable because
-they are cheaper, faster, easier to audit, or less prone to unsupported outputs.
+Mosaic compares three product data integration pipelines: a fully deterministic
+baseline, a bounded LLM-primary pipeline, and a selective hybrid pipeline for
+schema alignment, record linkage, and data fusion. The research question is
+where LLM decisions improve an otherwise reproducible integration workflow, and
+where deterministic methods remain preferable because they are cheaper, faster,
+easier to audit, or less prone to unsupported outputs.
 
 {mode_note}
 
@@ -1076,12 +1145,12 @@ are rejected and counted.
 
 Pipeline A0 uses deterministic schema scoring, rule-based normalization,
 blocking, a classical linkage model, constrained clustering, claim extraction,
-and deterministic fusion. Pipeline B keeps the same deterministic backbone but
-routes uncertain schema mappings, borderline linkage pairs, and high-conflict
-fusion cases to an OpenAI model with strict structured outputs. Unsupported
-values, invalid JSON, missing fields, abstentions, and timeouts are logged and
-measured. Deterministic fallback is used when a routed LLM decision is invalid
-or unsafe.
+and deterministic fusion. Pipeline C-LLM uses the same scaffolding but makes
+bounded primary model decisions for schema, linkage, and fusion; invalid,
+abstained, low-confidence, or unsupported outputs default to LLM-pipeline
+conservative values rather than deterministic fallbacks. Pipeline B-All keeps
+the deterministic backbone and routes only uncertain cases to an OpenAI model
+with strict structured outputs and deterministic fallback.
 
 The reported assisted model is configured through committed JSON files. The
 default M4 live model is `gpt-4.1-mini`, temperature `0`, strict structured
@@ -1133,9 +1202,9 @@ requires the explicit `--fixture` path.
 # Experimental Protocol
 
 The grading-focused matrix includes A0, B-All, stage ablations, and
-routing-budget variants. Every run records the code commit, configuration hash,
-prompt versions, model settings, metrics, and artifact paths in a release
-manifest.
+routing-budget variants, plus C-LLM as the practical LLM-primary comparison
+point. Every run records the code commit, configuration hash, prompt versions,
+model settings, metrics, and artifact paths in a release manifest.
 
 Release manifest: `{M4_RELEASE_DIR.as_posix()}/m4_release_manifest.json`
 
@@ -1161,12 +1230,22 @@ how much quality is retained when the number of routed calls is capped.
 
 ![Component quality overview]({M4_RELEASE_DIR.as_posix()}/figures/component_quality.png)
 
+## Three-Way Pipeline Comparison
+
+{three_way_table}
+
 {metrics_table}
 
 Full metric tables are written to
 `{M4_RELEASE_DIR.as_posix()}/tables/metrics_summary.csv`.
 
-On this release, B-All records schema F1 {assisted.get("schema_f1", "")},
+On this release, the LLM-primary pipeline records schema F1
+{llm_primary.get("schema_f1", "")}, linkage test F1
+{llm_primary.get("linkage_test_f1", "")}, clustering F1
+{llm_primary.get("cluster_f1", "")}, fusion accuracy
+{llm_primary.get("fusion_accuracy", "")}, and end-to-end summary
+{llm_primary.get("end_to_end_quality", "")}. B-All records schema F1
+{assisted.get("schema_f1", "")},
 linkage test F1 {assisted.get("linkage_test_f1", "")}, clustering F1
 {assisted.get("cluster_f1", "")}, fusion accuracy
 {assisted.get("fusion_accuracy", "")}, and end-to-end summary
@@ -1202,6 +1281,10 @@ the underlying gold-label sparsity.
 Operational metrics summarize cost and reliability of selective LLM use.
 
 {operational_table}
+
+## LLM Intervention Funnel
+
+{funnel_table}
 
 ## Routing Budget Results
 

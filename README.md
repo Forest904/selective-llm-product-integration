@@ -78,7 +78,8 @@ uv run mosaic report build
 The live release command reads `OPENAI_API_KEY` from the shell environment or
 from the ignored root `.env` file. It uses the committed M4 OpenAI model config
 (`gpt-4.1-mini`, temperature `0`, strict structured outputs, cache-or-live
-execution). It writes a compact release manifest to
+execution). The reported comparison includes Deterministic (`A0`), LLM
+(`C-LLM`), and Hybrid (`B-All`) rows. It writes a compact release manifest to
 `artifacts/reports/m4/m4_release_manifest.json`; `mosaic report build` copies
 the compact release bundle under `reports/release/`, writes `reports/report.md`,
 exports `reports/release/final_integrated_dataset.jsonl`, and builds
@@ -95,7 +96,7 @@ make report-fixture
 ```
 
 The fixture report is explicitly labeled as reproduction evidence, not as the
-reported live Pipeline B result. Fixture builds use
+reported live Pipeline B or C result. Fixture builds use
 `artifacts/reports/m4/m4_fixture_manifest.json` by default so they do not
 overwrite the full-live release manifest.
 
