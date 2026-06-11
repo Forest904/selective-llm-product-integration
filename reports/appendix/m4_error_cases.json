@@ -1,0 +1,580 @@
+[
+  {
+    "artifact_links": {
+      "schema_errors": "artifacts/runs/run_20260610T223336Z_baseline_m2_alaska_monit_94c36c99/schema/schema_false_positives.parquet",
+      "schema_metrics": "artifacts/runs/run_20260610T223940Z_m4_b_all_alaska_monitor_ee07e4e0/schema/assisted_schema_metrics.json"
+    },
+    "case_id": "schema_ca.pcpartpicker.com//displayport",
+    "expected_output": {
+      "gold_target_attribute_name": "displayport_quantity"
+    },
+    "explanation": "The source attribute was mapped to the wrong mediated-schema field, which can propagate into normalization and fusion.",
+    "source_records": [
+      {
+        "attribute_name": "displayport",
+        "attribute_value": "1",
+        "raw_payload": {
+          "<page title>": "Lenovo LT1952p 19.0\" Monitor (2448MB6) - PCPartPicker Canada",
+          "aspect ratio": "16:10",
+          "brightness": "250 cd/m\u00b2",
+          "builtin speakers": "No",
+          "contrast ratio": "1000:1",
+          "display colors": "16700000",
+          "displayport": "1",
+          "dvi": "1",
+          "ips": "No",
+          "led": "Yes",
+          "manufacturer": "Lenovo",
+          "model": "LT1952p",
+          "part": "2448MB6",
+          "recommended resolution": "1440 x 900",
+          "response time": "5 ms",
+          "screen size": "19\"",
+          "vga": "1",
+          "viewing angle": "170\u00b0 H x 160\u00b0 V",
+          "widescreen": "Yes"
+        },
+        "record_uid": "ca.pcpartpicker.com:1",
+        "source_id": "ca.pcpartpicker.com",
+        "source_record_id": "1"
+      },
+      {
+        "attribute_name": "displayport",
+        "attribute_value": "1",
+        "raw_payload": {
+          "<page title>": "Lenovo LT2252p 60Hz 22.0\" Monitor (2572MB6) - PCPartPicker Canada",
+          "aspect ratio": "16:10",
+          "brightness": "250 cd/m\u00b2",
+          "builtin speakers": "No",
+          "contrast ratio": "1000:1",
+          "displayport": "1",
+          "dvi": "1",
+          "ips": "No",
+          "led": "Yes",
+          "manufacturer": "Lenovo",
+          "model": "LT2252p",
+          "part": "2572MB6",
+          "recommended resolution": "1680 x 1050",
+          "refresh rate": "60Hz",
+          "response time": "5 ms",
+          "screen size": "22\"",
+          "vga": "1",
+          "viewing angle": "170\u00b0 H x 160\u00b0 V",
+          "widescreen": "Yes"
+        },
+        "record_uid": "ca.pcpartpicker.com:101",
+        "source_id": "ca.pcpartpicker.com",
+        "source_record_id": "101"
+      },
+      {
+        "attribute_name": "displayport",
+        "attribute_value": "1",
+        "raw_payload": {
+          "<page title>": "Lenovo LT2252p 75Hz 22.0\" Monitor (2572MB1) - PCPartPicker Canada",
+          "aspect ratio": "16:10",
+          "brightness": "250 cd/m\u00b2",
+          "builtin speakers": "No",
+          "contrast ratio": "1000:1",
+          "display colors": "16700000",
+          "displayport": "1",
+          "dvi": "1",
+          "ips": "No",
+          "led": "Yes",
+          "manufacturer": "Lenovo",
+          "model": "LT2252p",
+          "part": "2572MB1",
+          "recommended resolution": "1680 x 1050",
+          "refresh rate": "75Hz",
+          "response time": "5 ms",
+          "screen size": "22\"",
+          "vga": "1",
+          "widescreen": "Yes"
+        },
+        "record_uid": "ca.pcpartpicker.com:102",
+        "source_id": "ca.pcpartpicker.com",
+        "source_record_id": "102"
+      }
+    ],
+    "stage": "schema_alignment",
+    "system_output": {
+      "method": "deterministic_schema_v1",
+      "predicted_target_attribute_name": "has_displayport",
+      "score_total": 0.747416,
+      "source_attribute_id": "ca.pcpartpicker.com//displayport"
+    }
+  },
+  {
+    "artifact_links": {
+      "fused_values": "artifacts/runs/run_20260610T223940Z_m4_b_all_alaska_monitor_ee07e4e0/fusion/assisted_fused_values.parquet",
+      "fusion_metrics": "artifacts/runs/run_20260610T223940Z_m4_b_all_alaska_monitor_ee07e4e0/fusion/assisted_fusion_metrics.json"
+    },
+    "case_id": "fusion_1_entity_009725",
+    "expected_output": {
+      "expected_value": "500:1",
+      "truth_entity_id": "ENTITY#002"
+    },
+    "explanation": "The fused value disagrees with the curated or bootstrap fusion gold value, usually because conflicting source claims normalize to close but not identical values.",
+    "source_records": [
+      {
+        "normalized_payload": {
+          "brand": "Elo",
+          "category": "monitor",
+          "color": "dark gray",
+          "contrast_ratio_static": "450:1",
+          "model_number": "1515L",
+          "monitor_depth_with_stand": "6.9",
+          "monitor_height_with_stand": "12.2",
+          "monitor_weight": "10.6",
+          "monitor_width_with_stand": "13.8",
+          "mount_type": "desk mountable",
+          "response_time": "21.5",
+          "screen_brightness": "230",
+          "screen_size_diagonal": "15",
+          "specifications": {
+            "color_supported": {
+              "normalized_value": "16.2 million colors",
+              "raw_value": "16.2 Million Colors",
+              "source_claim_ids": [
+                "f1616754c0f3fabddbcc45be"
+              ],
+              "unit": null
+            },
+            "ecolabel": {
+              "normalized_value": "china rohs",
+              "raw_value": "China RoHS",
+              "source_claim_ids": [
+                "164dd1bb5e724e8d2c786299"
+              ],
+              "unit": null
+            },
+            "input_voltage": {
+              "normalized_value": "220 v ac",
+              "raw_value": "220 V AC",
+              "source_claim_ids": [
+                "523f8a53ec35b38ea2c14900"
+              ],
+              "unit": null
+            },
+            "item": {
+              "normalized_value": "665533",
+              "raw_value": "665533",
+              "source_claim_ids": [
+                "ba5e64fd9418822a3f2e6390"
+              ],
+              "unit": null
+            },
+            "maximum_resolution": {
+              "normalized_value": "1024",
+              "raw_value": "1024 x 768",
+              "source_claim_ids": [
+                "c0ccce1afb551836d29453f0"
+              ],
+              "unit": "px"
+            },
+            "platform_supported": {
+              "normalized_value": "mac; sun",
+              "raw_value": "Mac; Sun",
+              "source_claim_ids": [
+                "7b352e266024baef84ad24c0"
+              ],
+              "unit": null
+            },
+            "product_series": {
+              "normalized_value": "1000",
+              "raw_value": "1000",
+              "source_claim_ids": [
+                "d22fa6467aab7303b296762b"
+              ],
+              "unit": null
+            },
+            "screen_mode": {
+              "normalized_value": "xga",
+              "raw_value": "XGA",
+              "source_claim_ids": [
+                "768d622f0cbf44959e2cc642"
+              ],
+              "unit": null
+            },
+            "screen_surface": {
+              "normalized_value": "anti-glare",
+              "raw_value": "Anti-glare",
+              "source_claim_ids": [
+                "14775fbbd34df27f4b3c00b5"
+              ],
+              "unit": null
+            },
+            "touchscreen": {
+              "normalized_value": "yes",
+              "raw_value": "Yes",
+              "source_claim_ids": [
+                "1738372177551b9203f5a6c8"
+              ],
+              "unit": null
+            },
+            "warranty_length": {
+              "normalized_value": "3-year limited",
+              "raw_value": "3-year limited",
+              "source_claim_ids": [
+                "b68fcdd7a55ee9793c0dbbbc"
+              ],
+              "unit": null
+            }
+          },
+          "supported_aspect_ratio": "4:3",
+          "title": "Elo 1000 Series 1515L Touch Screen Monitor by Office Depot",
+          "vertical_refresh_rate_range": "75"
+        },
+        "raw_payload": {
+          "<page title>": "Elo 1000 Series 1515L Touch Screen Monitor by Office Depot",
+          "aspect ratio": "4:3",
+          "brand name": "Elo",
+          "brightness": "230 Nit",
+          "color": "Dark Gray",
+          "color supported": "16.2 Million Colors",
+          "contrast ratio": "450:1",
+          "depth with stand": "6.90\"",
+          "ecolabel": "China RoHS",
+          "height with stand": "12.20\"",
+          "input voltage": "220 V AC",
+          "item ": "665533",
+          "manufacturer": "Elo Touch Solutions, Inc",
+          "manufacturer ": "V21394",
+          "maximum resolution": "1024 x 768",
+          "model name": "1515L",
+          "mount type": "Desk Mountable",
+          "platform supported": "Mac; Sun",
+          "product name": "1000 Series 1515L Touch Screen Monitor",
+          "product series": "1000",
+          "product type": "LCD Touchscreen Monitor",
+          "response time": "21.50 ms",
+          "screen mode": "XGA",
+          "screen size": "15\"",
+          "screen surface": "Anti-glare",
+          "standard refresh rate": "75 Hz",
+          "touchscreen": "Yes",
+          "touchscreen type": "Surface Acoustic Wave",
+          "warranty length": "3-year limited",
+          "weight": "10.60 lb",
+          "width with stand": "13.80\""
+        },
+        "record_uid": "www.officedepot.com:289",
+        "source_id": "www.officedepot.com",
+        "source_record_id": "289"
+      },
+      {
+        "normalized_payload": {
+          "category": "monitor",
+          "color": "dark grey",
+          "contrast_ratio_static": "500:1",
+          "description": "Elo 1515L AccuTouch - LCD monitor - 15\"",
+          "monitor_weight": "4.8",
+          "monitor_width_with_stand": "35",
+          "number_of_colors": "16.7 million colours",
+          "response_time": "11.7",
+          "screen_brightness": "200",
+          "specifications": {
+            "builtin_devices": {
+              "normalized_value": "touch-screen",
+              "raw_value": "Touch-screen",
+              "source_claim_ids": [
+                "56a50f1a9b285e53f19b0d7a"
+              ],
+              "unit": null
+            },
+            "compliant_standards": {
+              "normalized_value": "ul, vcci, c-tick, cul, mpr iii, semko, ic, fcc, rohs",
+              "raw_value": "UL, VCCI, C-Tick, cUL, MPR III, SEMKO, IC, FCC, RoHS",
+              "source_claim_ids": [
+                "e1fde073f6966607d60b13d3"
+              ],
+              "unit": null
+            },
+            "input_connectors": {
+              "normalized_value": "vga",
+              "raw_value": "VGA",
+              "source_claim_ids": [
+                "0529f3bfcc79a103815613d3"
+              ],
+              "unit": null
+            },
+            "screen_coating": {
+              "normalized_value": "anti-glare",
+              "raw_value": "Anti-glare",
+              "source_claim_ids": [
+                "e4baec6f9ad1d8694313cb80"
+              ],
+              "unit": null
+            }
+          },
+          "supported_aspect_ratio": "4:3",
+          "supported_resolution": "1024",
+          "title": "OHC24 Shop : Monitor > Monitor search help > Elo - 1515L AccuTouch E344320"
+        },
+        "raw_payload": {
+          "<page title>": "OHC24 Shop : Monitor > Monitor search help > Elo - 1515L AccuTouch E344320",
+          "aspect ratio": "4:3",
+          "brightness": "200 cd/m2",
+          "builtin devices": "Touch-screen",
+          "colour": "Dark grey",
+          "colour support": "16.7 million colours",
+          "compliant standards": "UL, VCCI, C-Tick, cUL, MPR III, SEMKO, IC, FCC, RoHS",
+          "contrast ratio": "500:1",
+          "device type": "LCD monitor - 15\"",
+          "dimensions wxdxh": "35 cm x 17.5 cm x 31 cm",
+          "input connectors": "VGA",
+          "native resolution": "1024 x 768 at 75 Hz",
+          "product description": "Elo 1515L AccuTouch - LCD monitor - 15\"",
+          "response time": "11.7 ms",
+          "screen coating": "Anti-glare",
+          "weight": "4.8 kg"
+        },
+        "record_uid": "www.ohc24.ch:387",
+        "source_id": "www.ohc24.ch",
+        "source_record_id": "387"
+      }
+    ],
+    "stage": "fusion",
+    "system_output": {
+      "attribute": "contrast_ratio_static",
+      "entity_id": "entity_009725",
+      "predicted_value": "450:1"
+    }
+  },
+  {
+    "artifact_links": {
+      "fused_values": "artifacts/runs/run_20260610T223940Z_m4_b_all_alaska_monitor_ee07e4e0/fusion/assisted_fused_values.parquet",
+      "fusion_metrics": "artifacts/runs/run_20260610T223940Z_m4_b_all_alaska_monitor_ee07e4e0/fusion/assisted_fusion_metrics.json"
+    },
+    "case_id": "fusion_2_entity_009725",
+    "expected_output": {
+      "expected_value": "250",
+      "truth_entity_id": "ENTITY#002"
+    },
+    "explanation": "The fused value disagrees with the curated or bootstrap fusion gold value, usually because conflicting source claims normalize to close but not identical values.",
+    "source_records": [
+      {
+        "normalized_payload": {
+          "brand": "Elo",
+          "category": "monitor",
+          "color": "dark gray",
+          "contrast_ratio_static": "450:1",
+          "model_number": "1515L",
+          "monitor_depth_with_stand": "6.9",
+          "monitor_height_with_stand": "12.2",
+          "monitor_weight": "10.6",
+          "monitor_width_with_stand": "13.8",
+          "mount_type": "desk mountable",
+          "response_time": "21.5",
+          "screen_brightness": "230",
+          "screen_size_diagonal": "15",
+          "specifications": {
+            "color_supported": {
+              "normalized_value": "16.2 million colors",
+              "raw_value": "16.2 Million Colors",
+              "source_claim_ids": [
+                "f1616754c0f3fabddbcc45be"
+              ],
+              "unit": null
+            },
+            "ecolabel": {
+              "normalized_value": "china rohs",
+              "raw_value": "China RoHS",
+              "source_claim_ids": [
+                "164dd1bb5e724e8d2c786299"
+              ],
+              "unit": null
+            },
+            "input_voltage": {
+              "normalized_value": "220 v ac",
+              "raw_value": "220 V AC",
+              "source_claim_ids": [
+                "523f8a53ec35b38ea2c14900"
+              ],
+              "unit": null
+            },
+            "item": {
+              "normalized_value": "665533",
+              "raw_value": "665533",
+              "source_claim_ids": [
+                "ba5e64fd9418822a3f2e6390"
+              ],
+              "unit": null
+            },
+            "maximum_resolution": {
+              "normalized_value": "1024",
+              "raw_value": "1024 x 768",
+              "source_claim_ids": [
+                "c0ccce1afb551836d29453f0"
+              ],
+              "unit": "px"
+            },
+            "platform_supported": {
+              "normalized_value": "mac; sun",
+              "raw_value": "Mac; Sun",
+              "source_claim_ids": [
+                "7b352e266024baef84ad24c0"
+              ],
+              "unit": null
+            },
+            "product_series": {
+              "normalized_value": "1000",
+              "raw_value": "1000",
+              "source_claim_ids": [
+                "d22fa6467aab7303b296762b"
+              ],
+              "unit": null
+            },
+            "screen_mode": {
+              "normalized_value": "xga",
+              "raw_value": "XGA",
+              "source_claim_ids": [
+                "768d622f0cbf44959e2cc642"
+              ],
+              "unit": null
+            },
+            "screen_surface": {
+              "normalized_value": "anti-glare",
+              "raw_value": "Anti-glare",
+              "source_claim_ids": [
+                "14775fbbd34df27f4b3c00b5"
+              ],
+              "unit": null
+            },
+            "touchscreen": {
+              "normalized_value": "yes",
+              "raw_value": "Yes",
+              "source_claim_ids": [
+                "1738372177551b9203f5a6c8"
+              ],
+              "unit": null
+            },
+            "warranty_length": {
+              "normalized_value": "3-year limited",
+              "raw_value": "3-year limited",
+              "source_claim_ids": [
+                "b68fcdd7a55ee9793c0dbbbc"
+              ],
+              "unit": null
+            }
+          },
+          "supported_aspect_ratio": "4:3",
+          "title": "Elo 1000 Series 1515L Touch Screen Monitor by Office Depot",
+          "vertical_refresh_rate_range": "75"
+        },
+        "raw_payload": {
+          "<page title>": "Elo 1000 Series 1515L Touch Screen Monitor by Office Depot",
+          "aspect ratio": "4:3",
+          "brand name": "Elo",
+          "brightness": "230 Nit",
+          "color": "Dark Gray",
+          "color supported": "16.2 Million Colors",
+          "contrast ratio": "450:1",
+          "depth with stand": "6.90\"",
+          "ecolabel": "China RoHS",
+          "height with stand": "12.20\"",
+          "input voltage": "220 V AC",
+          "item ": "665533",
+          "manufacturer": "Elo Touch Solutions, Inc",
+          "manufacturer ": "V21394",
+          "maximum resolution": "1024 x 768",
+          "model name": "1515L",
+          "mount type": "Desk Mountable",
+          "platform supported": "Mac; Sun",
+          "product name": "1000 Series 1515L Touch Screen Monitor",
+          "product series": "1000",
+          "product type": "LCD Touchscreen Monitor",
+          "response time": "21.50 ms",
+          "screen mode": "XGA",
+          "screen size": "15\"",
+          "screen surface": "Anti-glare",
+          "standard refresh rate": "75 Hz",
+          "touchscreen": "Yes",
+          "touchscreen type": "Surface Acoustic Wave",
+          "warranty length": "3-year limited",
+          "weight": "10.60 lb",
+          "width with stand": "13.80\""
+        },
+        "record_uid": "www.officedepot.com:289",
+        "source_id": "www.officedepot.com",
+        "source_record_id": "289"
+      },
+      {
+        "normalized_payload": {
+          "category": "monitor",
+          "color": "dark grey",
+          "contrast_ratio_static": "500:1",
+          "description": "Elo 1515L AccuTouch - LCD monitor - 15\"",
+          "monitor_weight": "4.8",
+          "monitor_width_with_stand": "35",
+          "number_of_colors": "16.7 million colours",
+          "response_time": "11.7",
+          "screen_brightness": "200",
+          "specifications": {
+            "builtin_devices": {
+              "normalized_value": "touch-screen",
+              "raw_value": "Touch-screen",
+              "source_claim_ids": [
+                "56a50f1a9b285e53f19b0d7a"
+              ],
+              "unit": null
+            },
+            "compliant_standards": {
+              "normalized_value": "ul, vcci, c-tick, cul, mpr iii, semko, ic, fcc, rohs",
+              "raw_value": "UL, VCCI, C-Tick, cUL, MPR III, SEMKO, IC, FCC, RoHS",
+              "source_claim_ids": [
+                "e1fde073f6966607d60b13d3"
+              ],
+              "unit": null
+            },
+            "input_connectors": {
+              "normalized_value": "vga",
+              "raw_value": "VGA",
+              "source_claim_ids": [
+                "0529f3bfcc79a103815613d3"
+              ],
+              "unit": null
+            },
+            "screen_coating": {
+              "normalized_value": "anti-glare",
+              "raw_value": "Anti-glare",
+              "source_claim_ids": [
+                "e4baec6f9ad1d8694313cb80"
+              ],
+              "unit": null
+            }
+          },
+          "supported_aspect_ratio": "4:3",
+          "supported_resolution": "1024",
+          "title": "OHC24 Shop : Monitor > Monitor search help > Elo - 1515L AccuTouch E344320"
+        },
+        "raw_payload": {
+          "<page title>": "OHC24 Shop : Monitor > Monitor search help > Elo - 1515L AccuTouch E344320",
+          "aspect ratio": "4:3",
+          "brightness": "200 cd/m2",
+          "builtin devices": "Touch-screen",
+          "colour": "Dark grey",
+          "colour support": "16.7 million colours",
+          "compliant standards": "UL, VCCI, C-Tick, cUL, MPR III, SEMKO, IC, FCC, RoHS",
+          "contrast ratio": "500:1",
+          "device type": "LCD monitor - 15\"",
+          "dimensions wxdxh": "35 cm x 17.5 cm x 31 cm",
+          "input connectors": "VGA",
+          "native resolution": "1024 x 768 at 75 Hz",
+          "product description": "Elo 1515L AccuTouch - LCD monitor - 15\"",
+          "response time": "11.7 ms",
+          "screen coating": "Anti-glare",
+          "weight": "4.8 kg"
+        },
+        "record_uid": "www.ohc24.ch:387",
+        "source_id": "www.ohc24.ch",
+        "source_record_id": "387"
+      }
+    ],
+    "stage": "fusion",
+    "system_output": {
+      "attribute": "screen_brightness",
+      "entity_id": "entity_009725",
+      "predicted_value": "230"
+    }
+  }
+]

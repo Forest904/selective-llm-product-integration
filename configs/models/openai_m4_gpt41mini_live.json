@@ -1,0 +1,20 @@
+{
+  "provider": "openai",
+  "execution_mode": "cache_or_live",
+  "model": "gpt-4.1-mini",
+  "temperature": 0,
+  "max_output_tokens": 1024,
+  "timeout_seconds": 60,
+  "max_retries": 2,
+  "cache_mode": "read_write",
+  "cache_root": "artifacts/llm_cache",
+  "call_log_root": "artifacts/llm_calls",
+  "structured_output": {
+    "enabled": true,
+    "strict": true
+  },
+  "pricing": {
+    "input_usd_per_1m_tokens": 0.4,
+    "output_usd_per_1m_tokens": 1.6
+  }
+}

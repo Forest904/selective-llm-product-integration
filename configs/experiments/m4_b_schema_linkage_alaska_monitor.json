@@ -1,0 +1,38 @@
+{
+  "experiment_id": "m4_b_schema_linkage_alaska_monitor",
+  "baseline_pipeline_config": "configs/pipelines/baseline_m2.json",
+  "model_config": "configs/models/openai_m4_gpt41mini_live.json",
+  "artifact_root": "artifacts/runs",
+  "llm_assistance": {
+    "schema": true,
+    "linkage": true,
+    "fusion": false,
+    "normalization": false
+  },
+  "prompt_versions": {
+    "schema": "prompts/schema/v20260610_m3_assisted",
+    "linkage": "prompts/linkage/v20260610_m3_assisted",
+    "fusion": "prompts/fusion/v20260610_m3_assisted"
+  },
+  "routing": {
+    "daily_call_budget": null,
+    "daily_cost_budget_usd": null,
+    "per_run_call_budget": 50,
+    "per_run_cost_budget_usd": null,
+    "schema_low_margin_threshold": 0.08,
+    "schema_unmapped_min_score": 0.35,
+    "schema_confidence_threshold": 0.7,
+    "linkage_min_probability": 0.35,
+    "linkage_max_probability": 0.75,
+    "linkage_confidence_threshold": 0.72,
+    "fusion_confidence_threshold": 0.7,
+    "max_cases_per_stage": 25
+  },
+  "fallback_policy": {
+    "invalid_json": "deterministic",
+    "missing_fields": "deterministic",
+    "unsupported_output": "deterministic",
+    "abstention": "deterministic",
+    "timeout": "deterministic"
+  }
+}

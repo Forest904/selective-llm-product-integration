@@ -26,7 +26,8 @@ def test_fixture_reproduce() -> None:
 
 
 def test_report_build() -> None:
-    result = runner.invoke(app, ["report", "build"])
+    result = runner.invoke(app, ["report", "build", "--fixture", "--no-pdf"])
 
     assert result.exit_code == 0
-    assert "Report generation scaffold completed" in result.output
+    assert "report_md:" in result.output
+    assert "final_dataset:" in result.output

@@ -34,12 +34,14 @@ make install
 make lint
 make test
 make reproduce
-make report
+make report-fixture
 ```
 
 `make install` bootstraps `uv` through Python if it is not already available.
 Fixture commands remain available for CI-safe reproduction, and M1 real-data
-commands run once the local Alaska files are present.
+commands run once the local Alaska files are present. `make report-fixture`
+builds the CI-safe fixture report. `make report` is reserved for the full M4
+academic release and fails unless a full live release manifest exists.
 
 ## Development Commands
 
@@ -48,7 +50,8 @@ make install     # install uv-managed Python dependencies
 make lint        # run Ruff and mypy
 make test        # run pytest
 make reproduce   # run fixture reproduction scaffold
-make report      # run report generation scaffold
+make report      # build the full live M4 submission report
+make report-fixture # build the fixture-equivalent report bundle
 make dev         # verify development scaffold readiness
 ```
 
@@ -62,6 +65,39 @@ uv run mosaic dataset ingest --config configs/datasets/selected_dataset.json
 uv run mosaic dataset profile --config configs/datasets/selected_dataset.json
 uv run mosaic report build
 ```
+
+## M4 Academic Release
+
+The assignment-ready release is generated in two layers:
+
+```bash
+uv run mosaic experiment release --live
+uv run mosaic report build
+```
+
+The live release command reads `OPENAI_API_KEY` from the shell environment or
+from the ignored root `.env` file. It uses the committed M4 OpenAI model config
+(`gpt-4.1-mini`, temperature `0`, strict structured outputs, cache-or-live
+execution). It writes a compact release manifest to
+`artifacts/reports/m4/m4_release_manifest.json`; `mosaic report build` copies
+the compact release bundle under `reports/release/`, writes `reports/report.md`,
+exports `reports/release/final_integrated_dataset.jsonl`, and builds
+`reports/report.pdf` when Pandoc and a LaTeX PDF engine are available.
+
+For a clean-clone or CI-safe fixture-equivalent check that does not make live
+LLM calls:
+
+```bash
+uv run mosaic experiment release --fixture
+uv run mosaic report build --fixture
+# or
+make report-fixture
+```
+
+The fixture report is explicitly labeled as reproduction evidence, not as the
+reported live Pipeline B result. Fixture builds use
+`artifacts/reports/m4/m4_fixture_manifest.json` by default so they do not
+overwrite the full-live release manifest.
 
 ## Reproducibility Conventions
 

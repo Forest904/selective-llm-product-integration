@@ -25,6 +25,7 @@ from mosaic.m3_models import (
     load_m3_experiment_config,
 )
 from mosaic.m3_pipeline import run_assisted_pipeline
+from mosaic.m4_release import build_m4_report, run_m4_release
 from mosaic.profiling import profile_dataset, write_profile_summary_table
 from mosaic.schema_validation import validate_mediated_schema
 
@@ -491,18 +492,64 @@ def experiment_live_smoke(
     typer.echo(f"live smoke completed: {run_id}")
 
 
-@report_app.command("build")
-def report_build() -> None:
-    """Reserve report generation and verify report source/output homes."""
-    root = _repo_root()
-    required = (root / "reports", root / "artifacts" / "reports")
-    missing = [str(path.relative_to(root)) for path in required if not path.exists()]
-    if missing:
-        for relative in missing:
-            typer.echo(f"missing: {relative}")
+@experiment_app.command("release")
+def experiment_release(
+    live: Annotated[
+        bool,
+        typer.Option(help="Run the full reported M4 matrix with live/cache-or-live OpenAI calls."),
+    ] = False,
+    fixture: Annotated[
+        bool,
+        typer.Option(help="Run the fixture-equivalent release matrix for CI-safe reproduction."),
+    ] = False,
+    manifest: Annotated[
+        Path | None,
+        typer.Option(help="Output release manifest path."),
+    ] = None,
+) -> None:
+    """Run the M4 academic release experiment matrix."""
+    if live and fixture:
+        typer.echo("choose either --live or --fixture, not both")
         raise typer.Exit(code=1)
+    root = _repo_root()
+    try:
+        manifest_path = run_m4_release(root, live=live, fixture=fixture, manifest_path=manifest)
+    except RuntimeError as exc:
+        typer.echo(str(exc))
+        raise typer.Exit(code=1) from exc
+    typer.echo(f"wrote M4 release manifest: {manifest_path.relative_to(root)}")
 
-    typer.echo("Report generation scaffold completed.")
+
+@report_app.command("build")
+def report_build(
+    manifest: Annotated[
+        Path | None,
+        typer.Option(help="M4 release manifest to build from."),
+    ] = None,
+    fixture: Annotated[
+        bool,
+        typer.Option(help="Force fixture-equivalent report generation."),
+    ] = False,
+    no_pdf: Annotated[
+        bool,
+        typer.Option(help="Skip PDF generation and render check."),
+    ] = False,
+) -> None:
+    """Build M4 release tables, figures, report source, and PDF when possible."""
+    root = _repo_root()
+    try:
+        outputs = build_m4_report(
+            root,
+            manifest_path=manifest,
+            fixture=fixture,
+            build_pdf=not no_pdf,
+        )
+    except RuntimeError as exc:
+        typer.echo(str(exc))
+        raise typer.Exit(code=1) from exc
+    for label, path in outputs.items():
+        if path is not None:
+            typer.echo(f"{label}: {path.relative_to(root)}")
 
 
 def _resolve_dataset_config(root: Path, config: Path | None, fixture: bool) -> Path:

@@ -6,3 +6,25 @@ stage toggles live here as committed, non-secret configuration.
 Do not put API keys, database passwords, provider credentials, or local account
 secrets in these files. Runtime credentials belong in local environment
 variables or a deployment secret manager.
+
+## M4 Academic Release
+
+M4 release configs use the selected Alaska Monitor dataset and the committed
+`configs/models/openai_m4_gpt41mini_live.json` model settings. The grading
+matrix is:
+
+- `m4_b_all_alaska_monitor.json` for B-All;
+- `m4_b_schema_only_alaska_monitor.json`, `m4_b_linkage_only_alaska_monitor.json`,
+  and `m4_b_fusion_only_alaska_monitor.json` for single-stage ablations;
+- `m4_b_schema_linkage_alaska_monitor.json` and
+  `m4_b_linkage_fusion_alaska_monitor.json` for paired-stage ablations;
+- `m4_budget_cap_*_alaska_monitor.json` for routing-budget points.
+
+Run the full reported matrix with:
+
+```bash
+uv run mosaic experiment release --live
+```
+
+Use `--fixture` for a CI-safe reproduction bundle that does not call a live
+model.

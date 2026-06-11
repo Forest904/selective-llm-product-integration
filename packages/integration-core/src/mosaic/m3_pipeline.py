@@ -118,9 +118,11 @@ def run_assisted_pipeline(
     repo_root: Path,
     *,
     stop_after: StageName = "export",
+    baseline_result: PipelineRunResult | None = None,
 ) -> PipelineRunResult:
     baseline_config = load_baseline_pipeline_config(repo_root / config.baseline_pipeline_config)
-    baseline_result = run_baseline_pipeline(baseline_config, repo_root)
+    if baseline_result is None:
+        baseline_result = run_baseline_pipeline(baseline_config, repo_root)
     dataset_config = load_dataset_config(repo_root / baseline_config.dataset_config)
     schema = load_mediated_schema(repo_root / baseline_config.schema_path)
     model_config = load_llm_model_config(repo_root / config.model_config_path)
@@ -386,33 +388,50 @@ def assist_record_linkage(
     pair_predictions_path: Path,
 ) -> dict[str, dict[str, str]]:
     predictions = pl.read_parquet(pair_predictions_path).to_dicts()
+    stage_dir = _stage_dir(run_dir, "matching")
+    predictions_path = stage_dir / "assisted_pair_predictions.parquet"
+    decisions_path = stage_dir / "assisted_pair_decisions.parquet"
+    route_path = stage_dir / "linkage_routing_manifest.parquet"
+    metrics_path = stage_dir / "assisted_linkage_metrics.json"
+    quality_path = stage_dir / "linkage_quality_cost.json"
+
+    if not config.llm_assistance.linkage:
+        _write_validated_parquet(predictions_path, predictions, PairPrediction)
+        _write_parquet(decisions_path, [])
+        _write_parquet(route_path, [])
+        _write_json(metrics_path, {"metrics_by_split": _classification_metrics(predictions)})
+        _write_json(quality_path, _quality_cost_table([], config))
+        return {
+            "artifacts": {
+                "assisted_pair_predictions": str(predictions_path),
+                "assisted_pair_decisions": str(decisions_path),
+                "linkage_routing_manifest": str(route_path),
+                "linkage_quality_cost": str(quality_path),
+            },
+            "metrics": {"assisted_linkage_metrics": str(metrics_path)},
+        }
+
     features = {
         str(row["candidate_pair_id"]): row
         for row in pl.read_parquet(pair_features_path).to_dicts()
     }
     records = _record_lookup(pl.read_parquet(normalized_records_path).to_dicts())
-    route_ids = [
+    route_ids = {
         str(row["candidate_pair_id"])
         for row in predictions
         if config.routing.linkage_min_probability
         <= float(row["match_probability"])
         <= config.routing.linkage_max_probability
-    ]
+    }
     assisted_rows: list[dict[str, Any]] = []
     decision_rows: list[dict[str, Any]] = []
     route_rows: list[dict[str, Any]] = []
-    stage_dir = _stage_dir(run_dir, "matching")
 
     for row in predictions:
         candidate_pair_id = str(row["candidate_pair_id"])
         output_row = dict(row)
-        if (
-            candidate_pair_id not in route_ids
-            or not config.llm_assistance.linkage
-        ):
+        if candidate_pair_id not in route_ids:
             assisted_rows.append(output_row)
-            if candidate_pair_id in route_ids:
-                route_rows.append(_skipped_route_row("linkage", candidate_pair_id, "not_selected"))
             continue
         feature_row = features[candidate_pair_id]
         payload = {
@@ -469,11 +488,6 @@ def assist_record_linkage(
             )
         )
 
-    predictions_path = stage_dir / "assisted_pair_predictions.parquet"
-    decisions_path = stage_dir / "assisted_pair_decisions.parquet"
-    route_path = stage_dir / "linkage_routing_manifest.parquet"
-    metrics_path = stage_dir / "assisted_linkage_metrics.json"
-    quality_path = stage_dir / "linkage_quality_cost.json"
     _write_validated_parquet(predictions_path, assisted_rows, PairPrediction)
     _write_parquet(decisions_path, decision_rows)
     _write_parquet(route_path, route_rows)
