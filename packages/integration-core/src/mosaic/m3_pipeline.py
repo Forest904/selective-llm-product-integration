@@ -9,6 +9,7 @@ from typing import Any
 
 import polars as pl
 
+from mosaic.checkpoints import RunCheckpoint, append_progress, checkpoint_hash, load_progress
 from mosaic.llm_gateway import LLMGateway
 from mosaic.m1_models import load_dataset_config, load_mediated_schema
 from mosaic.m1_utils import canonical_json, repo_relative, sha256_text
@@ -122,6 +123,7 @@ def run_assisted_pipeline(
     *,
     stop_after: StageName = "export",
     baseline_result: PipelineRunResult | None = None,
+    resume_run_id: str | None = None,
 ) -> PipelineRunResult:
     baseline_config = load_baseline_pipeline_config(repo_root / config.baseline_pipeline_config)
     if baseline_result is None:
@@ -130,12 +132,22 @@ def run_assisted_pipeline(
     schema = load_mediated_schema(repo_root / baseline_config.schema_path)
     model_config = load_llm_model_config(repo_root / config.model_config_path)
 
-    run_id = _new_run_id(config.experiment_id)
+    run_id = resume_run_id or _new_run_id(config.experiment_id)
     run_dir = repo_root / config.artifact_root / run_id
     _stage_dir(run_dir, "logs")
     _stage_dir(run_dir, "metrics")
     gateway = LLMGateway(model_config, repo_root, run_id)
     budget = LLMBudgetTracker(config, gateway, repo_root)
+    checkpoint = RunCheckpoint(
+        repo_root=repo_root,
+        run_dir=run_dir,
+        run_id=run_id,
+        config_hash=f"cfg_{sha256_text(config.model_dump_json())[:12]}",
+        dataset_hash=checkpoint_hash(dataset_config.model_dump()),
+        prompt_hash=checkpoint_hash(config.prompt_versions.model_dump(by_alias=True)),
+        model_hash=checkpoint_hash(model_config.model_dump()),
+        resume=resume_run_id is not None,
+    )
 
     artifacts: dict[str, str] = {
         f"baseline_{key}": value for key, value in baseline_result.artifacts.items()
@@ -143,23 +155,39 @@ def run_assisted_pipeline(
     metrics: dict[str, str] = {
         f"baseline_{key}": value for key, value in baseline_result.metrics.items()
     }
+    if resume_run_id is not None:
+        artifacts.update(
+            {key: str(repo_root / value) for key, value in checkpoint.artifacts.items()}
+        )
+        metrics.update({key: str(repo_root / value) for key, value in checkpoint.metrics.items()})
     model_settings = model_config.model_dump()
 
-    schema_outputs = assist_schema_alignment(
-        config=config,
-        gateway=gateway,
-        budget=budget,
-        repo_root=repo_root,
-        run_dir=run_dir,
-        baseline_artifacts=baseline_result.artifacts,
-        target_attributes=[attribute.name for attribute in schema.attributes],
-        mapping_gold_path=dataset_config.mapping_gold_path,
-    )
-    artifacts.update(schema_outputs["artifacts"])
-    metrics.update(schema_outputs["metrics"])
+    if not checkpoint.is_stage_complete("schema", required=["assisted_schema_mappings"]):
+        checkpoint.start_stage("schema")
+        schema_outputs = assist_schema_alignment(
+            config=config,
+            gateway=gateway,
+            budget=budget,
+            repo_root=repo_root,
+            run_dir=run_dir,
+            baseline_artifacts=baseline_result.artifacts,
+            target_attributes=[attribute.name for attribute in schema.attributes],
+            mapping_gold_path=dataset_config.mapping_gold_path,
+        )
+        artifacts.update(schema_outputs["artifacts"])
+        metrics.update(schema_outputs["metrics"])
+        checkpoint.complete_stage("schema", artifacts=artifacts, metrics=metrics)
     if stop_after == "schema":
         return _finish_assisted_result(
-            config, model_settings, run_id, run_dir, stop_after, artifacts, metrics, repo_root
+            config,
+            model_settings,
+            run_id,
+            run_dir,
+            stop_after,
+            artifacts,
+            metrics,
+            repo_root,
+            checkpoint,
         )
 
     records_path = (
@@ -170,118 +198,200 @@ def run_assisted_pipeline(
         / dataset_config.dataset_id
         / "source_records.parquet"
     )
-    normalize_outputs = normalize_records(
-        config=baseline_config,
-        dataset_config=dataset_config,
-        schema=schema,
-        repo_root=repo_root,
-        records_path=records_path,
-        accepted_mappings_path=Path(schema_outputs["artifacts"]["assisted_schema_mappings"]),
-        run_dir=run_dir,
-    )
-    artifacts.update(normalize_outputs["artifacts"])
-    metrics.update(normalize_outputs["metrics"])
+    if not checkpoint.is_stage_complete("normalize", required=["normalized_records"]):
+        checkpoint.start_stage("normalize")
+        normalize_outputs = normalize_records(
+            config=baseline_config,
+            dataset_config=dataset_config,
+            schema=schema,
+            repo_root=repo_root,
+            records_path=records_path,
+            accepted_mappings_path=Path(artifacts["assisted_schema_mappings"]),
+            run_dir=run_dir,
+        )
+        artifacts.update(normalize_outputs["artifacts"])
+        metrics.update(normalize_outputs["metrics"])
+        checkpoint.complete_stage("normalize", artifacts=artifacts, metrics=metrics)
     if stop_after == "normalize":
         return _finish_assisted_result(
-            config, model_settings, run_id, run_dir, stop_after, artifacts, metrics, repo_root
+            config,
+            model_settings,
+            run_id,
+            run_dir,
+            stop_after,
+            artifacts,
+            metrics,
+            repo_root,
+            checkpoint,
         )
 
-    blocking_outputs = generate_candidate_pairs(
-        config=baseline_config,
-        dataset_config=dataset_config,
-        repo_root=repo_root,
-        records_path=records_path,
-        normalized_records_path=Path(normalize_outputs["artifacts"]["normalized_records"]),
-        run_dir=run_dir,
-    )
-    artifacts.update(blocking_outputs["artifacts"])
-    metrics.update(blocking_outputs["metrics"])
+    if not checkpoint.is_stage_complete("block", required=["candidate_pairs"]):
+        checkpoint.start_stage("block")
+        blocking_outputs = generate_candidate_pairs(
+            config=baseline_config,
+            dataset_config=dataset_config,
+            repo_root=repo_root,
+            records_path=records_path,
+            normalized_records_path=Path(artifacts["normalized_records"]),
+            run_dir=run_dir,
+        )
+        artifacts.update(blocking_outputs["artifacts"])
+        metrics.update(blocking_outputs["metrics"])
+        checkpoint.complete_stage("block", artifacts=artifacts, metrics=metrics)
     if stop_after == "block":
         return _finish_assisted_result(
-            config, model_settings, run_id, run_dir, stop_after, artifacts, metrics, repo_root
+            config,
+            model_settings,
+            run_id,
+            run_dir,
+            stop_after,
+            artifacts,
+            metrics,
+            repo_root,
+            checkpoint,
         )
 
-    match_outputs = match_candidate_pairs(
-        config=baseline_config,
-        repo_root=repo_root,
-        normalized_records_path=Path(normalize_outputs["artifacts"]["normalized_records"]),
-        candidate_pairs_path=Path(blocking_outputs["artifacts"]["candidate_pairs"]),
-        run_dir=run_dir,
-    )
-    artifacts.update(match_outputs["artifacts"])
-    metrics.update(match_outputs["metrics"])
+    if not checkpoint.is_stage_complete("deterministic_match", required=["pair_predictions"]):
+        checkpoint.start_stage("deterministic_match")
+        match_outputs = match_candidate_pairs(
+            config=baseline_config,
+            repo_root=repo_root,
+            normalized_records_path=Path(artifacts["normalized_records"]),
+            candidate_pairs_path=Path(artifacts["candidate_pairs"]),
+            run_dir=run_dir,
+        )
+        artifacts.update(match_outputs["artifacts"])
+        metrics.update(match_outputs["metrics"])
+        checkpoint.complete_stage("deterministic_match", artifacts=artifacts, metrics=metrics)
 
-    linkage_outputs = assist_record_linkage(
-        config=config,
-        gateway=gateway,
-        budget=budget,
-        repo_root=repo_root,
-        run_dir=run_dir,
-        normalized_records_path=Path(normalize_outputs["artifacts"]["normalized_records"]),
-        pair_features_path=Path(match_outputs["artifacts"]["pair_features"]),
-        pair_predictions_path=Path(match_outputs["artifacts"]["pair_predictions"]),
-    )
-    artifacts.update(linkage_outputs["artifacts"])
-    metrics.update(linkage_outputs["metrics"])
+    if not checkpoint.is_stage_complete("match", required=["assisted_pair_predictions"]):
+        checkpoint.start_stage("match")
+        linkage_outputs = assist_record_linkage(
+            config=config,
+            gateway=gateway,
+            budget=budget,
+            repo_root=repo_root,
+            run_dir=run_dir,
+            normalized_records_path=Path(artifacts["normalized_records"]),
+            pair_features_path=Path(artifacts["pair_features"]),
+            pair_predictions_path=Path(artifacts["pair_predictions"]),
+        )
+        artifacts.update(linkage_outputs["artifacts"])
+        metrics.update(linkage_outputs["metrics"])
+        checkpoint.complete_stage("match", artifacts=artifacts, metrics=metrics)
     if stop_after == "match":
         return _finish_assisted_result(
-            config, model_settings, run_id, run_dir, stop_after, artifacts, metrics, repo_root
+            config,
+            model_settings,
+            run_id,
+            run_dir,
+            stop_after,
+            artifacts,
+            metrics,
+            repo_root,
+            checkpoint,
         )
 
-    cluster_outputs = cluster_records(
-        config=baseline_config,
-        dataset_config=dataset_config,
-        repo_root=repo_root,
-        normalized_records_path=Path(normalize_outputs["artifacts"]["normalized_records"]),
-        pair_predictions_path=Path(linkage_outputs["artifacts"]["assisted_pair_predictions"]),
-        run_dir=run_dir,
-    )
-    artifacts.update(cluster_outputs["artifacts"])
-    metrics.update(cluster_outputs["metrics"])
+    if not checkpoint.is_stage_complete("cluster", required=["cluster_memberships"]):
+        checkpoint.start_stage("cluster")
+        cluster_outputs = cluster_records(
+            config=baseline_config,
+            dataset_config=dataset_config,
+            repo_root=repo_root,
+            normalized_records_path=Path(artifacts["normalized_records"]),
+            pair_predictions_path=Path(artifacts["assisted_pair_predictions"]),
+            run_dir=run_dir,
+        )
+        artifacts.update(cluster_outputs["artifacts"])
+        metrics.update(cluster_outputs["metrics"])
+        checkpoint.complete_stage("cluster", artifacts=artifacts, metrics=metrics)
     if stop_after == "cluster":
         return _finish_assisted_result(
-            config, model_settings, run_id, run_dir, stop_after, artifacts, metrics, repo_root
+            config,
+            model_settings,
+            run_id,
+            run_dir,
+            stop_after,
+            artifacts,
+            metrics,
+            repo_root,
+            checkpoint,
         )
 
-    claim_outputs = extract_claims(
-        repo_root=repo_root,
-        normalized_values_path=Path(normalize_outputs["artifacts"]["normalized_values"]),
-        memberships_path=Path(cluster_outputs["artifacts"]["cluster_memberships"]),
-        run_dir=run_dir,
-    )
-    artifacts.update(claim_outputs["artifacts"])
-    metrics.update(claim_outputs["metrics"])
+    if not checkpoint.is_stage_complete("claims", required=["attribute_claims"]):
+        checkpoint.start_stage("claims")
+        claim_outputs = extract_claims(
+            repo_root=repo_root,
+            normalized_values_path=Path(artifacts["normalized_values"]),
+            memberships_path=Path(artifacts["cluster_memberships"]),
+            run_dir=run_dir,
+        )
+        artifacts.update(claim_outputs["artifacts"])
+        metrics.update(claim_outputs["metrics"])
+        checkpoint.complete_stage("claims", artifacts=artifacts, metrics=metrics)
     if stop_after == "claims":
         return _finish_assisted_result(
-            config, model_settings, run_id, run_dir, stop_after, artifacts, metrics, repo_root
+            config,
+            model_settings,
+            run_id,
+            run_dir,
+            stop_after,
+            artifacts,
+            metrics,
+            repo_root,
+            checkpoint,
         )
 
-    fusion_outputs = fuse_claims(
-        config=baseline_config,
-        repo_root=repo_root,
-        claims_path=Path(claim_outputs["artifacts"]["attribute_claims"]),
-        clusters_path=Path(cluster_outputs["artifacts"]["clusters"]),
-        run_dir=run_dir,
-    )
-    artifacts.update(fusion_outputs["artifacts"])
-    metrics.update(fusion_outputs["metrics"])
+    if not checkpoint.is_stage_complete("deterministic_fuse", required=["fused_values"]):
+        checkpoint.start_stage("deterministic_fuse")
+        fusion_outputs = fuse_claims(
+            config=baseline_config,
+            repo_root=repo_root,
+            claims_path=Path(artifacts["attribute_claims"]),
+            clusters_path=Path(artifacts["clusters"]),
+            run_dir=run_dir,
+        )
+        artifacts.update(fusion_outputs["artifacts"])
+        metrics.update(fusion_outputs["metrics"])
+        checkpoint.complete_stage("deterministic_fuse", artifacts=artifacts, metrics=metrics)
 
-    assisted_fusion = assist_fusion(
-        config=config,
-        gateway=gateway,
-        budget=budget,
-        repo_root=repo_root,
-        run_dir=run_dir,
-        baseline_config=baseline_config,
-        claims_path=Path(claim_outputs["artifacts"]["attribute_claims"]),
-        clusters_path=Path(cluster_outputs["artifacts"]["clusters"]),
-        fused_values_path=Path(fusion_outputs["artifacts"]["fused_values"]),
-        fusion_artifacts=fusion_outputs["artifacts"],
-    )
-    artifacts.update(assisted_fusion["artifacts"])
-    metrics.update(assisted_fusion["metrics"])
+    if not checkpoint.is_stage_complete("fusion", required=["assisted_integrated_entities_jsonl"]):
+        checkpoint.start_stage("fusion")
+        assisted_fusion = assist_fusion(
+            config=config,
+            gateway=gateway,
+            budget=budget,
+            repo_root=repo_root,
+            run_dir=run_dir,
+            baseline_config=baseline_config,
+            claims_path=Path(artifacts["attribute_claims"]),
+            clusters_path=Path(artifacts["clusters"]),
+            fused_values_path=Path(artifacts["fused_values"]),
+            fusion_artifacts={
+                key: value
+                for key, value in artifacts.items()
+                if key
+                in {
+                    "baseline_error_candidates",
+                    "fusion_curated_errors",
+                    "fusion_unsupported_values",
+                    "fusion_high_conflict_attributes",
+                }
+            },
+        )
+        artifacts.update(assisted_fusion["artifacts"])
+        metrics.update(assisted_fusion["metrics"])
+        checkpoint.complete_stage("fusion", artifacts=artifacts, metrics=metrics)
     return _finish_assisted_result(
-        config, model_settings, run_id, run_dir, stop_after, artifacts, metrics, repo_root
+        config,
+        model_settings,
+        run_id,
+        run_dir,
+        stop_after,
+        artifacts,
+        metrics,
+        repo_root,
+        checkpoint,
     )
 
 
@@ -712,26 +822,45 @@ def _primary_schema_alignment(
             }
         )
 
-    for batch in _chunks(case_payloads, config.routing.schema_batch_size):
+    progress_path = stage_dir / "schema_batch_progress.jsonl"
+    progress_rows = load_progress(progress_path, {str(case["case_id"]) for case in case_payloads})
+    for row in progress_rows.values():
+        rows_by_source[str(row["case_id"])] = dict(row["output"])
+        route_rows.append(dict(row["route"]))
+    _restore_budget_from_routes(
+        budget,
+        "schema",
+        [dict(row["route"]) for row in progress_rows.values()],
+    )
+    remaining_cases = [
+        case for case in case_payloads if str(case["case_id"]) not in progress_rows
+    ]
+
+    for batch in _chunks(remaining_cases, config.routing.schema_batch_size):
         payload = {"cases": batch}
         estimate = gateway.estimate_request(template_path=template_path, payload=payload)
         skip_reason = budget.skip_reason("schema", estimate.estimated_cost_usd)
+        progress_batch: list[dict[str, Any]] = []
         if skip_reason is not None or not config.llm_assistance.schema_enabled:
             for case in batch:
                 case_id = str(case["case_id"])
-                rows_by_source[case_id] = _schema_primary_default(
+                output_row = _schema_primary_default(
                     rows_by_source[case_id], "unselected_primary_default"
                 )
-                route_rows.append(
-                    _primary_default_route_row(
-                        "schema",
-                        case_id,
-                        skip_reason or "not_selected",
-                        estimate.input_tokens,
-                        estimate.max_output_tokens,
-                        estimate.estimated_cost_usd,
-                    )
+                rows_by_source[case_id] = output_row
+                route_row = _primary_default_route_row(
+                    "schema",
+                    case_id,
+                    skip_reason or "not_selected",
+                    estimate.input_tokens,
+                    estimate.max_output_tokens,
+                    estimate.estimated_cost_usd,
                 )
+                route_rows.append(route_row)
+                progress_batch.append(
+                    {"case_id": case_id, "output": output_row, "route": route_row}
+                )
+            append_progress(progress_path, progress_batch)
             continue
         result = gateway.call_structured(
             stage="schema_batch",
@@ -755,17 +884,20 @@ def _primary_schema_alignment(
             case_id = str(case["case_id"])
             deterministic = rows_by_source[case_id]
             if batch_error is not None:
-                rows_by_source[case_id] = _schema_primary_default(deterministic, batch_error)
-                route_rows.append(
-                    _batch_route_row(
-                        "schema",
-                        case_id,
-                        result,
-                        index,
-                        accepted=False,
-                        fallback_reason="batch_validation_error",
-                        defaulted=True,
-                    )
+                output_row = _schema_primary_default(deterministic, batch_error)
+                rows_by_source[case_id] = output_row
+                route_row = _batch_route_row(
+                    "schema",
+                    case_id,
+                    result,
+                    index,
+                    accepted=False,
+                    fallback_reason="batch_validation_error",
+                    defaulted=True,
+                )
+                route_rows.append(route_row)
+                progress_batch.append(
+                    {"case_id": case_id, "output": output_row, "route": route_row}
                 )
                 continue
             output, fallback_reason = _apply_primary_schema_decision(
@@ -775,17 +907,18 @@ def _primary_schema_alignment(
                 config.routing.schema_confidence_threshold,
             )
             rows_by_source[case_id] = output
-            route_rows.append(
-                _batch_route_row(
-                    "schema",
-                    case_id,
-                    result,
-                    index,
-                    accepted=fallback_reason is None,
-                    fallback_reason=fallback_reason,
-                    defaulted=fallback_reason is not None,
-                )
+            route_row = _batch_route_row(
+                "schema",
+                case_id,
+                result,
+                index,
+                accepted=fallback_reason is None,
+                fallback_reason=fallback_reason,
+                defaulted=fallback_reason is not None,
             )
+            route_rows.append(route_row)
+            progress_batch.append({"case_id": case_id, "output": output, "route": route_row})
+        append_progress(progress_path, progress_batch)
 
     assisted_rows = [rows_by_source[str(row["source_attribute_id"])] for row in accepted_rows]
     mappings_path = stage_dir / "assisted_schema_mappings.parquet"
@@ -865,23 +998,47 @@ def _primary_record_linkage(
     ]
     decision_rows: list[dict[str, Any]] = []
     template_path = repo_root / config.prompt_versions.linkage / "template.md"
-    for batch in _chunks(case_payloads, config.routing.linkage_batch_size):
+    progress_path = predictions_path.parent / "linkage_batch_progress.jsonl"
+    progress_rows = load_progress(progress_path, {str(case["case_id"]) for case in case_payloads})
+    for row in progress_rows.values():
+        rows_by_pair[str(row["case_id"])] = dict(row["output"])
+        route_rows.append(dict(row["route"]))
+        if row.get("decision") is not None:
+            decision_rows.append(dict(row["decision"]))
+    _restore_budget_from_routes(
+        budget,
+        "linkage",
+        [dict(row["route"]) for row in progress_rows.values()],
+    )
+    remaining_cases = [
+        case for case in case_payloads if str(case["case_id"]) not in progress_rows
+    ]
+    for batch in _chunks(remaining_cases, config.routing.linkage_batch_size):
         payload = {"cases": batch}
         estimate = gateway.estimate_request(template_path=template_path, payload=payload)
         skip_reason = budget.skip_reason("linkage", estimate.estimated_cost_usd)
+        progress_batch: list[dict[str, Any]] = []
         if skip_reason is not None:
             for case in batch:
                 case_id = str(case["case_id"])
-                route_rows.append(
-                    _primary_default_route_row(
-                        "linkage",
-                        case_id,
-                        skip_reason,
-                        estimate.input_tokens,
-                        estimate.max_output_tokens,
-                        estimate.estimated_cost_usd,
-                    )
+                route_row = _primary_default_route_row(
+                    "linkage",
+                    case_id,
+                    skip_reason,
+                    estimate.input_tokens,
+                    estimate.max_output_tokens,
+                    estimate.estimated_cost_usd,
                 )
+                route_rows.append(route_row)
+                progress_batch.append(
+                    {
+                        "case_id": case_id,
+                        "output": rows_by_pair[case_id],
+                        "route": route_row,
+                        "decision": None,
+                    }
+                )
+            append_progress(progress_path, progress_batch)
             continue
         result = gateway.call_structured(
             stage="linkage_batch",
@@ -905,16 +1062,15 @@ def _primary_record_linkage(
             case_id = str(case["case_id"])
             deterministic = rows_by_pair[case_id]
             fallback_reason: str | None
-            decision_rows.append(
-                {
-                    "candidate_pair_id": case_id,
-                    "request_id": result.request_id,
-                    "validation_status": result.validation_status,
-                    "failure_type": result.failure_type or batch_error,
-                    "raw_response": result.raw_response,
-                    "parsed_response": canonical_json(decisions.get(case_id, {})),
-                }
-            )
+            decision_row = {
+                "candidate_pair_id": case_id,
+                "request_id": result.request_id,
+                "validation_status": result.validation_status,
+                "failure_type": result.failure_type or batch_error,
+                "raw_response": result.raw_response,
+                "parsed_response": canonical_json(decisions.get(case_id, {})),
+            }
+            decision_rows.append(decision_row)
             if batch_error is not None:
                 fallback_reason = "batch_validation_error"
                 output_row = _linkage_primary_default(deterministic, fallback_reason)
@@ -925,20 +1081,28 @@ def _primary_record_linkage(
                     config.routing.linkage_confidence_threshold,
                 )
             rows_by_pair[case_id] = output_row
-            route_rows.append(
-                _batch_route_row(
-                    "linkage",
-                    case_id,
-                    result,
-                    index,
-                    accepted=fallback_reason is None,
-                    fallback_reason=fallback_reason,
-                    defaulted=fallback_reason is not None,
-                    ground_truth_label=deterministic.get("ground_truth_label"),
-                    deterministic_prediction=deterministic["match_prediction"],
-                    assisted_prediction=output_row["match_prediction"],
-                )
+            route_row = _batch_route_row(
+                "linkage",
+                case_id,
+                result,
+                index,
+                accepted=fallback_reason is None,
+                fallback_reason=fallback_reason,
+                defaulted=fallback_reason is not None,
+                ground_truth_label=deterministic.get("ground_truth_label"),
+                deterministic_prediction=deterministic["match_prediction"],
+                assisted_prediction=output_row["match_prediction"],
             )
+            route_rows.append(route_row)
+            progress_batch.append(
+                {
+                    "case_id": case_id,
+                    "output": output_row,
+                    "route": route_row,
+                    "decision": decision_row,
+                }
+            )
+        append_progress(progress_path, progress_batch)
 
     assisted_rows = [rows_by_pair[str(row["candidate_pair_id"])] for row in predictions]
     _write_validated_parquet(predictions_path, assisted_rows, PairPrediction)
@@ -1025,24 +1189,42 @@ def _primary_fusion(
         )
     ]
     template_path = repo_root / config.prompt_versions.fusion / "template.md"
-    for batch in _chunks(case_payloads, config.routing.fusion_batch_size):
+    progress_path = stage_dir / "fusion_batch_progress.jsonl"
+    progress_rows = load_progress(progress_path, {str(case["case_id"]) for case in case_payloads})
+    for row in progress_rows.values():
+        assisted_rows.append(dict(row["output"]))
+        route_rows.append(dict(row["route"]))
+    _restore_budget_from_routes(
+        budget,
+        "fusion",
+        [dict(row["route"]) for row in progress_rows.values()],
+    )
+    remaining_cases = [
+        case for case in case_payloads if str(case["case_id"]) not in progress_rows
+    ]
+    for batch in _chunks(remaining_cases, config.routing.fusion_batch_size):
         payload = {"cases": batch}
         estimate = gateway.estimate_request(template_path=template_path, payload=payload)
         skip_reason = budget.skip_reason("fusion", estimate.estimated_cost_usd)
+        progress_batch: list[dict[str, Any]] = []
         if skip_reason is not None:
             for case in batch:
                 case_id = str(case["case_id"])
-                assisted_rows.append(_fusion_primary_default(row_by_case[case_id], skip_reason))
-                route_rows.append(
-                    _primary_default_route_row(
-                        "fusion",
-                        case_id,
-                        skip_reason,
-                        estimate.input_tokens,
-                        estimate.max_output_tokens,
-                        estimate.estimated_cost_usd,
-                    )
+                output_row = _fusion_primary_default(row_by_case[case_id], skip_reason)
+                assisted_rows.append(output_row)
+                route_row = _primary_default_route_row(
+                    "fusion",
+                    case_id,
+                    skip_reason,
+                    estimate.input_tokens,
+                    estimate.max_output_tokens,
+                    estimate.estimated_cost_usd,
                 )
+                route_rows.append(route_row)
+                progress_batch.append(
+                    {"case_id": case_id, "output": output_row, "route": route_row}
+                )
+            append_progress(progress_path, progress_batch)
             continue
         result = gateway.call_structured(
             stage="fusion_batch",
@@ -1082,17 +1264,18 @@ def _primary_fusion(
                     config.routing.fusion_confidence_threshold,
                 )
             assisted_rows.append(output_row)
-            route_rows.append(
-                _batch_route_row(
-                    "fusion",
-                    case_id,
-                    result,
-                    index,
-                    accepted=fallback_reason is None,
-                    fallback_reason=fallback_reason,
-                    defaulted=fallback_reason is not None,
-                )
+            route_row = _batch_route_row(
+                "fusion",
+                case_id,
+                result,
+                index,
+                accepted=fallback_reason is None,
+                fallback_reason=fallback_reason,
+                defaulted=fallback_reason is not None,
             )
+            route_rows.append(route_row)
+            progress_batch.append({"case_id": case_id, "output": output_row, "route": route_row})
+        append_progress(progress_path, progress_batch)
 
     fused_path = stage_dir / "assisted_fused_values.parquet"
     entities_path = stage_dir / "assisted_integrated_entities.parquet"
@@ -1156,6 +1339,19 @@ def batch_decisions_by_case(
     if missing:
         raise ValueError(f"missing case_id: {missing[0]}")
     return decisions
+
+
+def _restore_budget_from_routes(
+    budget: LLMBudgetTracker,
+    stage: str,
+    route_rows: Iterable[dict[str, Any]],
+) -> None:
+    for row in route_rows:
+        if not row.get("call_count_charge"):
+            continue
+        budget.run_call_count += 1
+        budget.stage_call_counts[stage] += 1
+        budget.run_cost_usd += float(row.get("estimated_cost_usd", 0.0) or 0.0)
 
 
 def _apply_primary_schema_decision(
@@ -1742,6 +1938,7 @@ def _finish_assisted_result(
     artifacts: dict[str, str],
     metrics: dict[str, str],
     repo_root: Path,
+    checkpoint: RunCheckpoint | None = None,
 ) -> PipelineRunResult:
     manifest_path = run_dir / "run_manifest.json"
     payload = {
@@ -1768,6 +1965,8 @@ def _finish_assisted_result(
     }
     _write_json(manifest_path, payload)
     artifacts["run_manifest"] = str(manifest_path)
+    if checkpoint is not None:
+        checkpoint.finish(artifacts=artifacts, metrics=metrics)
     return PipelineRunResult(
         run_id=run_id,
         run_dir=str(run_dir),

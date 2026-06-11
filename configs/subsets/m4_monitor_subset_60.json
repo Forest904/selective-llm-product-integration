@@ -1,0 +1,8 @@
+{
+  "subset_id": "alaska_monitor_live_subset_60",
+  "base_dataset_config": "configs/datasets/selected_dataset.json",
+  "entity_count": 60,
+  "random_seed": 13,
+  "strategy": "entity_balanced",
+  "output_root": "data/processed/subsets/alaska_monitor_live_subset_60"
+}

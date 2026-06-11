@@ -14,6 +14,11 @@ from typing import Any, cast
 
 import polars as pl
 
+from mosaic.alaska import (
+    ALASKA_VERTICALS,
+    alaska_extracted_root,
+    create_dataset_config_from_alaska_dir,
+)
 from mosaic.ingestion import ingest_dataset, summarize_ground_truth
 from mosaic.m1_models import load_dataset_config, load_mediated_schema
 from mosaic.m1_utils import repo_relative
@@ -21,12 +26,17 @@ from mosaic.m2_models import PipelineRunResult, load_baseline_pipeline_config
 from mosaic.m2_pipeline import _code_commit, run_baseline_pipeline
 from mosaic.m3_models import load_llm_model_config, load_m3_experiment_config
 from mosaic.m3_pipeline import run_assisted_pipeline
+from mosaic.subsets import MaterializedSubset, materialize_subset
 
 M4_RELEASE_DIR = Path("reports/release")
 M4_ARTIFACT_DIR = Path("artifacts/reports/m4")
 DEFAULT_RELEASE_MANIFEST = M4_ARTIFACT_DIR / "m4_release_manifest.json"
 DEFAULT_FIXTURE_MANIFEST = M4_ARTIFACT_DIR / "m4_fixture_manifest.json"
-DEFAULT_FULL_EXPERIMENTS = (
+DEFAULT_SCALE_MANIFEST = M4_ARTIFACT_DIR / "m4_deterministic_scale_manifest.json"
+DEFAULT_RELEASE_CHECKPOINT = M4_ARTIFACT_DIR / "m4_release_checkpoint.json"
+DEFAULT_SCALE_CHECKPOINT = M4_ARTIFACT_DIR / "m4_deterministic_scale_checkpoint.json"
+DEFAULT_SUBSET_SPEC = Path("configs/subsets/m4_monitor_subset_60.json")
+DEFAULT_SUBSET_EXPERIMENTS = (
     Path("configs/experiments/m4_c_llm_primary_alaska_monitor.json"),
     Path("configs/experiments/m4_b_all_alaska_monitor.json"),
     Path("configs/experiments/m4_b_schema_only_alaska_monitor.json"),
@@ -48,6 +58,8 @@ def run_m4_release(
     live: bool,
     fixture: bool = False,
     manifest_path: Path | None = None,
+    resume: str | None = None,
+    resume_run_id: str | None = None,
 ) -> Path:
     """Run the M4 experiment matrix and write a compact release manifest."""
     default_manifest = DEFAULT_FIXTURE_MANIFEST if fixture else DEFAULT_RELEASE_MANIFEST
@@ -56,7 +68,11 @@ def run_m4_release(
     release_id = "m4_fixture_release" if fixture else "m4_academic_release"
     _load_root_env(repo_root)
 
-    runs: list[dict[str, Any]] = []
+    release_checkpoint_path = repo_root / DEFAULT_RELEASE_CHECKPOINT
+    release_checkpoint = _load_release_checkpoint(release_checkpoint_path, resume=resume)
+    runs: list[dict[str, Any]] = list(release_checkpoint.get("runs", []))
+    run_ids_by_config: dict[str, str] = dict(release_checkpoint.get("run_ids_by_config", {}))
+    subset: MaterializedSubset | None = None
     if fixture:
         baseline_config_path = repo_root / "configs/pipelines/fixture_m2.json"
         assisted_config_paths = [
@@ -65,26 +81,46 @@ def run_m4_release(
         ]
     else:
         if not live:
-            raise RuntimeError("full M4 release requires --live for reported assisted runs")
+            raise RuntimeError("subset M4 release requires --live for reported assisted runs")
         if not os.environ.get("OPENAI_API_KEY"):
-            raise RuntimeError("OPENAI_API_KEY is required for full live M4 assisted runs")
-        baseline_config_path = repo_root / "configs/pipelines/baseline_m2.json"
-        assisted_config_paths = [repo_root / path for path in DEFAULT_FULL_EXPERIMENTS]
+            raise RuntimeError("OPENAI_API_KEY is required for subset live M4 assisted runs")
+        subset, baseline_config_path, assisted_config_paths = _prepare_subset_release_configs(
+            repo_root
+        )
 
     baseline_config = load_baseline_pipeline_config(baseline_config_path)
-    baseline_result = run_baseline_pipeline(baseline_config, repo_root)
-    runs.append(
-        _run_entry(
-            configuration_id="A0" if not fixture else "fixture-A0",
+    baseline_id = "A0" if not fixture else "fixture-A0"
+    baseline_entry = _find_run_entry(runs, baseline_id)
+    if baseline_entry is not None:
+        baseline_result = _result_from_run_entry(baseline_entry, repo_root)
+    else:
+        baseline_resume_id = resume_run_id or run_ids_by_config.get(baseline_id)
+        baseline_result = run_baseline_pipeline(
+            baseline_config,
+            repo_root,
+            resume_run_id=baseline_resume_id,
+        )
+        run_ids_by_config[baseline_id] = baseline_result.run_id
+        baseline_entry = _run_entry(
+            configuration_id=baseline_id,
             role="baseline",
             config_path=baseline_config_path,
             result=baseline_result,
             repo_root=repo_root,
         )
-    )
+        runs.append(baseline_entry)
+        _write_release_checkpoint(
+            release_checkpoint_path,
+            runs=runs,
+            run_ids_by_config=run_ids_by_config,
+            current_configuration=None,
+        )
 
     for config_path in assisted_config_paths:
         experiment_config = load_m3_experiment_config(config_path)
+        configuration_id = _display_configuration_id(experiment_config.experiment_id)
+        if _find_run_entry(runs, configuration_id) is not None:
+            continue
         model_config = load_llm_model_config(repo_root / experiment_config.model_config_path)
         if not fixture:
             if model_config.execution_mode not in {"live", "cache_or_live"}:
@@ -93,14 +129,22 @@ def run_m4_release(
                 )
             if model_config.provider != "openai" or not model_config.model:
                 raise RuntimeError(f"{config_path} must name a live OpenAI model")
+        _write_release_checkpoint(
+            release_checkpoint_path,
+            runs=runs,
+            run_ids_by_config=run_ids_by_config,
+            current_configuration=configuration_id,
+        )
         result = run_assisted_pipeline(
             experiment_config,
             repo_root,
             baseline_result=baseline_result,
+            resume_run_id=resume_run_id or run_ids_by_config.get(configuration_id),
         )
+        run_ids_by_config[configuration_id] = result.run_id
         runs.append(
             _run_entry(
-                configuration_id=_display_configuration_id(experiment_config.experiment_id),
+                configuration_id=configuration_id,
                 role="assisted",
                 config_path=config_path,
                 result=result,
@@ -109,17 +153,99 @@ def run_m4_release(
                 prompt_versions=experiment_config.prompt_versions.model_dump(by_alias=True),
             )
         )
+        _write_release_checkpoint(
+            release_checkpoint_path,
+            runs=runs,
+            run_ids_by_config=run_ids_by_config,
+            current_configuration=None,
+        )
 
     manifest = {
         "release_id": release_id,
-        "mode": "fixture" if fixture else "full_live",
+        "mode": "fixture" if fixture else "subset_live",
         "generated_at": datetime.now(UTC).isoformat(),
         "code_commit": _code_commit(repo_root),
         "repository_url": _repository_url(repo_root),
         "reported_live_assisted": not fixture,
+        "subset": subset.model_dump() if subset is not None else None,
         "runs": runs,
     }
     _write_json(output_path, manifest)
+    _write_release_checkpoint(
+        release_checkpoint_path,
+        runs=runs,
+        run_ids_by_config=run_ids_by_config,
+        current_configuration=None,
+        status="complete",
+    )
+    return output_path
+
+
+def run_deterministic_scale(
+    repo_root: Path,
+    *,
+    manifest_path: Path | None = None,
+    resume: str | None = None,
+    resume_run_id: str | None = None,
+) -> Path:
+    """Run deterministic A0 only on full Alaska monitor, notebook, and camera data."""
+    output_path = _resolve(repo_root, manifest_path or DEFAULT_SCALE_MANIFEST)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    checkpoint_path = repo_root / DEFAULT_SCALE_CHECKPOINT
+    checkpoint = _load_release_checkpoint(checkpoint_path, resume=resume)
+    runs: list[dict[str, Any]] = list(checkpoint.get("runs", []))
+    run_ids_by_config: dict[str, str] = dict(checkpoint.get("run_ids_by_config", {}))
+
+    for vertical in ALASKA_VERTICALS:
+        config_id = f"A0-{vertical}"
+        if _find_run_entry(runs, config_id) is not None:
+            continue
+        baseline_config_path = _prepare_scale_pipeline_config(repo_root, vertical)
+        _write_release_checkpoint(
+            checkpoint_path,
+            runs=runs,
+            run_ids_by_config=run_ids_by_config,
+            current_configuration=config_id,
+        )
+        result = run_baseline_pipeline(
+            load_baseline_pipeline_config(baseline_config_path),
+            repo_root,
+            resume_run_id=resume_run_id or run_ids_by_config.get(config_id),
+        )
+        run_ids_by_config[config_id] = result.run_id
+        runs.append(
+            _run_entry(
+                configuration_id=config_id,
+                role="deterministic_scale",
+                config_path=baseline_config_path,
+                result=result,
+                repo_root=repo_root,
+            )
+        )
+        _write_release_checkpoint(
+            checkpoint_path,
+            runs=runs,
+            run_ids_by_config=run_ids_by_config,
+            current_configuration=None,
+        )
+
+    manifest = {
+        "release_id": "m4_deterministic_scale",
+        "mode": "deterministic_scale",
+        "generated_at": datetime.now(UTC).isoformat(),
+        "code_commit": _code_commit(repo_root),
+        "repository_url": _repository_url(repo_root),
+        "reported_live_assisted": False,
+        "runs": runs,
+    }
+    _write_json(output_path, manifest)
+    _write_release_checkpoint(
+        checkpoint_path,
+        runs=runs,
+        run_ids_by_config=run_ids_by_config,
+        current_configuration=None,
+        status="complete",
+    )
     return output_path
 
 
@@ -127,6 +253,7 @@ def build_m4_report(
     repo_root: Path,
     *,
     manifest_path: Path | None = None,
+    scale_manifest_path: Path | None = None,
     fixture: bool = False,
     build_pdf: bool = True,
 ) -> dict[str, Path | None]:
@@ -142,12 +269,22 @@ def build_m4_report(
         )
     elif not resolved_manifest.exists():
         raise RuntimeError(
-            "full live M4 release manifest not found. Run "
+            "subset live M4 release manifest not found. Run "
             "`uv run mosaic experiment release --live` first, or use "
             "`mosaic report build --fixture` for CI-safe fixture output."
         )
     manifest = _read_json(resolved_manifest)
     _validate_report_manifest(manifest, fixture=fixture)
+    scale_manifest: dict[str, Any] | None = None
+    if not fixture:
+        resolved_scale_manifest = _resolve(repo_root, scale_manifest_path or DEFAULT_SCALE_MANIFEST)
+        if not resolved_scale_manifest.exists():
+            raise RuntimeError(
+                "deterministic scale manifest not found. Run "
+                "`uv run mosaic experiment deterministic-scale` before `make report`."
+            )
+        scale_manifest = _read_json(resolved_scale_manifest)
+        _validate_scale_manifest(scale_manifest)
     release_dir = repo_root / M4_RELEASE_DIR
     tables_dir = release_dir / "tables"
     figures_dir = release_dir / "figures"
@@ -164,6 +301,13 @@ def build_m4_report(
     _write_table(tables_dir / "metrics_summary.csv", summaries)
     _write_table(tables_dir / "operational_metrics.csv", operational)
     _write_table(tables_dir / "error_cases.csv", [_flat_error_case(case) for case in error_cases])
+    scale_summaries = (
+        [_summarize_run(run, repo_root) for run in scale_manifest.get("runs", [])]
+        if scale_manifest is not None
+        else []
+    )
+    if scale_summaries:
+        _write_table(tables_dir / "deterministic_scale.csv", scale_summaries)
 
     _write_bar_png(
         figures_dir / "component_quality.png",
@@ -197,6 +341,7 @@ def build_m4_report(
         error_cases=error_cases,
         final_dataset=final_dataset,
         fixture=fixture or manifest.get("mode") == "fixture",
+        scale_summaries=scale_summaries,
     )
     report_md.write_text(report_text, encoding="utf-8")
     appendix_dir.joinpath("m4_error_cases.json").write_text(
@@ -211,6 +356,9 @@ def build_m4_report(
 
     return {
         "manifest": resolved_manifest,
+        "scale_manifest": _resolve(repo_root, scale_manifest_path or DEFAULT_SCALE_MANIFEST)
+        if not fixture
+        else None,
         "release_manifest": release_manifest_copy,
         "report_md": report_md,
         "report_pdf": pdf_path,
@@ -288,12 +436,130 @@ def _strip_env_value(value: str) -> str:
     return value
 
 
+def _prepare_subset_release_configs(repo_root: Path) -> tuple[MaterializedSubset, Path, list[Path]]:
+    subset = materialize_subset(repo_root / DEFAULT_SUBSET_SPEC, repo_root)
+    generated_root = repo_root / M4_ARTIFACT_DIR / "generated_configs" / subset.subset_id
+    baseline_config_path = generated_root / "pipelines" / "baseline_m2_subset.json"
+    baseline = _read_json(repo_root / "configs/pipelines/baseline_m2.json")
+    baseline["pipeline_id"] = "baseline_m2_alaska_monitor_subset_60"
+    baseline["dataset_config"] = subset.dataset_config_path
+    baseline["fusion"]["bootstrap_fusion_gold_path"] = (
+        f"{subset.output_root}/ground_truth/fusion_gold.jsonl"
+    )
+    baseline["fusion"]["curated_fusion_gold_path"] = (
+        f"{subset.output_root}/ground_truth/fusion_curated_gold.jsonl"
+    )
+    _write_json(baseline_config_path, baseline)
+
+    experiment_paths: list[Path] = []
+    for source in DEFAULT_SUBSET_EXPERIMENTS:
+        payload = _read_json(repo_root / source)
+        payload["experiment_id"] = payload["experiment_id"].replace(
+            "alaska_monitor", "alaska_monitor_subset_60"
+        )
+        payload["baseline_pipeline_config"] = repo_relative(baseline_config_path, repo_root)
+        output_path = generated_root / "experiments" / source.name.replace(
+            "alaska_monitor", "alaska_monitor_subset_60"
+        )
+        _write_json(output_path, payload)
+        experiment_paths.append(output_path)
+    return subset, baseline_config_path, experiment_paths
+
+
+def _prepare_scale_pipeline_config(repo_root: Path, vertical: str) -> Path:
+    extracted_root = alaska_extracted_root(repo_root, vertical)
+    if not extracted_root.exists():
+        raise RuntimeError(
+            f"Alaska {vertical} data not found under {repo_relative(extracted_root, repo_root)}"
+        )
+    dataset = create_dataset_config_from_alaska_dir(
+        dataset_id=f"alaska_{vertical}_full",
+        vertical=vertical,
+        extracted_root=extracted_root,
+        repo_root=repo_root,
+    )
+    generated_root = repo_root / M4_ARTIFACT_DIR / "generated_configs" / "deterministic_scale"
+    dataset_path = generated_root / "datasets" / f"alaska_{vertical}_full.json"
+    dataset_path.parent.mkdir(parents=True, exist_ok=True)
+    dataset_path.write_text(dataset.model_dump_json(indent=2), encoding="utf-8")
+
+    baseline = _read_json(repo_root / "configs/pipelines/baseline_m2.json")
+    baseline["pipeline_id"] = f"baseline_m2_alaska_{vertical}_full"
+    baseline["dataset_config"] = repo_relative(dataset_path, repo_root)
+    baseline["schema_path"] = (
+        "configs/schemas/monitor_mediated_schema.json"
+        if vertical == "monitor"
+        else "configs/schemas/mediated_schema.json"
+    )
+    if vertical != "monitor":
+        baseline["fusion"]["bootstrap_fusion_gold_path"] = None
+        baseline["fusion"]["curated_fusion_gold_path"] = None
+    output_path = generated_root / "pipelines" / f"baseline_m2_alaska_{vertical}_full.json"
+    _write_json(output_path, baseline)
+    return output_path
+
+
+def _load_release_checkpoint(path: Path, *, resume: str | None) -> dict[str, Any]:
+    if resume is None:
+        return {}
+    if resume != "latest":
+        raise RuntimeError("only --resume latest is supported for release-level resume")
+    if not path.exists():
+        raise RuntimeError(f"release checkpoint not found: {path}")
+    return _read_json(path)
+
+
+def _write_release_checkpoint(
+    path: Path,
+    *,
+    runs: list[dict[str, Any]],
+    run_ids_by_config: dict[str, str],
+    current_configuration: str | None,
+    status: str = "running",
+) -> None:
+    _write_json(
+        path,
+        {
+            "status": status,
+            "updated_at": datetime.now(UTC).isoformat(),
+            "current_configuration": current_configuration,
+            "run_ids_by_config": run_ids_by_config,
+            "runs": runs,
+        },
+    )
+
+
+def _find_run_entry(runs: list[dict[str, Any]], configuration_id: str) -> dict[str, Any] | None:
+    for run in runs:
+        if run.get("configuration_id") == configuration_id:
+            return run
+    return None
+
+
+def _result_from_run_entry(run: dict[str, Any], repo_root: Path) -> PipelineRunResult:
+    artifacts = {
+        key: str(repo_root / value) for key, value in dict(run.get("artifacts", {})).items()
+    }
+    metrics = {
+        key: str(repo_root / value) for key, value in dict(run.get("metrics", {})).items()
+    }
+    manifest = repo_root / str(run.get("run_dir", "")) / "run_manifest.json"
+    artifacts["run_manifest"] = str(manifest)
+    return PipelineRunResult(
+        run_id=str(run["run_id"]),
+        run_dir=str(repo_root / str(run["run_dir"])),
+        completed_stage="export",
+        artifacts=artifacts,
+        metrics=metrics,
+    )
+
+
 def _validate_report_manifest(manifest: dict[str, Any], *, fixture: bool) -> None:
     if fixture:
         return
-    if manifest.get("mode") != "full_live" or manifest.get("reported_live_assisted") is not True:
+    if manifest.get("mode") != "subset_live" or manifest.get("reported_live_assisted") is not True:
         raise RuntimeError(
-            "report build requires a full live M4 manifest. Run "
+            "report build requires a subset live M4 manifest. Run "
             "`uv run mosaic experiment release --live` first, or pass `--fixture` "
             "for fixture-only reproduction output."
         )
@@ -314,7 +580,22 @@ def _validate_report_manifest(manifest: dict[str, Any], *, fixture: bool) -> Non
     }
     missing = sorted(required - run_ids)
     if missing:
-        raise RuntimeError(f"full live M4 manifest missing configurations: {', '.join(missing)}")
+        raise RuntimeError(f"subset live M4 manifest missing configurations: {', '.join(missing)}")
+    subset = manifest.get("subset") or {}
+    if subset.get("subset_id") != "alaska_monitor_live_subset_60":
+        raise RuntimeError("subset live M4 manifest must use alaska_monitor_live_subset_60")
+
+
+def _validate_scale_manifest(manifest: dict[str, Any]) -> None:
+    if manifest.get("mode") != "deterministic_scale":
+        raise RuntimeError("deterministic scale manifest has the wrong mode")
+    run_ids = {str(run.get("configuration_id")) for run in manifest.get("runs", [])}
+    required = {f"A0-{vertical}" for vertical in ALASKA_VERTICALS}
+    missing = sorted(required - run_ids)
+    if missing:
+        raise RuntimeError(
+            f"deterministic scale manifest missing configurations: {', '.join(missing)}"
+        )
 
 
 def _run_entry(
@@ -349,6 +630,7 @@ def _run_entry(
 
 
 def _display_configuration_id(experiment_id: str) -> str:
+    normalized_id = experiment_id.replace("_subset_60", "")
     mapping = {
         "m4_c_llm_primary_alaska_monitor": "C-LLM",
         "m4_c_llm_primary_fixture": "fixture-C-LLM",
@@ -364,7 +646,7 @@ def _display_configuration_id(experiment_id: str) -> str:
         "m4_budget_cap_25_alaska_monitor": "Budget-25",
         "m3_llm_assisted_example": "fixture-B-All",
     }
-    return mapping.get(experiment_id, experiment_id)
+    return mapping.get(normalized_id, experiment_id)
 
 
 def _summarize_run(run: dict[str, Any], repo_root: Path) -> dict[str, Any]:
@@ -437,14 +719,19 @@ def _operational_summary(run: dict[str, Any], repo_root: Path) -> dict[str, Any]
 
 
 def _report_label(configuration_id: str) -> str:
-    return {
+    label = {
         "A0": "Deterministic",
         "C-LLM": "LLM",
         "B-All": "Hybrid",
         "fixture-A0": "Deterministic",
         "fixture-C-LLM": "LLM",
         "fixture-B-All": "Hybrid",
-    }.get(configuration_id, configuration_id)
+    }.get(configuration_id)
+    if label is not None:
+        return label
+    if configuration_id.startswith("A0-"):
+        return "Deterministic Scale"
+    return configuration_id
 
 
 def _dataset_summary(repo_root: Path, manifest: dict[str, Any]) -> dict[str, Any]:
@@ -535,7 +822,7 @@ def _export_error_cases(
     if not fixture and len(cases) < REQUIRED_SUBMISSION_ERROR_CASES:
         raise RuntimeError(
             "submission report requires at least three real source-level error cases; "
-            f"found {len(cases)}. Inspect full live run artifacts or add curated cases."
+            f"found {len(cases)}. Inspect subset live run artifacts or add curated cases."
         )
     while len(cases) < 3:
         cases.append(
@@ -840,7 +1127,14 @@ def _source_attribute_examples(
 
 
 def _raw_records_path(repo_root: Path, run: dict[str, Any]) -> Path:
-    dataset_id = "fixture_m1_products" if "fixture" in run["run_id"] else "alaska_monitor_m1"
+    config_path = repo_root / str(run.get("config_path", ""))
+    if run.get("role") == "baseline" or run.get("role") == "deterministic_scale":
+        pipeline = load_baseline_pipeline_config(config_path)
+    else:
+        experiment = load_m3_experiment_config(config_path)
+        pipeline = load_baseline_pipeline_config(repo_root / experiment.baseline_pipeline_config)
+    dataset = load_dataset_config(repo_root / pipeline.dataset_config)
+    dataset_id = dataset.dataset_id
     return repo_root / "data" / "interim" / "m1" / dataset_id / "source_records.parquet"
 
 
@@ -877,13 +1171,14 @@ def _report_markdown(
     error_cases: list[dict[str, Any]],
     final_dataset: Path | None,
     fixture: bool,
+    scale_summaries: list[dict[str, Any]],
 ) -> str:
     mode_note = (
         "This build is a fixture-equivalent reproduction report, not the final live submission."
         if fixture
         else (
-            "This build is the full live academic release; assisted metrics come from live "
-            "or cached OpenAI calls."
+            "This build is the subset live academic release; assisted metrics come from "
+            "live or cached OpenAI calls on the same 60-entity Monitor subset."
         )
     )
     final_dataset_text = (
@@ -942,6 +1237,19 @@ def _report_markdown(
                 "explanation": case["explanation"],
             }
             for case in error_cases
+        ]
+    )
+    scale_table = _markdown_table(
+        [
+            {
+                "vertical": str(row["configuration_id"]).replace("A0-", ""),
+                "candidate_pairs": row["candidate_pairs"],
+                "schema_f1": row["schema_f1"],
+                "linkage_f1": row["linkage_test_f1"],
+                "cluster_f1": row["cluster_f1"],
+                "fusion_acc": row["fusion_accuracy"],
+            }
+            for row in scale_summaries
         ]
     )
     experiment_table = _markdown_table(
@@ -1035,7 +1343,12 @@ def _report_markdown(
             {
                 "requirement": "Baseline and assisted runs",
                 "artifact": "reports/release/m4_release_manifest.json",
-                "evidence": "A0, C-LLM, B-All, ablations, and budgets",
+                "evidence": "Subset A0, C-LLM, B-All, ablations, and budgets",
+            },
+            {
+                "requirement": "Deterministic scale runs",
+                "artifact": "reports/release/tables/deterministic_scale.csv",
+                "evidence": "Full Monitor, Notebook, and Camera A0 runs",
             },
             {
                 "requirement": "Component metrics",
@@ -1093,10 +1406,12 @@ Parquet/JSONL outputs under the release bundle.
 
 # Dataset And Scope
 
-The selected dataset is the Alaska Monitor benchmark subset. The full input
-dataset is separated from the labeled evaluation subset: all source records are
-processed, while schema, linkage, clustering, and fusion metrics are computed
-where gold labels are available.
+The reported LLM comparison uses the deterministic
+`alaska_monitor_live_subset_60` subset: 60 official Alaska Monitor entities
+with all source records for those entities. Running A0, C-LLM, and B-All on the
+same subset keeps the probabilistic comparison fair and keeps live model cost
+bounded. Full Monitor, Notebook, and Camera runs are deterministic-only scale
+evidence, reported separately below.
 
 Dataset id: `{dataset["dataset_id"]}`
 
@@ -1104,15 +1419,12 @@ Dataset id: `{dataset["dataset_id"]}`
 
 Repository: {dataset.get("repository_url") or "not configured"}
 
-The Alaska Monitor data is deliberately larger than the labeled evaluation
-subset. This matters for grading because the pipeline must run over realistic
-source scale even when labels are sparse. Blocking and normalization see every
-one of the {dataset["record_count"]} source records. Linkage, clustering, and
-fusion quality are then measured wherever the entity-resolution, schema, and
-fusion gold files can support a precise comparison. The report therefore
-separates operational scale from labeled quality: candidate-pair count and
-reduction ratio describe the full run, while precision, recall, F1, and fusion
-accuracy describe the labeled slice.
+The subset still separates operational inputs from labeled quality: blocking
+and normalization process every selected source record, while linkage,
+clustering, schema, and fusion metrics are computed where filtered gold labels
+support a precise comparison. Candidate-pair count and reduction ratio describe
+the run scale; precision, recall, F1, and fusion accuracy describe the labeled
+slice.
 
 The dataset contains {dataset["source_count"]} sources from the same monitor
 vertical, but those sources disagree heavily on attribute names and product
@@ -1195,14 +1507,15 @@ traceable back to raw records.
 
 The release command loads `OPENAI_API_KEY` from the ignored root `.env` only
 when the shell has not already provided the variable. Secrets are never printed
-or written into the manifest. Full submission report builds require a manifest
-with `mode: full_live` and `reported_live_assisted: true`; fixture-only output
-requires the explicit `--fixture` path.
+or written into the manifest. Submission report builds require a subset live
+manifest with `mode: subset_live`, a deterministic-scale manifest, and
+`reported_live_assisted: true`; fixture-only output requires the explicit
+`--fixture` path.
 
 # Experimental Protocol
 
-The grading-focused matrix includes A0, B-All, stage ablations, and
-routing-budget variants, plus C-LLM as the practical LLM-primary comparison
+The grading-focused live matrix includes subset A0, B-All, stage ablations,
+routing-budget variants, and C-LLM as the practical LLM-primary comparison
 point. Every run records the code commit, configuration hash, prompt versions,
 model settings, metrics, and artifact paths in a release manifest.
 
@@ -1213,8 +1526,8 @@ Release manifest: `{M4_RELEASE_DIR.as_posix()}/m4_release_manifest.json`
 Invalid JSON, missing fields, hallucinated or unsupported values, empty
 responses, abstentions, and timeouts are treated as measured failures unless the
 documented deterministic fallback handles them. The fixture release is retained
-for reproducibility checks, but the submission release must use full-live or
-cache-backed OpenAI calls over the selected Alaska Monitor dataset.
+for reproducibility checks, but the submission release must use live or
+cache-backed OpenAI calls over the selected Monitor subset.
 
 The stage ablations answer a narrower question than the full B-All run. B-S
 tests schema assistance while leaving linkage and fusion deterministic. B-L
@@ -1238,6 +1551,15 @@ how much quality is retained when the number of routed calls is capped.
 
 Full metric tables are written to
 `{M4_RELEASE_DIR.as_posix()}/tables/metrics_summary.csv`.
+
+## Deterministic Scale Evidence
+
+The full Alaska verticals are run with the deterministic A0 pipeline only. This
+keeps the assignment's probabilistic comparison focused on the common subset
+while still showing that the deterministic integration stack can process the
+larger Monitor, Notebook, and Camera inputs without live LLM calls.
+
+{scale_table}
 
 On this release, the LLM-primary pipeline records schema F1
 {llm_primary.get("schema_f1", "")}, linkage test F1
@@ -1358,7 +1680,7 @@ Gold labels do not cover every final fused attribute, bootstrap fusion labels
 are diagnostic rather than manual truth, and routed LLM calls trade cost and
 latency for selective quality improvements. Reproducibility depends on committed
 prompts, committed model settings, cached/logged responses, and clear separation
-between fixture checks and the full reported run.
+between fixture checks and the subset live reported run.
 
 ## Where Deterministic Methods Remain Preferable
 
@@ -1461,15 +1783,15 @@ assisted metrics in this report.
 
 The submission-grade path is intentionally stricter. `uv run mosaic experiment
 release --live` must see `OPENAI_API_KEY` either in the shell or in the ignored
-root `.env` file. The command then runs A0 and the full assisted matrix over the
-Alaska Monitor configuration, writes model call logs under the ignored artifact
+root `.env` file. The command then runs A0 and the assisted matrix over the
+60-entity Monitor subset, writes model call logs under the ignored artifact
 tree, and emits a compact release manifest. `make report` consumes that manifest
-and refuses to proceed if it only sees fixture mode or a manifest that lacks
-`reported_live_assisted: true`.
+plus the deterministic scale manifest and refuses to proceed if it only sees
+fixture mode or a manifest that lacks `reported_live_assisted: true`.
 
 This separation is important for academic reproducibility. Fixture mode proves
 that a reviewer can regenerate the report mechanics without spending money or
-calling external services. Full-live mode proves that the reported LLM-assisted
+calling external services. Subset-live mode proves that the reported LLM-assisted
 results came from the selected dataset, committed prompts, committed model
 settings, and logged responses. The report tables are regenerated from the
 manifest each time, so stale hand-entered results cannot silently survive a

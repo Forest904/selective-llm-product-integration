@@ -1,7 +1,7 @@
 PYTHON ?= python
 UV_RUN := $(PYTHON) -m uv run
 
-.PHONY: install lint test reproduce dev report report-fixture
+.PHONY: install lint test reproduce dev report report-fixture clean-generated clean-generated-yes deterministic-scale
 
 install:
 	$(PYTHON) -m pip install --upgrade uv
@@ -25,3 +25,12 @@ report:
 
 report-fixture:
 	$(UV_RUN) mosaic report build --fixture
+
+clean-generated:
+	$(UV_RUN) mosaic maintenance clean-generated
+
+clean-generated-yes:
+	$(UV_RUN) mosaic maintenance clean-generated --yes
+
+deterministic-scale:
+	$(UV_RUN) mosaic experiment deterministic-scale

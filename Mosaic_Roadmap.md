@@ -457,7 +457,7 @@ The hardening pass reduced agglomerative cluster false positives from roughly `2
 
 ## M3: LLM-Assisted Research System
 
-**Status:** Pipeline B is implemented, hardened, live-smoke verified, and accepted for M4 comparison. Pipeline C LLM-primary mode is implemented in code and fixture tests; the full live M4 release rerun is the remaining validation step.
+**Status:** Pipeline B is implemented, hardened, live-smoke verified, and accepted for M4 comparison. Pipeline C LLM-primary mode, subset live matrix setup, and checkpoint resume support are implemented in code and fixture tests; the overnight subset live M4 release rerun is the remaining validation step.
 
 ### Goal
 
@@ -617,10 +617,13 @@ Produce the assignment-ready research release: PDF report, GitHub-ready reposito
 
 ### Implementation Checklist
 
-- Run baseline configuration A0.
-- Run bounded LLM-primary configuration C-LLM.
-- Run LLM-assisted configuration B-All.
-- Compare Deterministic / LLM / Hybrid results as the main report framing.
+- Generate deterministic 60-entity Alaska Monitor subset for live LLM comparison.
+- Run subset baseline configuration A0.
+- Run subset bounded LLM-primary configuration C-LLM.
+- Run subset LLM-assisted configuration B-All.
+- Compare Deterministic / LLM / Hybrid subset results as the main report framing.
+- Run full Monitor, Notebook, and Camera deterministic-only A0 scale checks.
+- Support resumable checkpoints for release runs, deterministic stages, and LLM batches.
 - Run stage ablations where feasible: schema-only, linkage-only, fusion-only, schema-linkage, linkage-fusion, and schema-linkage-fusion.
 - Run no-abstention or no-fallback experiment if feasible and safe to interpret.
 - Run routing-budget experiments for eligible uncertain cases.
@@ -660,7 +663,9 @@ Produce the assignment-ready research release: PDF report, GitHub-ready reposito
 ### Acceptance Gate
 
 - Every assignment requirement is traceable to an artifact, metric, or report section.
-- The main results compare Deterministic (`A0`), LLM (`C-LLM`), and Hybrid (`B-All`) using consistent labels and artifact-backed metrics.
+- The main results compare Deterministic (`A0`), LLM (`C-LLM`), and Hybrid (`B-All`) on the same `alaska_monitor_live_subset_60` records using consistent labels and artifact-backed metrics.
+- Full Monitor, Notebook, and Camera results are deterministic-only scale evidence, not LLM comparison evidence.
+- Interrupted overnight runs can resume from checkpoints without repeating completed deterministic stages or completed LLM batches.
 - A clean clone can regenerate reported outputs or documented fixture-equivalent outputs.
 - The report clearly explains that C-LLM is a bounded practical LLM-primary pipeline, not an exhaustive LLM over every possible pair.
 - The report clearly explains where LLMs help, where deterministic methods remain preferable, why the hybrid design exists, and how cost, latency, hallucinations, and reproducibility affect design.
@@ -671,7 +676,7 @@ Produce the assignment-ready research release: PDF report, GitHub-ready reposito
 - Optional experiments may distract from required metrics.
 - Error examples may be too abstract unless source-level records are included.
 - Reproducibility may fail if data download or LLM response handling is underdocumented.
-- The C-LLM run can dominate runtime and cost if caps are set too high; batching, cache reuse, and a documented practical cap are required.
+- The C-LLM run can dominate runtime and cost if caps are set too high; subset execution, batching, checkpoints, cache reuse, and a documented practical cap are required.
 - The C-LLM pipeline defaults unselected or invalid linkage cases to non-match and invalid fusion cases to missing values, so quality may drop in ways that are useful for comparison but unsafe to present as a deployment design.
 
 ### Unlocks
@@ -951,12 +956,14 @@ Required before submission:
 
 - Dataset satisfies assignment minimums.
 - Pipeline A runs end to end without LLM decisions.
-- Pipeline C runs as a bounded LLM-primary practical extreme for schema, linkage, and fusion decisions without deterministic fallback for reportable decisions.
-- Pipeline B uses LLMs selectively in schema alignment, record linkage, and fusion as the proposed hybrid design.
+- Pipeline C runs on the 60-entity Monitor subset as a bounded LLM-primary practical extreme for schema, linkage, and fusion decisions without deterministic fallback for reportable decisions.
+- Pipeline B uses LLMs selectively on the same subset in schema alignment, record linkage, and fusion as the proposed hybrid design.
+- Full Monitor, Notebook, and Camera deterministic A0 runs are available as scale evidence.
 - Prompts and model settings are committed.
 - Invalid outputs, abstentions, fallbacks, cost, and latency are measured.
 - Schema, linkage, fusion, and end-to-end metrics are generated.
-- Deterministic / LLM / Hybrid tables and plots are generated from release artifacts.
+- Deterministic / LLM / Hybrid subset tables and plots are generated from release artifacts.
+- Deterministic scale tables are generated from full vertical A0 artifacts.
 - At least three concrete source-level error cases are documented.
 - Final integrated dataset is exportable.
 - Report PDF is polished and includes GitHub link.
@@ -1050,4 +1057,4 @@ When updating the roadmap, keep milestone IDs stable where possible so implement
 
 ## 9. Immediate Next Step
 
-Complete the C-LLM live release rerun after the practical cap adjustment, rebuild the report, and verify that the release tables and figures show Deterministic / LLM / Hybrid comparisons from `A0`, `C-LLM`, and `B-All`. Do not start broad website implementation before M4 is accepted, because the website depends on stable research artifacts and the academic release is the first required gate.
+Clean generated churn, run the subset live M4 matrix on the overnight rig with checkpoint resume enabled, run the deterministic full-vertical scale checks, rebuild the report, and verify that the release tables and figures show Deterministic / LLM / Hybrid comparisons from subset `A0`, `C-LLM`, and `B-All`. Do not start broad website implementation before M4 is accepted, because the website depends on stable research artifacts and the academic release is the first required gate.

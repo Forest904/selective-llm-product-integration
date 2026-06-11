@@ -12,6 +12,7 @@ from mosaic.alaska import (
     select_best_candidate,
     write_dataset_config,
 )
+from mosaic.checkpoints import latest_run_id
 from mosaic.ingestion import ingest_dataset
 from mosaic.llm_gateway import LLMGateway
 from mosaic.m1_models import load_dataset_config
@@ -25,7 +26,8 @@ from mosaic.m3_models import (
     load_m3_experiment_config,
 )
 from mosaic.m3_pipeline import run_assisted_pipeline
-from mosaic.m4_release import build_m4_report, run_m4_release
+from mosaic.m4_release import build_m4_report, run_deterministic_scale, run_m4_release
+from mosaic.maintenance import clean_generated
 from mosaic.profiling import profile_dataset, write_profile_summary_table
 from mosaic.schema_validation import validate_mediated_schema
 
@@ -37,6 +39,7 @@ schema_app = typer.Typer(help="Mediated schema commands.")
 claims_app = typer.Typer(help="Claim extraction commands.")
 export_app = typer.Typer(help="Export commands.")
 experiment_app = typer.Typer(help="Experiment execution commands.")
+maintenance_app = typer.Typer(help="Generated artifact cleanup commands.")
 app.add_typer(dataset_app, name="dataset")
 app.add_typer(pipeline_app, name="pipeline")
 app.add_typer(report_app, name="report")
@@ -44,6 +47,7 @@ app.add_typer(schema_app, name="schema")
 app.add_typer(claims_app, name="claims")
 app.add_typer(export_app, name="export")
 app.add_typer(experiment_app, name="experiment")
+app.add_typer(maintenance_app, name="maintenance")
 
 REQUIRED_SCAFFOLD_PATHS = (
     ".env.example",
@@ -400,9 +404,37 @@ def experiment_run(
         Path,
         typer.Argument(help="Experiment config JSON path."),
     ] = Path("configs/experiments/m3_llm_assisted_example.json"),
+    resume: Annotated[
+        str | None,
+        typer.Option(help="Resume an experiment checkpoint. Supported value: latest."),
+    ] = None,
+    resume_run_id: Annotated[
+        str | None,
+        typer.Option(help="Resume a specific in-progress experiment run directory."),
+    ] = None,
 ) -> None:
     """Run an experiment configuration."""
-    result = _run_assisted_pipeline_stage(config, "export")
+    root = _repo_root()
+    config_path = config if config.is_absolute() else root / config
+    experiment_config = load_m3_experiment_config(config_path)
+    run_id = resume_run_id
+    if resume is not None:
+        if resume != "latest":
+            typer.echo("only --resume latest is supported")
+            raise typer.Exit(code=1)
+        run_id = latest_run_id(
+            root / experiment_config.artifact_root,
+            experiment_config.experiment_id,
+        )
+        if run_id is None:
+            typer.echo("no resumable run checkpoint found")
+            raise typer.Exit(code=1)
+    result = run_assisted_pipeline(
+        experiment_config,
+        root,
+        stop_after="export",
+        resume_run_id=run_id,
+    )
     typer.echo(f"experiment completed: {result.run_id}")
 
 
@@ -496,7 +528,9 @@ def experiment_live_smoke(
 def experiment_release(
     live: Annotated[
         bool,
-        typer.Option(help="Run the full reported M4 matrix with live/cache-or-live OpenAI calls."),
+        typer.Option(
+            help="Run the subset reported M4 matrix with live/cache-or-live OpenAI calls."
+        ),
     ] = False,
     fixture: Annotated[
         bool,
@@ -506,6 +540,14 @@ def experiment_release(
         Path | None,
         typer.Option(help="Output release manifest path."),
     ] = None,
+    resume: Annotated[
+        str | None,
+        typer.Option(help="Resume a release checkpoint. Supported value: latest."),
+    ] = None,
+    resume_run_id: Annotated[
+        str | None,
+        typer.Option(help="Resume a specific in-progress run directory."),
+    ] = None,
 ) -> None:
     """Run the M4 academic release experiment matrix."""
     if live and fixture:
@@ -513,11 +555,48 @@ def experiment_release(
         raise typer.Exit(code=1)
     root = _repo_root()
     try:
-        manifest_path = run_m4_release(root, live=live, fixture=fixture, manifest_path=manifest)
+        manifest_path = run_m4_release(
+            root,
+            live=live,
+            fixture=fixture,
+            manifest_path=manifest,
+            resume=resume,
+            resume_run_id=resume_run_id,
+        )
     except RuntimeError as exc:
         typer.echo(str(exc))
         raise typer.Exit(code=1) from exc
     typer.echo(f"wrote M4 release manifest: {manifest_path.relative_to(root)}")
+
+
+@experiment_app.command("deterministic-scale")
+def experiment_deterministic_scale(
+    manifest: Annotated[
+        Path | None,
+        typer.Option(help="Output deterministic scale manifest path."),
+    ] = None,
+    resume: Annotated[
+        str | None,
+        typer.Option(help="Resume a deterministic scale checkpoint. Supported value: latest."),
+    ] = None,
+    resume_run_id: Annotated[
+        str | None,
+        typer.Option(help="Resume a specific in-progress deterministic run directory."),
+    ] = None,
+) -> None:
+    """Run deterministic A0 on full Alaska Monitor, Notebook, and Camera."""
+    root = _repo_root()
+    try:
+        manifest_path = run_deterministic_scale(
+            root,
+            manifest_path=manifest,
+            resume=resume,
+            resume_run_id=resume_run_id,
+        )
+    except RuntimeError as exc:
+        typer.echo(str(exc))
+        raise typer.Exit(code=1) from exc
+    typer.echo(f"wrote deterministic scale manifest: {manifest_path.relative_to(root)}")
 
 
 @report_app.command("build")
@@ -525,6 +604,10 @@ def report_build(
     manifest: Annotated[
         Path | None,
         typer.Option(help="M4 release manifest to build from."),
+    ] = None,
+    scale_manifest: Annotated[
+        Path | None,
+        typer.Option(help="M4 deterministic scale manifest to include."),
     ] = None,
     fixture: Annotated[
         bool,
@@ -541,6 +624,7 @@ def report_build(
         outputs = build_m4_report(
             root,
             manifest_path=manifest,
+            scale_manifest_path=scale_manifest,
             fixture=fixture,
             build_pdf=not no_pdf,
         )
@@ -550,6 +634,28 @@ def report_build(
     for label, path in outputs.items():
         if path is not None:
             typer.echo(f"{label}: {path.relative_to(root)}")
+
+
+@maintenance_app.command("clean-generated")
+def maintenance_clean_generated(
+    yes: Annotated[
+        bool,
+        typer.Option(help="Actually delete generated artifacts. Omit for dry-run."),
+    ] = False,
+) -> None:
+    """Dry-run or delete ignored generated Mosaic artifacts."""
+    root = _repo_root()
+    try:
+        targets = clean_generated(root, yes=yes)
+    except RuntimeError as exc:
+        typer.echo(str(exc))
+        raise typer.Exit(code=1) from exc
+    action = "deleted" if yes else "would delete"
+    if not targets:
+        typer.echo("no generated artifacts found")
+        return
+    for target in targets:
+        typer.echo(f"{action}: {target}")
 
 
 def _resolve_dataset_config(root: Path, config: Path | None, fixture: bool) -> Path:

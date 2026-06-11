@@ -121,14 +121,15 @@ def test_submission_report_refuses_fixture_manifest(tmp_path: Path) -> None:
     manifest_path = tmp_path / "fixture_release_manifest.json"
     build_m4_report(REPO_ROOT, manifest_path=manifest_path, fixture=True, build_pdf=False)
 
-    with pytest.raises(RuntimeError, match="requires a full live M4 manifest"):
+    with pytest.raises(RuntimeError, match="requires a subset live M4 manifest"):
         build_m4_report(REPO_ROOT, manifest_path=manifest_path, build_pdf=False)
 
 
-def test_full_live_manifest_shape_is_accepted() -> None:
+def test_subset_live_manifest_shape_is_accepted() -> None:
     manifest = {
-        "mode": "full_live",
+        "mode": "subset_live",
         "reported_live_assisted": True,
+        "subset": {"subset_id": "alaska_monitor_live_subset_60"},
         "runs": [
             {"configuration_id": config}
             for config in [
@@ -149,6 +150,42 @@ def test_full_live_manifest_shape_is_accepted() -> None:
     }
 
     _validate_report_manifest(manifest, fixture=False)
+
+
+def test_default_report_requires_deterministic_scale_manifest(tmp_path: Path) -> None:
+    manifest_path = tmp_path / "subset_manifest.json"
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "mode": "subset_live",
+                "reported_live_assisted": True,
+                "subset": {"subset_id": "alaska_monitor_live_subset_60"},
+                "runs": [{"configuration_id": config} for config in [
+                    "A0",
+                    "C-LLM",
+                    "B-All",
+                    "B-S",
+                    "B-L",
+                    "B-F",
+                    "B-SL",
+                    "B-LF",
+                    "Budget-0",
+                    "Budget-5",
+                    "Budget-10",
+                    "Budget-25",
+                ]],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(RuntimeError, match="deterministic scale manifest not found"):
+        build_m4_report(
+            REPO_ROOT,
+            manifest_path=manifest_path,
+            scale_manifest_path=tmp_path / "missing_scale.json",
+            build_pdf=False,
+        )
 
 
 def test_submission_error_export_rejects_placeholder_shortfall(tmp_path: Path) -> None:

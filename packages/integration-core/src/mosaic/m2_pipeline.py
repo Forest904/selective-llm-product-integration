@@ -21,6 +21,7 @@ from sklearn.linear_model import LogisticRegression  # type: ignore[import-untyp
 from sklearn.pipeline import make_pipeline  # type: ignore[import-untyped]
 from sklearn.preprocessing import StandardScaler  # type: ignore[import-untyped]
 
+from mosaic.checkpoints import RunCheckpoint, checkpoint_hash
 from mosaic.ingestion import ingest_dataset
 from mosaic.m1_models import (
     DatasetConfig,
@@ -140,15 +141,28 @@ def run_baseline_pipeline(
     repo_root: Path,
     *,
     stop_after: StageName = "export",
+    resume_run_id: str | None = None,
 ) -> PipelineRunResult:
     dataset_config = load_dataset_config(repo_root / config.dataset_config)
-    run_id = _new_run_id(config.pipeline_id)
+    run_id = resume_run_id or _new_run_id(config.pipeline_id)
     run_dir = repo_root / config.artifact_root / run_id
     _stage_dir(run_dir, "logs")
     _stage_dir(run_dir, "metrics")
+    checkpoint = RunCheckpoint(
+        repo_root=repo_root,
+        run_dir=run_dir,
+        run_id=run_id,
+        config_hash=f"cfg_{sha256_text(config.model_dump_json())[:12]}",
+        dataset_hash=checkpoint_hash(dataset_config.model_dump()),
+        resume=resume_run_id is not None,
+    )
 
-    artifacts: dict[str, str] = {}
-    metrics: dict[str, str] = {}
+    artifacts: dict[str, str] = {
+        key: str(repo_root / value) for key, value in checkpoint.artifacts.items()
+    }
+    metrics: dict[str, str] = {
+        key: str(repo_root / value) for key, value in checkpoint.metrics.items()
+    }
 
     records_path = _ensure_m1_artifacts(dataset_config, repo_root)
     schema = load_mediated_schema(repo_root / config.schema_path)
@@ -159,95 +173,132 @@ def run_baseline_pipeline(
         / f"{dataset_config.dataset_id}_source_attributes.parquet"
     )
 
-    schema_outputs = propose_schema_mappings(
-        config=config,
-        dataset_config=dataset_config,
-        schema=schema,
-        repo_root=repo_root,
-        profile_path=profile_path,
-        run_dir=run_dir,
-    )
-    artifacts.update(schema_outputs["artifacts"])
-    metrics.update(schema_outputs["metrics"])
+    if not checkpoint.is_stage_complete("schema", required=["accepted_schema_mappings"]):
+        checkpoint.start_stage("schema")
+        schema_outputs = propose_schema_mappings(
+            config=config,
+            dataset_config=dataset_config,
+            schema=schema,
+            repo_root=repo_root,
+            profile_path=profile_path,
+            run_dir=run_dir,
+        )
+        artifacts.update(schema_outputs["artifacts"])
+        metrics.update(schema_outputs["metrics"])
+        checkpoint.complete_stage("schema", artifacts=artifacts, metrics=metrics)
     if stop_after == "schema":
-        return _finish_result(run_id, run_dir, stop_after, artifacts, metrics, config, repo_root)
+        return _finish_result(
+            run_id, run_dir, stop_after, artifacts, metrics, config, repo_root, checkpoint
+        )
 
-    normalize_outputs = normalize_records(
-        config=config,
-        dataset_config=dataset_config,
-        schema=schema,
-        repo_root=repo_root,
-        records_path=records_path,
-        accepted_mappings_path=Path(schema_outputs["artifacts"]["accepted_schema_mappings"]),
-        run_dir=run_dir,
-    )
-    artifacts.update(normalize_outputs["artifacts"])
-    metrics.update(normalize_outputs["metrics"])
+    if not checkpoint.is_stage_complete("normalize", required=["normalized_records"]):
+        checkpoint.start_stage("normalize")
+        normalize_outputs = normalize_records(
+            config=config,
+            dataset_config=dataset_config,
+            schema=schema,
+            repo_root=repo_root,
+            records_path=records_path,
+            accepted_mappings_path=Path(artifacts["accepted_schema_mappings"]),
+            run_dir=run_dir,
+        )
+        artifacts.update(normalize_outputs["artifacts"])
+        metrics.update(normalize_outputs["metrics"])
+        checkpoint.complete_stage("normalize", artifacts=artifacts, metrics=metrics)
     if stop_after == "normalize":
-        return _finish_result(run_id, run_dir, stop_after, artifacts, metrics, config, repo_root)
+        return _finish_result(
+            run_id, run_dir, stop_after, artifacts, metrics, config, repo_root, checkpoint
+        )
 
-    blocking_outputs = generate_candidate_pairs(
-        config=config,
-        dataset_config=dataset_config,
-        repo_root=repo_root,
-        records_path=records_path,
-        normalized_records_path=Path(normalize_outputs["artifacts"]["normalized_records"]),
-        run_dir=run_dir,
-    )
-    artifacts.update(blocking_outputs["artifacts"])
-    metrics.update(blocking_outputs["metrics"])
+    if not checkpoint.is_stage_complete("block", required=["candidate_pairs"]):
+        checkpoint.start_stage("block")
+        blocking_outputs = generate_candidate_pairs(
+            config=config,
+            dataset_config=dataset_config,
+            repo_root=repo_root,
+            records_path=records_path,
+            normalized_records_path=Path(artifacts["normalized_records"]),
+            run_dir=run_dir,
+        )
+        artifacts.update(blocking_outputs["artifacts"])
+        metrics.update(blocking_outputs["metrics"])
+        checkpoint.complete_stage("block", artifacts=artifacts, metrics=metrics)
     if stop_after == "block":
-        return _finish_result(run_id, run_dir, stop_after, artifacts, metrics, config, repo_root)
+        return _finish_result(
+            run_id, run_dir, stop_after, artifacts, metrics, config, repo_root, checkpoint
+        )
 
-    match_outputs = match_candidate_pairs(
-        config=config,
-        repo_root=repo_root,
-        normalized_records_path=Path(normalize_outputs["artifacts"]["normalized_records"]),
-        candidate_pairs_path=Path(blocking_outputs["artifacts"]["candidate_pairs"]),
-        run_dir=run_dir,
-    )
-    artifacts.update(match_outputs["artifacts"])
-    metrics.update(match_outputs["metrics"])
+    if not checkpoint.is_stage_complete("match", required=["pair_predictions"]):
+        checkpoint.start_stage("match")
+        match_outputs = match_candidate_pairs(
+            config=config,
+            repo_root=repo_root,
+            normalized_records_path=Path(artifacts["normalized_records"]),
+            candidate_pairs_path=Path(artifacts["candidate_pairs"]),
+            run_dir=run_dir,
+        )
+        artifacts.update(match_outputs["artifacts"])
+        metrics.update(match_outputs["metrics"])
+        checkpoint.complete_stage("match", artifacts=artifacts, metrics=metrics)
     if stop_after == "match":
-        return _finish_result(run_id, run_dir, stop_after, artifacts, metrics, config, repo_root)
+        return _finish_result(
+            run_id, run_dir, stop_after, artifacts, metrics, config, repo_root, checkpoint
+        )
 
-    cluster_outputs = cluster_records(
-        config=config,
-        dataset_config=dataset_config,
-        repo_root=repo_root,
-        normalized_records_path=Path(normalize_outputs["artifacts"]["normalized_records"]),
-        pair_predictions_path=Path(match_outputs["artifacts"]["pair_predictions"]),
-        run_dir=run_dir,
-    )
-    artifacts.update(cluster_outputs["artifacts"])
-    metrics.update(cluster_outputs["metrics"])
+    if not checkpoint.is_stage_complete("cluster", required=["cluster_memberships"]):
+        checkpoint.start_stage("cluster")
+        cluster_outputs = cluster_records(
+            config=config,
+            dataset_config=dataset_config,
+            repo_root=repo_root,
+            normalized_records_path=Path(artifacts["normalized_records"]),
+            pair_predictions_path=Path(artifacts["pair_predictions"]),
+            run_dir=run_dir,
+        )
+        artifacts.update(cluster_outputs["artifacts"])
+        metrics.update(cluster_outputs["metrics"])
+        checkpoint.complete_stage("cluster", artifacts=artifacts, metrics=metrics)
     if stop_after == "cluster":
-        return _finish_result(run_id, run_dir, stop_after, artifacts, metrics, config, repo_root)
+        return _finish_result(
+            run_id, run_dir, stop_after, artifacts, metrics, config, repo_root, checkpoint
+        )
 
-    claim_outputs = extract_claims(
-        repo_root=repo_root,
-        normalized_values_path=Path(normalize_outputs["artifacts"]["normalized_values"]),
-        memberships_path=Path(cluster_outputs["artifacts"]["cluster_memberships"]),
-        run_dir=run_dir,
-    )
-    artifacts.update(claim_outputs["artifacts"])
-    metrics.update(claim_outputs["metrics"])
+    if not checkpoint.is_stage_complete("claims", required=["attribute_claims"]):
+        checkpoint.start_stage("claims")
+        claim_outputs = extract_claims(
+            repo_root=repo_root,
+            normalized_values_path=Path(artifacts["normalized_values"]),
+            memberships_path=Path(artifacts["cluster_memberships"]),
+            run_dir=run_dir,
+        )
+        artifacts.update(claim_outputs["artifacts"])
+        metrics.update(claim_outputs["metrics"])
+        checkpoint.complete_stage("claims", artifacts=artifacts, metrics=metrics)
     if stop_after == "claims":
-        return _finish_result(run_id, run_dir, stop_after, artifacts, metrics, config, repo_root)
+        return _finish_result(
+            run_id, run_dir, stop_after, artifacts, metrics, config, repo_root, checkpoint
+        )
 
-    fuse_outputs = fuse_claims(
-        config=config,
-        repo_root=repo_root,
-        claims_path=Path(claim_outputs["artifacts"]["attribute_claims"]),
-        clusters_path=Path(cluster_outputs["artifacts"]["clusters"]),
-        run_dir=run_dir,
-    )
-    artifacts.update(fuse_outputs["artifacts"])
-    metrics.update(fuse_outputs["metrics"])
+    if not checkpoint.is_stage_complete("fuse", required=["integrated_entities_jsonl"]):
+        checkpoint.start_stage("fuse")
+        fuse_outputs = fuse_claims(
+            config=config,
+            repo_root=repo_root,
+            claims_path=Path(artifacts["attribute_claims"]),
+            clusters_path=Path(artifacts["clusters"]),
+            run_dir=run_dir,
+        )
+        artifacts.update(fuse_outputs["artifacts"])
+        metrics.update(fuse_outputs["metrics"])
+        checkpoint.complete_stage("fuse", artifacts=artifacts, metrics=metrics)
     if stop_after in {"fuse", "evaluate", "export"}:
-        return _finish_result(run_id, run_dir, stop_after, artifacts, metrics, config, repo_root)
+        return _finish_result(
+            run_id, run_dir, stop_after, artifacts, metrics, config, repo_root, checkpoint
+        )
 
-    return _finish_result(run_id, run_dir, stop_after, artifacts, metrics, config, repo_root)
+    return _finish_result(
+        run_id, run_dir, stop_after, artifacts, metrics, config, repo_root, checkpoint
+    )
 
 
 def propose_schema_mappings(
@@ -1897,6 +1948,7 @@ def _finish_result(
     metrics: dict[str, str],
     config: BaselinePipelineConfig,
     repo_root: Path,
+    checkpoint: RunCheckpoint | None = None,
 ) -> PipelineRunResult:
     manifest_path = run_dir / "run_manifest.json"
     if completed_stage in {"fuse", "evaluate", "export"}:
@@ -1923,6 +1975,8 @@ def _finish_result(
     }
     _write_json(manifest_path, payload)
     artifacts["run_manifest"] = str(manifest_path)
+    if checkpoint is not None:
+        checkpoint.finish(artifacts=artifacts, metrics=metrics)
     return PipelineRunResult(
         run_id=run_id,
         run_dir=str(run_dir),
