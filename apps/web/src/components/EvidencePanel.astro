@@ -1,0 +1,11 @@
+---
+import EvidencePill from "./EvidencePill.astro";
+import type { EvidenceKind } from "@/lib/types";
+interface Props { title: string; kind: EvidenceKind; overlay?: "uncertainty" | "provenance"; }
+const { title, kind, overlay } = Astro.props;
+---
+
+<div class="rounded-lg border border-line bg-white p-4" data-uncertainty-overlay={overlay === "uncertainty" ? "" : undefined} data-provenance-overlay={overlay === "provenance" ? "" : undefined}>
+  <EvidencePill kind={kind} label={title} />
+  <div class="mt-3 space-y-3"><slot /></div>
+</div>

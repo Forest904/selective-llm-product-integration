@@ -3,9 +3,11 @@
   "private": true,
   "packageManager": "pnpm@9.12.3",
   "scripts": {
-    "dev": "echo \"Mosaic web placeholder: pipeline-first development starts with make dev.\"",
-    "lint": "echo \"Mosaic web placeholder: TypeScript linting will be enabled when the Next.js app is initialized.\"",
-    "test": "echo \"Mosaic web placeholder: frontend tests are deferred until the web milestone.\""
+    "dev": "pnpm --filter @mosaic/web dev",
+    "build": "pnpm --filter @mosaic/web build",
+    "lint": "pnpm --filter @mosaic/web lint",
+    "test": "pnpm --filter @mosaic/web test",
+    "test:e2e": "pnpm --filter @mosaic/web test:e2e"
   },
   "devDependencies": {}
 }

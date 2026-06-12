@@ -1,0 +1,47 @@
+---
+import PageHeader from "@/components/astro/PageHeader.astro";
+import { errorCases } from "@/lib/demo-data";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+---
+
+<BaseLayout title="Mosaic Error Gallery">
+  <main>
+    <PageHeader
+      eyebrow="Error gallery"
+      title="Concrete failures stay visible instead of being smoothed over."
+      description="Each case shows the stage, source context, system output, expected output, and artifact-shaped references."
+      showFixtureBadge
+    />
+    <section class="mx-auto grid max-w-7xl gap-5 px-4 pb-16 sm:px-6">
+      {
+        errorCases.map((item) => (
+          <article class="story-band rise-in rounded-lg p-5">
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p class="text-sm font-semibold uppercase tracking-wide text-danger">{item.stage}</p>
+                <h2 class="mt-1 text-xl font-semibold text-ink">{item.caseId}</h2>
+              </div>
+              <span class="rounded-md bg-danger/10 px-3 py-1 text-sm font-semibold text-danger">error case</span>
+            </div>
+            <p class="mt-4 text-sm leading-6 text-muted">{item.explanation}</p>
+            <div class="mt-5 grid gap-4 lg:grid-cols-3">
+              <pre class="overflow-auto rounded-lg border border-line bg-white p-4 text-xs leading-5 text-ink">{JSON.stringify(item.systemOutput, null, 2)}</pre>
+              <pre class="overflow-auto rounded-lg border border-line bg-white p-4 text-xs leading-5 text-ink">{JSON.stringify(item.expectedOutput, null, 2)}</pre>
+              <div class="rounded-lg border border-line bg-white p-4">
+                <p class="text-sm font-semibold text-ink">Source records</p>
+                <ul class="mt-3 space-y-2">
+                  {item.sourceRecords.map((record) => (
+                    <li class="rounded-md bg-paper p-3 text-sm text-muted">
+                      <span class="font-mono text-ink">{record.id}</span>
+                      <span class="block">{record.sourceLabel}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </article>
+        ))
+      }
+    </section>
+  </main>
+</BaseLayout>

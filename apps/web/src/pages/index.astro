@@ -1,0 +1,89 @@
+---
+import { ArrowRight, Brain, FingerprintPattern, Gauge, Waypoints } from "@lucide/astro";
+import FixtureBadge from "@/components/astro/FixtureBadge.astro";
+import HeroFlowScene from "@/components/HeroFlowScene.astro";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+
+const cards = [
+  {
+    href: "/pipeline/",
+    title: "Animated pipeline",
+    text: "Follow raw source records through schema alignment, normalization, linkage, clustering, fusion, metrics, and export."
+  },
+  {
+    href: "/concepts/",
+    title: "Concept explorer",
+    text: "Try focused modules for schema synonyms, blocking tradeoffs, borderline pairs, fusion conflicts, routing, and provenance."
+  },
+  {
+    href: "/results/",
+    title: "Experiment results",
+    text: "Compare fixture-labeled deterministic, LLM-primary, and hybrid runs while the live M4 benchmark matrix is pending."
+  }
+];
+---
+
+<BaseLayout>
+  <main>
+    <section class="mx-auto grid max-w-7xl gap-8 px-4 pb-10 pt-10 sm:px-6 lg:grid-cols-[0.95fr_1.05fr] lg:items-center lg:pt-14">
+      <div class="rise-in">
+        <p class="text-sm font-semibold uppercase tracking-wide text-provenance">Educational demo</p>
+        <h1 class="mt-3 text-4xl font-semibold leading-tight text-ink sm:text-5xl">Mosaic turns messy product catalogs into auditable integrated entities.</h1>
+        <p class="mt-4 max-w-3xl text-lg leading-8 text-muted">This static Astro demo explains the assignment pipeline as an interactive story: where deterministic methods work, where LLMs are routed, when they abstain, and how provenance keeps every final value traceable.</p>
+        <div class="mt-5">
+          <FixtureBadge />
+        </div>
+        <div class="mt-7 flex flex-wrap gap-3">
+          <a class="inline-flex min-h-11 items-center gap-2 rounded-md bg-ink px-4 font-semibold text-panel" href="/pipeline/">
+            Start the pipeline <ArrowRight aria-hidden="true" size={18} />
+          </a>
+          <a class="inline-flex min-h-11 items-center gap-2 rounded-md border border-line bg-panel px-4 font-semibold text-ink" href="/concepts/">
+            Explore concepts
+          </a>
+        </div>
+      </div>
+      <HeroFlowScene />
+    </section>
+
+    <section class="mx-auto grid max-w-7xl gap-5 px-4 pb-12 sm:px-6 lg:grid-cols-4">
+      <div class="story-band rise-in rounded-lg p-5">
+        <span class="inline-flex rounded-md border border-deterministic/30 bg-deterministic/10 px-2 py-1 text-xs font-semibold text-deterministic">Deterministic evidence</span>
+        <Gauge aria-hidden="true" class="mt-5 text-deterministic" size={28} />
+        <h2 class="mt-4 text-xl font-semibold text-ink">Rules first</h2>
+        <p class="mt-2 text-sm leading-6 text-muted">Exact identifiers, normalized values, blocking rules, and validation provide the reproducible control.</p>
+      </div>
+      <div class="story-band rise-in rounded-lg p-5">
+        <span class="inline-flex rounded-md border border-llm/30 bg-llm/10 px-2 py-1 text-xs font-semibold text-llm">LLM evidence</span>
+        <Brain aria-hidden="true" class="mt-5 text-llm" size={28} />
+        <h2 class="mt-4 text-xl font-semibold text-ink">Bounded model use</h2>
+        <p class="mt-2 text-sm leading-6 text-muted">LLM calls appear only as explicit evidence with accepted, abstained, invalid, or defaulted outcomes.</p>
+      </div>
+      <div class="story-band rise-in rounded-lg p-5">
+        <span class="inline-flex rounded-md border border-uncertainty/30 bg-uncertainty/10 px-2 py-1 text-xs font-semibold text-uncertainty">Uncertainty</span>
+        <Waypoints aria-hidden="true" class="mt-5 text-uncertainty" size={28} />
+        <h2 class="mt-4 text-xl font-semibold text-ink">Confidence matters</h2>
+        <p class="mt-2 text-sm leading-6 text-muted">Borderline mappings, pair decisions, and conflicts are shown as uncertainty instead of hidden behind tidy rows.</p>
+      </div>
+      <div class="story-band rise-in rounded-lg p-5">
+        <span class="inline-flex rounded-md border border-provenance/30 bg-provenance/10 px-2 py-1 text-xs font-semibold text-provenance">Provenance</span>
+        <FingerprintPattern aria-hidden="true" class="mt-5 text-provenance" size={28} />
+        <h2 class="mt-4 text-xl font-semibold text-ink">Traceable outputs</h2>
+        <p class="mt-2 text-sm leading-6 text-muted">Final values link back to records, normalized values, claims, and stage decisions.</p>
+      </div>
+    </section>
+
+    <section class="mx-auto grid max-w-7xl gap-5 px-4 pb-16 sm:px-6 md:grid-cols-3">
+      {
+        cards.map((card) => (
+          <a href={card.href} class="group rounded-lg border border-line bg-panel p-5 shadow-soft transition hover:-translate-y-0.5 hover:border-provenance/40">
+            <h2 class="text-xl font-semibold text-ink">{card.title}</h2>
+            <p class="mt-3 text-sm leading-6 text-muted">{card.text}</p>
+            <span class="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-provenance">
+              Open <ArrowRight aria-hidden="true" size={16} />
+            </span>
+          </a>
+        ))
+      }
+    </section>
+  </main>
+</BaseLayout>

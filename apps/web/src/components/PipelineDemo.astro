@@ -1,0 +1,224 @@
+---
+import { Pause, Play, RotateCcw, SkipBack, SkipForward } from "@lucide/astro";
+import { pipelineStages } from "@/lib/demo-data";
+import EvidencePanel from "./EvidencePanel.astro";
+import ObjectList from "./ObjectList.astro";
+import StageFlowScene from "./StageFlowScene.astro";
+---
+
+<div class="pipeline-demo story-band rounded-lg p-4 sm:p-6" data-pipeline-demo data-mode="baseline">
+  <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+    <div aria-live="polite">
+      <p class="text-sm font-semibold text-provenance">Stage <span data-stage-number>1</span> of {pipelineStages.length}</p>
+      <h2 class="mt-1 text-2xl font-semibold text-ink" data-stage-title>{pipelineStages[0].title}</h2>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+      <button type="button" data-action="back" class="inline-flex min-h-10 items-center gap-2 rounded-md border border-line bg-panel px-3 text-sm font-semibold" aria-label="Step backward">
+        <SkipBack aria-hidden="true" size={16} /> Back
+      </button>
+      <button type="button" data-action="play" class="inline-flex min-h-10 items-center gap-2 rounded-md bg-ink px-3 text-sm font-semibold text-panel" aria-label="Play pipeline animation" aria-pressed="false">
+        <Play data-play-icon aria-hidden="true" size={16} />
+        <span data-pause-icon hidden><Pause aria-hidden="true" size={16} /></span>
+        <span data-play-label>Play</span>
+      </button>
+      <button type="button" data-action="next" class="inline-flex min-h-10 items-center gap-2 rounded-md border border-line bg-panel px-3 text-sm font-semibold" aria-label="Step forward">
+        <SkipForward aria-hidden="true" size={16} /> Next
+      </button>
+      <button type="button" data-action="reset" class="inline-flex min-h-10 items-center gap-2 rounded-md border border-line bg-panel px-3 text-sm font-semibold" aria-label="Reset pipeline demo">
+        <RotateCcw aria-hidden="true" size={16} /> Reset
+      </button>
+    </div>
+  </div>
+
+  <div class="mt-5 h-2 overflow-hidden rounded-full bg-line" role="progressbar" aria-label="Pipeline progress" aria-valuemin="1" aria-valuemax={pipelineStages.length} aria-valuenow="1">
+    <div data-progress class="h-full rounded-full bg-provenance transition-all" style={`width: ${100 / pipelineStages.length}%`} />
+  </div>
+
+  <div class="mt-5">
+    {pipelineStages.map((stage, index) => (
+      <div data-stage-scene={index} hidden={index !== 0}><StageFlowScene stage={stage} stageIndex={index} /></div>
+    ))}
+  </div>
+
+  <div class="mt-5 grid gap-4 lg:grid-cols-[16rem_1fr]">
+    <aside class="rounded-lg border border-line bg-panel p-3">
+      <label class="text-sm font-semibold text-ink" for="stage-selector">Stage selector</label>
+      <select id="stage-selector" data-stage-selector class="mt-2 w-full rounded-md border border-line bg-white px-3 py-2 text-sm">
+        {pipelineStages.map((stage, index) => <option value={index}>{stage.shortTitle}</option>)}
+      </select>
+
+      <fieldset class="mt-5">
+        <legend class="text-sm font-semibold text-ink">Pipeline view</legend>
+        <div class="mt-2 grid grid-cols-2 gap-2">
+          <button type="button" data-mode="baseline" class="min-h-10 rounded-md border border-ink bg-ink px-3 text-sm font-semibold text-panel" aria-pressed="true">Baseline</button>
+          <button type="button" data-mode="llm" class="min-h-10 rounded-md border border-line bg-white px-3 text-sm font-semibold text-ink" aria-pressed="false">LLM</button>
+        </div>
+      </fieldset>
+
+      <div class="mt-5 space-y-3">
+        <label class="flex items-center justify-between gap-3 text-sm font-medium text-ink">
+          <span>Uncertainty overlay</span>
+          <input data-toggle="uncertainty" type="checkbox" checked aria-label="Toggle uncertainty overlay" />
+        </label>
+        <label class="flex items-center justify-between gap-3 text-sm font-medium text-ink">
+          <span>Provenance overlay</span>
+          <input data-toggle="provenance" type="checkbox" checked aria-label="Toggle provenance overlay" />
+        </label>
+      </div>
+    </aside>
+
+    <section>
+      {pipelineStages.map((stage, index) => (
+        <article data-stage-panel={index} hidden={index !== 0} class="grid gap-4">
+          <div class="rise-in rounded-lg border border-line bg-panel p-5">
+            <p class="text-base leading-7 text-muted">{stage.story}</p>
+            <p class="mt-4 rounded-md bg-paper p-3 text-sm font-medium text-ink">
+              <span data-summary="baseline">{stage.baselineSummary}</span>
+              <span data-summary="llm" hidden>{stage.llmSummary}</span>
+            </p>
+          </div>
+
+          <div class="grid gap-4 xl:grid-cols-3">
+            <ObjectList title="Inputs" items={stage.inputObjects} />
+            <div class="rounded-lg border border-line bg-white p-4">
+              <p class="text-sm font-semibold text-ink">Transformation or decision</p>
+              <p class="mt-3 text-sm leading-6 text-muted">{stage.decision}</p>
+            </div>
+            <ObjectList title="Outputs" items={stage.outputObjects} />
+          </div>
+
+          <div class="grid gap-4 xl:grid-cols-2">
+            <EvidencePanel title="Deterministic evidence" kind="deterministic">
+              {stage.evidence.deterministic.map((item) => (
+                <div><p class="text-sm font-semibold text-ink">{item.label}: <span class="font-mono text-sm">{item.value}</span></p><p class="mt-1 text-sm leading-6 text-muted">{item.detail}</p></div>
+              ))}
+            </EvidencePanel>
+            <EvidencePanel title="LLM evidence" kind="llm">
+              {stage.evidence.llm.map((item) => (
+                <div><p class="text-sm font-semibold text-ink">{item.label}: <span class="font-mono text-sm">{item.decision}</span></p><p class="mt-1 text-sm leading-6 text-muted">{item.status}: {item.detail}</p></div>
+              ))}
+            </EvidencePanel>
+            <EvidencePanel title="Uncertainty" kind="uncertainty" overlay="uncertainty">
+              {stage.evidence.uncertainty.map((item) => (
+                <div>
+                  <p class="text-sm font-semibold text-ink">{item.label}: <span class="font-mono text-sm">{Math.round(item.confidence * 100)}%</span></p>
+                  <p class="mt-1 text-sm leading-6 text-muted">{item.detail}</p>
+                  <div class="mt-2 h-2 rounded-full bg-line"><div class="h-full rounded-full bg-uncertainty" style={`width: ${item.confidence * 100}%`} /></div>
+                </div>
+              ))}
+            </EvidencePanel>
+            <EvidencePanel title="Provenance" kind="provenance" overlay="provenance">
+              {stage.evidence.provenance.map((item) => (
+                <div><p class="text-sm font-semibold text-ink">{item.from} -&gt; {item.to}: <span class="font-mono text-sm">trace</span></p><p class="mt-1 text-sm leading-6 text-muted">{item.detail}</p></div>
+              ))}
+            </EvidencePanel>
+          </div>
+
+          <div class="rounded-lg border border-danger/25 bg-danger/10 p-4">
+            <p class="text-sm font-semibold text-danger">Common error mode</p>
+            <p class="mt-1 text-sm leading-6 text-ink">{stage.commonError}</p>
+          </div>
+        </article>
+      ))}
+    </section>
+  </div>
+</div>
+
+<script>
+  import {
+    advancePlayback,
+    createPipelineState,
+    resetPipelineState,
+    setStage,
+    stepStage,
+    type PipelineMode
+  } from "@/lib/pipeline-state";
+
+  const initializePipeline = () => {
+    const root = document.querySelector<HTMLElement>("[data-pipeline-demo]");
+    if (!root || root.dataset.ready === "true") return;
+    root.dataset.ready = "true";
+
+    const stageCount = root.querySelectorAll("[data-stage-panel]").length;
+    const selector = root.querySelector<HTMLSelectElement>("[data-stage-selector]");
+    const playButton = root.querySelector<HTMLButtonElement>('[data-action="play"]');
+    let state = createPipelineState();
+    let timer: number | undefined;
+
+    const render = () => {
+      root.dataset.mode = state.mode;
+      root.querySelectorAll<HTMLElement>("[data-stage-panel], [data-stage-scene]").forEach((element) => {
+        const index = Number(element.dataset.stagePanel ?? element.dataset.stageScene);
+        element.hidden = index !== state.stageIndex;
+      });
+
+      const activePanel = root.querySelector<HTMLElement>(`[data-stage-panel="${state.stageIndex}"]`);
+      const activeScene = root.querySelector<HTMLElement>(`[data-stage-scene="${state.stageIndex}"]`);
+      const title = activeScene?.querySelector<SVGElement>("svg")?.getAttribute("aria-label")?.replace(/^Pipeline stage \d+: /, "") ?? "";
+      const number = root.querySelector<HTMLElement>("[data-stage-number]");
+      const heading = root.querySelector<HTMLElement>("[data-stage-title]");
+      if (number) number.textContent = String(state.stageIndex + 1);
+      if (heading) heading.textContent = title;
+      if (selector) selector.value = String(state.stageIndex);
+
+      root.querySelectorAll<HTMLElement>("[data-summary]").forEach((summary) => {
+        summary.hidden = summary.dataset.summary !== state.mode;
+      });
+      root.querySelectorAll<HTMLElement>("[data-path-label]").forEach((label) => {
+        label.textContent = state.mode === "llm" ? "assisted path" : "baseline path";
+      });
+      root.querySelectorAll<HTMLButtonElement>("button[data-mode]").forEach((button) => {
+        const active = button.dataset.mode === state.mode;
+        button.setAttribute("aria-pressed", String(active));
+        button.className = `min-h-10 rounded-md border px-3 text-sm font-semibold ${active ? "border-ink bg-ink text-panel" : "border-line bg-white text-ink"}`;
+      });
+
+      root.querySelectorAll<HTMLElement>("[data-uncertainty-overlay]").forEach((element) => element.hidden = !state.showUncertainty);
+      root.querySelectorAll<HTMLElement>("[data-provenance-overlay]").forEach((element) => element.hidden = !state.showProvenance);
+      const uncertainty = root.querySelector<HTMLInputElement>('[data-toggle="uncertainty"]');
+      const provenance = root.querySelector<HTMLInputElement>('[data-toggle="provenance"]');
+      if (uncertainty) uncertainty.checked = state.showUncertainty;
+      if (provenance) provenance.checked = state.showProvenance;
+
+      const progress = root.querySelector<HTMLElement>("[data-progress]");
+      const progressbar = progress?.parentElement;
+      if (progress) progress.style.width = `${((state.stageIndex + 1) / stageCount) * 100}%`;
+      progressbar?.setAttribute("aria-valuenow", String(state.stageIndex + 1));
+
+      if (playButton) {
+        playButton.setAttribute("aria-label", state.isPlaying ? "Pause pipeline animation" : "Play pipeline animation");
+        playButton.setAttribute("aria-pressed", String(state.isPlaying));
+      }
+      const playLabel = root.querySelector<HTMLElement>("[data-play-label]");
+      if (playLabel) playLabel.textContent = state.isPlaying ? "Pause" : "Play";
+      const playIcon = root.querySelector<HTMLElement>("[data-play-icon]");
+      const pauseIcon = root.querySelector<HTMLElement>("[data-pause-icon]");
+      if (playIcon) playIcon.hidden = state.isPlaying;
+      if (pauseIcon) pauseIcon.hidden = !state.isPlaying;
+      activePanel?.classList.remove("pipeline-stage-refresh");
+      requestAnimationFrame(() => activePanel?.classList.add("pipeline-stage-refresh"));
+    };
+
+    const syncTimer = () => {
+      if (timer !== undefined) window.clearInterval(timer);
+      timer = state.isPlaying ? window.setInterval(() => {
+        state = advancePlayback(state, stageCount);
+        render();
+      }, 2400) : undefined;
+    };
+
+    root.querySelector('[data-action="back"]')?.addEventListener("click", () => { state = stepStage(state, -1, stageCount); render(); });
+    root.querySelector('[data-action="next"]')?.addEventListener("click", () => { state = stepStage(state, 1, stageCount); render(); });
+    playButton?.addEventListener("click", () => { state = { ...state, isPlaying: !state.isPlaying }; syncTimer(); render(); });
+    root.querySelector('[data-action="reset"]')?.addEventListener("click", () => { state = resetPipelineState(); syncTimer(); render(); });
+    selector?.addEventListener("change", () => { state = setStage(state, Number(selector.value), stageCount); render(); });
+    root.querySelectorAll<HTMLButtonElement>("button[data-mode]").forEach((button) => button.addEventListener("click", () => { state = { ...state, mode: button.dataset.mode as PipelineMode }; render(); }));
+    root.querySelector<HTMLInputElement>('[data-toggle="uncertainty"]')?.addEventListener("change", (event) => { state = { ...state, showUncertainty: (event.currentTarget as HTMLInputElement).checked }; render(); });
+    root.querySelector<HTMLInputElement>('[data-toggle="provenance"]')?.addEventListener("change", (event) => { state = { ...state, showProvenance: (event.currentTarget as HTMLInputElement).checked }; render(); });
+    document.addEventListener("astro:before-swap", () => timer !== undefined && window.clearInterval(timer), { once: true });
+    render();
+  };
+
+  document.addEventListener("astro:page-load", initializePipeline);
+  initializePipeline();
+</script>

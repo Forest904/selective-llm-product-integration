@@ -1,0 +1,11 @@
+---
+interface Props { title: string; items: string[]; }
+const { title, items } = Astro.props;
+---
+
+<div class="rounded-lg border border-line bg-white p-4">
+  <p class="text-sm font-semibold text-ink">{title}</p>
+  <ul class="mt-3 space-y-2">
+    {items.map((item) => <li class="rounded-md bg-paper px-3 py-2 text-sm text-ink">{item}</li>)}
+  </ul>
+</div>

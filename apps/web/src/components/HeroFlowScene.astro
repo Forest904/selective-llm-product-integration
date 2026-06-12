@@ -1,0 +1,77 @@
+---
+import { Database, FingerprintPattern, Waypoints } from "@lucide/astro";
+
+const streams = [
+  { label: "Alpha", y: 68, color: "#1f7a68" },
+  { label: "Beta", y: 126, color: "#2866a5" },
+  { label: "Gamma", y: 184, color: "#7b4ab0" }
+];
+
+const nodes = [
+  { x: 332, y: 130, label: "Align", mark: "A", color: "#1f7a68" },
+  { x: 548, y: 130, label: "Link", mark: "L", color: "#2866a5" },
+  { x: 654, y: 130, label: "Fuse", mark: "F", color: "#7b4ab0" }
+];
+---
+
+<div class="glass-panel relative overflow-hidden rounded-lg p-4 sm:p-6" aria-label="Animated Mosaic data flow illustration">
+  <div class="mb-4 flex flex-wrap gap-2 text-xs font-semibold text-muted">
+    <span class="rounded-md bg-deterministic/10 px-2 py-1 text-deterministic">deterministic rules</span>
+    <span class="rounded-md bg-llm/10 px-2 py-1 text-llm">bounded LLM</span>
+    <span class="rounded-md bg-provenance/10 px-2 py-1 text-provenance">provenance</span>
+  </div>
+
+  <svg class="h-[280px] w-full" viewBox="0 0 760 280" role="img" aria-labelledby="hero-flow-title">
+    <title id="hero-flow-title">Three source streams pass through Mosaic pipeline stages into integrated entities.</title>
+    <defs>
+      <filter id="soft-shadow" x="-20%" y="-20%" width="140%" height="140%">
+        <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#17212b" flood-opacity="0.13" />
+      </filter>
+    </defs>
+
+    {streams.map((stream, index) => (
+      <g>
+        <rect x="22" y={stream.y - 20} width="118" height="40" rx="8" fill="#fffdfa" stroke={stream.color} />
+        <text x="42" y={stream.y + 5} fill="#17212b" font-size="14" font-weight="700">{stream.label} source</text>
+        <path class="flow-path" d={`M 144 ${stream.y} C 230 ${stream.y - 24} 250 ${stream.y + 24} 330 130`} fill="none" stroke={stream.color} stroke-width="3" opacity="0.75" />
+        <circle class="flow-token" cx={190 + index * 38} cy={stream.y - 4} r="7" fill={stream.color} />
+      </g>
+    ))}
+
+    <path class="flow-path" d="M 394 130 C 452 96 488 96 548 124" fill="none" stroke="#2866a5" stroke-width="3" />
+    <path class="flow-path" d="M 394 130 C 454 166 492 166 548 136" fill="none" stroke="#7b4ab0" stroke-width="3" />
+    <circle class="flow-token" cx="455" cy="113" r="7" fill="#2866a5" />
+    <circle class="flow-token" cx="486" cy="153" r="7" fill="#7b4ab0" />
+    <path class="flow-path" d="M 610 130 C 646 130 662 130 694 130" fill="none" stroke="#1f7a68" stroke-width="3" />
+
+    {nodes.map((node) => (
+      <g class="pulse-soft" filter="url(#soft-shadow)">
+        <rect x={node.x - 42} y={node.y - 30} width="84" height="60" rx="12" fill="#fffdfa" stroke={node.color} stroke-width="2" />
+        <circle cx={node.x} cy={node.y - 10} r="11" fill={node.color} opacity="0.12" />
+        <text x={node.x} y={node.y - 6} text-anchor="middle" fill={node.color} font-size="12" font-weight="800">{node.mark}</text>
+        <text x={node.x} y={node.y + 18} text-anchor="middle" fill="#17212b" font-size="13" font-weight="700">{node.label}</text>
+      </g>
+    ))}
+
+    <g filter="url(#soft-shadow)">
+      <rect x="606" y="200" width="126" height="48" rx="10" fill="#17212b" />
+      <text x="625" y="230" fill="#fffdfa" font-size="14" font-weight="700">Entities + report</text>
+    </g>
+    <path class="flow-path" d="M 670 158 C 680 176 680 184 670 200" fill="none" stroke="#b7631c" stroke-width="3" />
+  </svg>
+
+  <div class="grid gap-3 text-sm text-muted sm:grid-cols-3">
+    <div class="rounded-md border border-line bg-white/75 p-3">
+      <div class="flex items-center gap-2 font-semibold text-ink"><Database size={16} /><span>Records move</span></div>
+      <p class="mt-1 leading-6">Source rows stay visible as they transform.</p>
+    </div>
+    <div class="rounded-md border border-line bg-white/75 p-3">
+      <div class="flex items-center gap-2 font-semibold text-ink"><Waypoints size={16} /><span>Uncertainty surfaces</span></div>
+      <p class="mt-1 leading-6">Borderline decisions are shown as confidence, not certainty.</p>
+    </div>
+    <div class="rounded-md border border-line bg-white/75 p-3">
+      <div class="flex items-center gap-2 font-semibold text-ink"><FingerprintPattern size={16} /><span>Trace remains</span></div>
+      <p class="mt-1 leading-6">Every exported value keeps support and contradiction links.</p>
+    </div>
+  </div>
+</div>

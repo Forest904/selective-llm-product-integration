@@ -1,0 +1,9 @@
+---
+import { TriangleAlert } from "@lucide/astro";
+import { fixtureNotice } from "@/lib/demo-data";
+---
+
+<div class="inline-flex max-w-full items-center gap-2 rounded-md border border-uncertainty/30 bg-uncertainty/10 px-3 py-2 text-sm font-medium text-ink">
+  <TriangleAlert aria-hidden="true" size={16} class="shrink-0 text-uncertainty" />
+  <span>{fixtureNotice}</span>
+</div>

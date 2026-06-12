@@ -1,0 +1,93 @@
+---
+import type { PipelineStage } from "@/lib/types";
+
+interface Props {
+  stage: PipelineStage;
+  stageIndex: number;
+}
+
+const { stage, stageIndex } = Astro.props;
+const nodeLabels = ["Sources", "Schema", "Normalize", "Block", "Link", "Cluster", "Claims", "Fuse", "Entities", "Report"];
+const nodeMarks = ["S", "A", "N", "B", "L", "C", "C", "F", "E", "R"];
+---
+
+<section class="glass-panel rounded-lg p-4 sm:p-5" aria-label="Animated stage flow scene">
+  <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+      <p class="text-sm font-semibold uppercase tracking-wide text-provenance">Animated flow</p>
+      <h3 class="mt-1 text-xl font-semibold text-ink">
+        {stage.shortTitle}: <span data-path-label>baseline path</span>
+      </h3>
+    </div>
+    <div class="flex flex-wrap gap-2 text-xs font-semibold">
+      <span data-uncertainty-overlay class="rounded-md bg-uncertainty/10 px-2 py-1 text-uncertainty">uncertainty visible</span>
+      <span data-provenance-overlay class="rounded-md bg-provenance/10 px-2 py-1 text-provenance">provenance visible</span>
+    </div>
+  </div>
+
+  <div class="mt-4 overflow-x-auto pb-2" tabindex="0" aria-label="Scrollable pipeline diagram">
+    <svg class="h-[210px] min-w-[760px] w-full" viewBox="0 0 960 210" role="img" aria-label={`Pipeline stage ${stageIndex + 1}: ${stage.title}`}>
+      {nodeLabels.slice(0, -1).map((_, index) => (
+        <path
+          class:list={[index <= stageIndex && "flow-path"]}
+          d={`M ${82 + index * 88} 104 L ${138 + index * 88} 104`}
+          stroke={index < stageIndex ? "#2866a5" : "#c9d2d8"}
+          stroke-width="3"
+          stroke-linecap="round"
+        />
+      ))}
+
+      {nodeLabels.map((label, index) => {
+        const isActive = index === stageIndex;
+        const isPast = index < stageIndex;
+        const color = isActive ? "#1f7a68" : isPast ? "#2866a5" : "#607080";
+        return (
+          <g class:list={[isActive && "pulse-soft"]}>
+            <rect
+              class:list={[isActive && "current-stage-stroke"]}
+              x={24 + index * 88}
+              y="70"
+              width="64"
+              height="68"
+              rx="12"
+              fill={isActive ? "#fffdfa" : isPast ? "#eef7f4" : "#f6f7f7"}
+              stroke={color}
+              stroke-width={isActive ? "3" : "1.5"}
+            />
+            <circle cx={56 + index * 88} cy="94" r="11" fill={color} opacity="0.12" />
+            <text class:list={[isActive && "current-stage-fill"]} x={56 + index * 88} y="98" text-anchor="middle" fill={color} font-size="11" font-weight="800">{nodeMarks[index]}</text>
+            <text x={56 + index * 88} y="123" text-anchor="middle" fill="#17212b" font-size="11" font-weight="700">{label}</text>
+          </g>
+        );
+      })}
+
+      <circle class="flow-token current-stage-fill" cx={56 + stageIndex * 88} cy="40" r="8" fill="#1f7a68" />
+      <circle class="flow-token" cx={74 + stageIndex * 88} cy="54" r="6" fill="#2866a5" />
+      <circle data-uncertainty-overlay class="flow-token" cx={42 + stageIndex * 88} cy="54" r="6" fill="#b7631c" />
+      <path
+        data-provenance-overlay
+        class="flow-path"
+        d={`M ${56 + stageIndex * 88} 160 C ${40 + stageIndex * 88} 176 ${32 + stageIndex * 88} 188 ${18 + stageIndex * 88} 198`}
+        fill="none"
+        stroke="#2866a5"
+        stroke-width="2.5"
+        stroke-linecap="round"
+      />
+    </svg>
+  </div>
+
+  <div class="grid gap-3 md:grid-cols-3">
+    <div class="rounded-md border border-deterministic/25 bg-deterministic/10 p-3 text-deterministic">
+      <p class="text-xs font-semibold uppercase tracking-wide">Inputs</p>
+      <p class="mt-1 truncate text-sm font-bold text-ink">{stage.inputObjects.length}</p>
+    </div>
+    <div class="rounded-md border border-provenance/25 bg-provenance/10 p-3 text-provenance">
+      <p class="text-xs font-semibold uppercase tracking-wide">Outputs</p>
+      <p class="mt-1 truncate text-sm font-bold text-ink">{stage.outputObjects.length}</p>
+    </div>
+    <div class="rounded-md border border-uncertainty/25 bg-uncertainty/10 p-3 text-uncertainty">
+      <p class="text-xs font-semibold uppercase tracking-wide">Risk</p>
+      <p class="mt-1 truncate text-sm font-bold text-ink">{stage.commonError.split(" ").slice(0, 3).join(" ")}</p>
+    </div>
+  </div>
+</section>

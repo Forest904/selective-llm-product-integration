@@ -1,0 +1,19 @@
+---
+import PageHeader from "@/components/astro/PageHeader.astro";
+import PipelineDemo from "@/components/PipelineDemo.astro";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+---
+
+<BaseLayout title="Mosaic Pipeline Demo">
+  <main>
+    <PageHeader
+      eyebrow="Animated assignment pipeline"
+      title="Watch source records become integrated entities and report artifacts."
+      description="Step through the full Mosaic flow. Each stage shows inputs, a transformation or decision, outputs, deterministic evidence, LLM evidence, uncertainty, provenance, and one common failure mode."
+      showFixtureBadge
+    />
+    <section class="mx-auto max-w-7xl px-4 pb-16 sm:px-6">
+      <PipelineDemo />
+    </section>
+  </main>
+</BaseLayout>

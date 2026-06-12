@@ -689,59 +689,93 @@ Produce the assignment-ready research release: PDF report, GitHub-ready reposito
 
 ## M5: Educational Demo Website
 
+**Status:** Implemented as a React-free static Astro educational MVP using fixture-labeled M4-style artifacts. Live M4 benchmark outputs still need to replace the current fixture/demo snapshots after full-scale runs are complete.
+
 ### Goal
 
 Create the first website version as an educational demo centered on the Mosaic assignment project.
 
 ### Prerequisites
 
-- M4 accepted or enough M4 artifacts are stable for demo content.
-- Report tables, figures, selected error cases, and final dataset preview are available.
-- Frontend skeleton exists or is ready to create.
+- [x] M4 accepted or enough M4 artifacts are stable for demo content. Current MVP uses fixture-labeled release tables, error cases, and integrated-entity previews.
+- [x] Report tables, figures, selected error cases, and final dataset preview are available. Current MVP uses committed fixture/demo snapshots and marks them explicitly.
+- [x] Frontend skeleton exists or is ready to create. Current implementation is an Astro static site under `apps/web`.
 
 ### Implementation Checklist
 
-- Build frontend shell and design system.
-- Create app navigation for learning hub, animated pipeline, concept explorer, experiment results, error gallery, and final dataset preview.
-- Create learning hub that introduces Mosaic and data integration concepts.
-- Build animated assignment pipeline page.
-- Include pipeline stages: sources, schema alignment, normalization, blocking, record linkage, clustering, claim extraction, fusion, integrated entities, metrics, report, and export.
-- Add controls: play/pause, step forward/back, stage selector, baseline versus LLM toggle, uncertainty overlay, provenance overlay, and reset.
-- Use small toy data with 3 sources, 6 to 12 records, 2 to 3 products, one schema synonym, one borderline pair, one fusion conflict, and one LLM abstention or invalid-output example.
-- For every stage, show input objects, transformation or decision, output objects, deterministic evidence, LLM evidence when applicable, uncertainty/confidence, provenance, and common error mode.
-- Build concept modules for schema alignment, blocking, record linkage, clustering, fusion, LLM routing, and provenance.
-- Add experiment results page using M4 report outputs.
-- Add error gallery using M4 saved error cases.
-- Add final dataset preview using exported integrated entities or demo subset.
-- Ensure deterministic evidence, LLM evidence, uncertainty, and provenance are visually distinct.
-- Add empty, loading, and error states.
-- Verify responsive layout on desktop and mobile.
-- Verify keyboard access and labels for controls.
-- Add frontend tests for stage navigation, toggles, overlays, responsive layout, and accessibility basics.
+- [x] Build frontend shell and design system.
+- [x] Create app navigation for learning hub, animated pipeline, concept explorer, experiment results, error gallery, and final dataset preview.
+- [x] Create learning hub that introduces Mosaic and data integration concepts.
+- [x] Build animated assignment pipeline page.
+- [x] Include pipeline stages: sources, schema alignment, normalization, blocking, record linkage, clustering, claim extraction, fusion, integrated entities, metrics, report, and export.
+- [x] Add controls: play/pause, step forward/back, stage selector, baseline versus LLM toggle, uncertainty overlay, provenance overlay, and reset.
+- [x] Use small toy data with 3 sources, 6 to 12 records, 2 to 3 products, one schema synonym, one borderline pair, one fusion conflict, and one LLM abstention or invalid-output example.
+- [x] For every stage, show input objects, transformation or decision, output objects, deterministic evidence, LLM evidence when applicable, uncertainty/confidence, provenance, and common error mode.
+- [x] Build concept modules for schema alignment, blocking, record linkage, clustering, fusion, LLM routing, and provenance.
+- [x] Add experiment results page using M4 report outputs. Current page uses fixture/demo M4-style release tables until live M4 outputs are available.
+- [x] Add error gallery using M4 saved error cases.
+- [x] Add final dataset preview using exported integrated entities or demo subset.
+- [x] Ensure deterministic evidence, LLM evidence, uncertainty, and provenance are visually distinct.
+- [x] Add empty, loading, and error states where the static artifact-backed views need fallback behavior.
+- [x] Verify responsive layout on desktop and mobile.
+- [x] Verify keyboard access and labels for controls.
+- [x] Add frontend tests for stage navigation, toggles, overlays, responsive layout, and accessibility basics.
+- [x] Implement the static website entirely in Astro, with page-scoped TypeScript controllers for interactive controls and no React components, runtime, or hydration islands.
+- [x] Add data-flow animation polish for the learning hub and pipeline page while preserving reduced-motion safeguards.
 
 ### Deliverables
 
-- Educational website MVP.
-- Animated assignment pipeline page.
-- Concept explorer modules.
-- Experiment results page.
-- Error gallery.
-- Final dataset preview.
-- Frontend test coverage for core demo flows.
+- [x] Educational website MVP.
+- [x] Animated assignment pipeline page.
+- [x] Concept explorer modules.
+- [x] Experiment results page.
+- [x] Error gallery.
+- [x] Final dataset preview.
+- [x] Frontend test coverage for core demo flows.
+- [x] Cloudflare Pages-ready static Astro build with output directory `apps/web/dist`.
+- [x] React-free Astro component architecture with framework-neutral pipeline state helpers.
+
+### Implemented Frontend Commands
+
+```bash
+pnpm --filter @mosaic/web dev
+pnpm --filter @mosaic/web lint
+pnpm --filter @mosaic/web test
+pnpm --filter @mosaic/web build
+pnpm --filter @mosaic/web test:e2e
+```
+
+Cloudflare Pages settings:
+
+```text
+Build command: pnpm --filter @mosaic/web build
+Output directory: apps/web/dist
+```
 
 ### Acceptance Gate
 
-- A visitor can understand Mosaic's full assignment pipeline without running code.
-- The animated page accurately shows how source records become integrated entities and report artifacts.
-- Deterministic evidence, LLM evidence, uncertainty, and provenance are visually distinct.
-- The demo works on desktop and mobile without overlap, clipping, or unreadable text.
+- [x] A visitor can understand Mosaic's full assignment pipeline without running code.
+- [x] The animated page accurately shows how source records become integrated entities and report artifacts.
+- [x] Deterministic evidence, LLM evidence, uncertainty, and provenance are visually distinct.
+- [x] The demo works on desktop and mobile without overlap, clipping, or unreadable text.
+
+### Verification
+
+- [x] `pnpm --filter @mosaic/web lint`
+- [x] `pnpm --filter @mosaic/web test`
+- [x] `pnpm --filter @mosaic/web build`
+- [x] `pnpm --filter @mosaic/web test:e2e`
+- [x] Playwright coverage passes on desktop and mobile for navigation, stage controls, playback, overlays, concept modules, responsive width, and accessibility basics.
+- [x] Axe reports no serious or critical violations on the pipeline page.
+- [x] Static build inspection confirms no React, ReactDOM, or `@astrojs/react` references in `apps/web/dist`.
 
 ### Risks / Watchpoints
 
-- Animation can become decorative instead of explanatory.
-- Website may accidentally imply that LLM decisions are always correct.
-- Toy examples may oversimplify fusion or clustering.
-- UI polish can consume time better spent strengthening report artifacts if M4 is not finished.
+- Animation can become decorative instead of explanatory. Current mitigation: motion is tied to pipeline stages, records, evidence, uncertainty, and provenance.
+- Website may accidentally imply that LLM decisions are always correct. Current mitigation: abstention, invalid-output, fallback/default, and unsupported-value examples are visible.
+- Toy examples may oversimplify fusion or clustering. Current mitigation: the toy data includes a borderline pair, fusion conflict, invalid LLM output, and provenance drilldowns.
+- UI polish can consume time better spent strengthening report artifacts if M4 is not finished. Current mitigation: results remain fixture-labeled and replacement with live M4 artifacts is explicitly deferred.
+- Static fixture snapshots must be replaced after full-scale M4 benchmark runs to avoid presenting demo numbers as final research results.
 
 ### Unlocks
 

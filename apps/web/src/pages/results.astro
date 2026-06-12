@@ -1,0 +1,90 @@
+---
+import PageHeader from "@/components/astro/PageHeader.astro";
+import MiniChart from "@/components/MiniChart.astro";
+import { operationalMetrics, reportMetrics } from "@/lib/demo-data";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+---
+
+<BaseLayout title="Mosaic Experiment Results">
+  <main>
+    <PageHeader
+      eyebrow="Experiment results"
+      title="Fixture-labeled comparison of deterministic, LLM-primary, and hybrid runs."
+      description="These tables are static snapshots shaped like the M4 release artifacts. They are intentionally marked as fixture data until the live benchmark matrix is complete."
+      showFixtureBadge
+    />
+    <section class="mx-auto grid max-w-7xl gap-5 px-4 pb-16 sm:px-6">
+      <div class="grid gap-5 lg:grid-cols-3">
+        <MiniChart rows={reportMetrics} metric="schemaF1" label="Schema F1" />
+        <MiniChart rows={reportMetrics} metric="clusterF1" label="Cluster F1" />
+        <MiniChart rows={reportMetrics} metric="endToEndQuality" label="End-to-end quality" />
+      </div>
+
+      <div class="overflow-x-auto rounded-lg border border-line bg-panel">
+        <table class="min-w-full text-left text-sm">
+          <caption class="sr-only">Fixture report metrics</caption>
+          <thead class="border-b border-line bg-paper text-ink">
+            <tr>
+              <th class="px-4 py-3">Pipeline</th>
+              <th class="px-4 py-3">Config</th>
+              <th class="px-4 py-3">Schema F1</th>
+              <th class="px-4 py-3">Completeness</th>
+              <th class="px-4 py-3">Reduction</th>
+              <th class="px-4 py-3">Candidate pairs</th>
+              <th class="px-4 py-3">End-to-end</th>
+            </tr>
+          </thead>
+          <tbody>
+            {
+              reportMetrics.map((row) => (
+                <tr class="border-b border-line/70 last:border-0">
+                  <td class="px-4 py-3 font-semibold text-ink">{row.reportLabel}</td>
+                  <td class="px-4 py-3 font-mono text-muted">{row.configurationId}</td>
+                  <td class="px-4 py-3">{row.schemaF1.toFixed(4)}</td>
+                  <td class="px-4 py-3">{row.blockingPairCompleteness.toFixed(2)}</td>
+                  <td class="px-4 py-3">{row.blockingReductionRatio.toFixed(4)}</td>
+                  <td class="px-4 py-3">{row.candidatePairs}</td>
+                  <td class="px-4 py-3">{row.endToEndQuality.toFixed(4)}</td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <div class="overflow-x-auto rounded-lg border border-line bg-panel">
+        <table class="min-w-full text-left text-sm">
+          <caption class="sr-only">Fixture operational metrics</caption>
+          <thead class="border-b border-line bg-paper text-ink">
+            <tr>
+              <th class="px-4 py-3">Pipeline</th>
+              <th class="px-4 py-3">Eligible</th>
+              <th class="px-4 py-3">Selected</th>
+              <th class="px-4 py-3">LLM calls</th>
+              <th class="px-4 py-3">Accepted</th>
+              <th class="px-4 py-3">Defaulted</th>
+              <th class="px-4 py-3">Fallback rate</th>
+              <th class="px-4 py-3">Tokens</th>
+            </tr>
+          </thead>
+          <tbody>
+            {
+              operationalMetrics.map((row) => (
+                <tr class="border-b border-line/70 last:border-0">
+                  <td class="px-4 py-3 font-semibold text-ink">{row.reportLabel}</td>
+                  <td class="px-4 py-3">{row.eligibleCount}</td>
+                  <td class="px-4 py-3">{row.selectedCount}</td>
+                  <td class="px-4 py-3">{row.llmCallCount}</td>
+                  <td class="px-4 py-3">{row.acceptedCount}</td>
+                  <td class="px-4 py-3">{row.defaultedCount}</td>
+                  <td class="px-4 py-3">{row.fallbackRate.toFixed(4)}</td>
+                  <td class="px-4 py-3">{row.inputTokens + row.outputTokens}</td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</BaseLayout>

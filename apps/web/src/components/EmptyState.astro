@@ -1,0 +1,11 @@
+---
+import { Inbox } from "@lucide/astro";
+interface Props { title: string; detail: string; }
+const { title, detail } = Astro.props;
+---
+
+<div class="rounded-lg border border-dashed border-line bg-panel p-6 text-center">
+  <Inbox aria-hidden="true" class="mx-auto text-muted" size={28} />
+  <h2 class="mt-3 text-lg font-semibold text-ink">{title}</h2>
+  <p class="mt-1 text-sm leading-6 text-muted">{detail}</p>
+</div>

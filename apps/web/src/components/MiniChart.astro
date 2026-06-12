@@ -1,0 +1,29 @@
+---
+import type { ReportMetricRow } from "@/lib/types";
+
+interface Props {
+  rows: ReportMetricRow[];
+  metric: keyof Pick<ReportMetricRow, "schemaF1" | "clusterF1" | "endToEndQuality" | "blockingReductionRatio">;
+  label: string;
+}
+
+const { rows, metric, label } = Astro.props;
+const formatValue = (value: number) => value >= 1 ? value.toFixed(2) : value.toFixed(3);
+---
+
+<div class="rounded-lg border border-line bg-panel p-4">
+  <h2 class="text-lg font-semibold text-ink">{label}</h2>
+  <div class="mt-4 space-y-4">
+    {rows.map((row) => (
+      <div>
+        <div class="flex items-center justify-between gap-3 text-sm">
+          <span class="font-semibold text-ink">{row.reportLabel}</span>
+          <span class="font-mono text-muted">{formatValue(row[metric])}</span>
+        </div>
+        <div class="mt-2 h-3 rounded-full bg-line">
+          <div class="metric-bar" style={`width: ${Math.min(100, Number(row[metric]) * 100)}%`} />
+        </div>
+      </div>
+    ))}
+  </div>
+</div>

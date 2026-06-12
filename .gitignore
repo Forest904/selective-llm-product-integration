@@ -16,6 +16,8 @@ eggs/
 .eggs/
 lib/
 lib64/
+!apps/web/src/lib/
+!apps/web/src/lib/**
 parts/
 sdist/
 var/
@@ -221,6 +223,11 @@ __marimo__/
 node_modules/
 .next/
 out/
+dist/
+.astro/
+test-results/
+*.tsbuildinfo
+.playwright-cli/
 pnpm-debug.log*
 
 # Mosaic generated data and artifacts

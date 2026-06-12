@@ -1,0 +1,72 @@
+---
+import { FingerprintPattern } from "@lucide/astro";
+import PageHeader from "@/components/astro/PageHeader.astro";
+import { integratedEntities } from "@/lib/demo-data";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+
+const fields = [
+  ["Brand", "brand"],
+  ["Model", "modelNumber"],
+  ["Category", "category"],
+  ["Price", "price"]
+] as const;
+---
+
+<BaseLayout title="Mosaic Dataset Preview">
+  <main>
+    <PageHeader
+      eyebrow="Final dataset preview"
+      title="Integrated entities show confidence, source membership, and provenance."
+      description="The MVP uses a JSONL-shaped static preview. Live M4 exports can replace this data without changing the page contract."
+      showFixtureBadge
+    />
+    <section class="mx-auto grid max-w-7xl gap-5 px-4 pb-16 sm:px-6">
+      {
+        integratedEntities.map((entity) => (
+          <article class="story-band rise-in rounded-lg p-5">
+            <div class="grid gap-5 lg:grid-cols-[1fr_20rem]">
+              <div>
+                <p class="font-mono text-sm text-provenance">{entity.entityId}</p>
+                <h2 class="mt-2 text-2xl font-semibold text-ink">{entity.title}</h2>
+                <dl class="mt-5 grid gap-3 sm:grid-cols-2">
+                  {
+                    fields.map(([label, key]) => (
+                      <div class="rounded-lg border border-line bg-white p-4">
+                        <dt class="text-sm font-semibold text-muted">{label}</dt>
+                        <dd class="mt-1 font-semibold text-ink">{entity[key]}</dd>
+                      </div>
+                    ))
+                  }
+                </dl>
+              </div>
+              <div class="rounded-lg border border-line bg-white p-4">
+                <p class="text-sm font-semibold text-ink">Confidence</p>
+                <p class="mt-2 text-3xl font-semibold text-provenance">{Math.round(entity.confidence * 100)}%</p>
+                <div class="mt-3 h-2 rounded-full bg-line">
+                  <div class="h-full rounded-full bg-provenance" style={`width: ${entity.confidence * 100}%`} />
+                </div>
+                <p class="mt-4 text-sm text-muted">{entity.sourceCount} sources, {entity.memberRecords.length} member records</p>
+              </div>
+            </div>
+
+            <div class="mt-5 rounded-lg border border-provenance/25 bg-provenance/10 p-4">
+              <div class="flex items-center gap-2">
+                <FingerprintPattern aria-hidden="true" size={18} class="text-provenance" />
+                <h3 class="font-semibold text-ink">Provenance drilldown</h3>
+              </div>
+              <div class="mt-4 grid gap-3 md:grid-cols-2">
+                {Object.entries(entity.provenance).map(([field, trace]) => (
+                  <div class="rounded-md bg-white p-3 text-sm">
+                    <p class="font-semibold text-ink">{field}</p>
+                    <p class="mt-2 text-muted">Supporting: {trace.supportingClaimIds.join(", ")}</p>
+                    <p class="mt-1 text-muted">Contradicting: {trace.contradictingClaimIds.join(", ") || "none"}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </article>
+        ))
+      }
+    </section>
+  </main>
+</BaseLayout>

@@ -1,5 +1,26 @@
-# Web Placeholder
+# Mosaic Educational Demo Website
 
-The Mosaic web application is intentionally deferred in M0. Future milestones
-will initialize the Next.js TypeScript app here after the research pipeline and
-artifact contracts are stable.
+Static Astro site for M5. It explains the Mosaic assignment pipeline with
+curated demo data, data-flow animation, and fixture-labeled research snapshots.
+
+## Local development
+
+```bash
+pnpm --filter @mosaic/web dev
+```
+
+## Static build
+
+```bash
+pnpm --filter @mosaic/web build
+```
+
+The Cloudflare Pages output directory is:
+
+```text
+apps/web/dist
+```
+
+The app uses Astro static output with Astro components and small page-scoped
+TypeScript controllers for the interactive pipeline and concept explorer. It
+has no React runtime, hydration islands, or backend runtime features.

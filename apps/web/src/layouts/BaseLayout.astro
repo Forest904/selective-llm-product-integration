@@ -1,0 +1,62 @@
+---
+import { Database, GitBranch, GraduationCap, TableProperties, TriangleAlert } from "@lucide/astro";
+import "../styles/global.css";
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const {
+  title = "Mosaic Educational Demo",
+  description = "Interactive static demo for the Mosaic product data integration assignment."
+} = Astro.props;
+
+const navItems = [
+  { href: "/", label: "Learning Hub", icon: GraduationCap },
+  { href: "/pipeline/", label: "Pipeline", icon: GitBranch },
+  { href: "/concepts/", label: "Concepts", icon: Database },
+  { href: "/results/", label: "Results", icon: TableProperties },
+  { href: "/errors/", label: "Errors", icon: TriangleAlert },
+  { href: "/dataset/", label: "Dataset", icon: Database }
+];
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="description" content={description} />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <title>{title}</title>
+  </head>
+  <body>
+    <header class="sticky top-0 z-50 border-b border-line/80 bg-paper/92 backdrop-blur">
+      <nav class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
+        <a href="/" class="flex items-center gap-2 font-semibold text-ink" aria-label="Mosaic learning hub">
+          <span class="grid h-9 w-9 place-items-center rounded-md bg-ink text-sm font-bold text-panel pulse-soft">M</span>
+          <span>Mosaic</span>
+        </a>
+        <div class="flex max-w-full gap-1 overflow-x-auto" aria-label="Primary navigation">
+          {
+            navItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <a
+                  href={item.href}
+                  class="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-md px-3 text-sm font-medium text-muted transition hover:bg-panel hover:text-ink"
+                >
+                  <Icon aria-hidden="true" size={16} />
+                  <span>{item.label}</span>
+                </a>
+              );
+            })
+          }
+        </div>
+      </nav>
+    </header>
+    <slot />
+  </body>
+</html>

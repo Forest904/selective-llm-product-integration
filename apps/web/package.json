@@ -2,12 +2,28 @@
   "name": "@mosaic/web",
   "private": true,
   "version": "0.0.0",
-  "description": "Placeholder for the future Mosaic Next.js application.",
+  "description": "Static educational demo website for the Mosaic assignment project.",
   "scripts": {
-    "dev": "echo \"Mosaic web app is deferred until the web milestone.\"",
-    "lint": "echo \"Mosaic web lint placeholder.\"",
-    "test": "echo \"Mosaic web test placeholder.\""
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "lint": "astro check && tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "playwright test"
   },
-  "dependencies": {},
-  "devDependencies": {}
+  "dependencies": {
+    "@lucide/astro": "^1.17.0",
+    "astro": "^5.0.0"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.4",
+    "@playwright/test": "^1.49.0",
+    "@types/node": "^22.10.2",
+    "autoprefixer": "^10.4.20",
+    "axe-core": "^4.10.2",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
 }
