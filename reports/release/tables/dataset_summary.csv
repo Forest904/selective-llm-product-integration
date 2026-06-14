@@ -1,2 +1,2 @@
 benchmark,dataset_id,entity_count,labeled_record_count,mediated_attribute_count,positive_pair_count,record_count,repository_url,source_count,vertical
-alaska,alaska_monitor_live_subset_60,60,782,94,4975,782,https://github.com/Forest904/selective-llm-product-integration.git,26,monitor
+alaska,alaska_monitor_live_subset_60,60,790,94,5075,790,https://github.com/Forest904/selective-llm-product-integration.git,26,monitor

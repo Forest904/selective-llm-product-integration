@@ -97,7 +97,12 @@ def run_m4_release(
     if baseline_entry is not None:
         baseline_result = _result_from_run_entry(baseline_entry, repo_root)
     else:
-        baseline_resume_id = resume_run_id or run_ids_by_config.get(baseline_id)
+        baseline_resume_id = _resume_id_for_configuration(
+            baseline_id,
+            explicit_resume_run_id=resume_run_id,
+            run_ids_by_config=run_ids_by_config,
+            checkpoint=release_checkpoint,
+        )
         baseline_result = run_baseline_pipeline(
             baseline_config,
             repo_root,
@@ -142,7 +147,12 @@ def run_m4_release(
             experiment_config,
             repo_root,
             baseline_result=baseline_result,
-            resume_run_id=resume_run_id or run_ids_by_config.get(configuration_id),
+            resume_run_id=_resume_id_for_configuration(
+                configuration_id,
+                explicit_resume_run_id=resume_run_id,
+                run_ids_by_config=run_ids_by_config,
+                checkpoint=release_checkpoint,
+            ),
         )
         run_ids_by_config[configuration_id] = result.run_id
         runs.append(
@@ -213,7 +223,12 @@ def run_deterministic_scale(
         result = run_baseline_pipeline(
             load_baseline_pipeline_config(baseline_config_path),
             repo_root,
-            resume_run_id=resume_run_id or run_ids_by_config.get(config_id),
+            resume_run_id=_resume_id_for_configuration(
+                config_id,
+                explicit_resume_run_id=resume_run_id,
+                run_ids_by_config=run_ids_by_config,
+                checkpoint=checkpoint,
+            ),
         )
         run_ids_by_config[config_id] = result.run_id
         runs.append(
@@ -296,6 +311,8 @@ def build_m4_report(
         path.mkdir(parents=True, exist_ok=True)
 
     summaries = [_summarize_run(run, repo_root) for run in manifest["runs"]]
+    if not fixture:
+        _validate_subset_fusion_coverage(summaries)
     operational = [_operational_summary(run, repo_root) for run in manifest["runs"]]
     dataset = _dataset_summary(repo_root, manifest)
     error_cases = _export_error_cases(repo_root, manifest, appendix_dir, fixture=fixture)
@@ -547,6 +564,18 @@ def _write_release_checkpoint(
     )
 
 
+def _resume_id_for_configuration(
+    configuration_id: str,
+    *,
+    explicit_resume_run_id: str | None,
+    run_ids_by_config: dict[str, str],
+    checkpoint: dict[str, Any],
+) -> str | None:
+    if checkpoint.get("current_configuration") == configuration_id and explicit_resume_run_id:
+        return explicit_resume_run_id
+    return run_ids_by_config.get(configuration_id)
+
+
 def _find_run_entry(runs: list[dict[str, Any]], configuration_id: str) -> dict[str, Any] | None:
     for run in runs:
         if run.get("configuration_id") == configuration_id:
@@ -677,8 +706,8 @@ def _summarize_run(run: dict[str, Any], repo_root: Path) -> dict[str, Any]:
     test_linkage = linkage.get("metrics_by_split", {}).get("test", {})
     cluster_quality = cluster.get("agglomerative", {})
     curated = fusion.get("curated_fusion_metrics", {})
-    bootstrap = fusion.get("bootstrap_fusion_metrics", {})
-    fusion_accuracy = curated.get("accuracy", fusion.get("accuracy", bootstrap.get("accuracy", 0)))
+    fusion_evaluated_values = int(curated.get("evaluated_value_count", 0) or 0)
+    fusion_accuracy = curated.get("accuracy") if fusion_evaluated_values else None
     end_to_end = _mean_present(
         [
             schema.get("f1"),
@@ -708,10 +737,24 @@ def _summarize_run(run: dict[str, Any], repo_root: Path) -> dict[str, Any]:
         "cluster_f1": _round(cluster_quality.get("f1")),
         "cluster_precision": _round(cluster_quality.get("precision")),
         "cluster_recall": _round(cluster_quality.get("recall")),
-        "fusion_accuracy": _round(fusion_accuracy),
-        "fusion_evaluated_values": int(curated.get("evaluated_value_count", 0) or 0),
+        "fusion_accuracy": _round_optional(fusion_accuracy),
+        "fusion_evaluated_values": fusion_evaluated_values,
         "end_to_end_quality": _round(end_to_end),
     }
+
+
+def _validate_subset_fusion_coverage(summaries: list[dict[str, Any]]) -> None:
+    missing = [
+        str(row.get("configuration_id"))
+        for row in summaries
+        if int(row.get("fusion_evaluated_values", 0) or 0) == 0
+    ]
+    if missing:
+        raise RuntimeError(
+            "subset live M4 manifest has no evaluated curated fusion values for "
+            f"{', '.join(missing)}. Rebuild the subset with curated fusion gold coverage "
+            "before building the submission report."
+        )
 
 
 def _operational_summary(run: dict[str, Any], repo_root: Path) -> dict[str, Any]:
@@ -1450,7 +1493,8 @@ and normalization process every selected source record, while linkage,
 clustering, schema, and fusion metrics are computed where filtered gold labels
 support a precise comparison. Candidate-pair count and reduction ratio describe
 the run scale; precision, recall, F1, and fusion accuracy describe the labeled
-slice.
+slice. The subset is seeded with curated fusion-gold coverage so the
+fusion-accuracy denominator is nonzero for the reported live comparison.
 
 The dataset contains {dataset["source_count"]} sources from the same monitor
 vertical, but those sources disagree heavily on attribute names and product
@@ -1628,11 +1672,11 @@ classical pipeline with strong blocking, calibration, and clustering
 constraints.
 
 Fusion accuracy should be read with the label-coverage caveat in mind. The
-subset report exports fused entities and claim-supported values, but the
-supervised fusion labels available for this subset are too sparse to evaluate
-many selected values directly. A zero in the fusion-accuracy column therefore
-means no supervised correct values were observed in that labeled slice, not that
-the pipeline failed to produce integrated fused outputs.
+subset report exports fused entities and claim-supported values, but supervised
+fusion accuracy is computed only for curated labeled values that can be matched
+to a predicted fused value. The `fusion_evaluated_values` column is therefore
+the denominator for this metric; if that denominator is zero, report generation
+fails instead of publishing a misleading zero.
 
 ## Linkage Confusion Matrix
 
@@ -2196,7 +2240,9 @@ schema, and fusion metrics are computed where filtered gold labels support
 precise comparison. The dataset contains {_latex_escape(str(dataset["source_count"]))}
 sources from the same monitor vertical, but those sources disagree heavily on
 attribute names and product detail; this heterogeneity motivates a mediated
-schema rather than source-local attribute names.
+schema rather than source-local attribute names. The subset is seeded with
+curated fusion-gold coverage so the fusion-accuracy denominator is nonzero for
+the reported live comparison.
 
 \section{{Methodology}}
 \subsection{{Mediated schema and deterministic baseline}}
@@ -2299,9 +2345,10 @@ calibration, and clustering constraints.
 
 Fusion accuracy should be read with the label-coverage caveat in mind. The
 subset exports fused entities and claim-supported values, but supervised fusion
-labels are too sparse to evaluate many selected values directly. A zero in the
-fusion-accuracy column means no supervised correct values were observed in that
-labeled slice, not that the pipeline failed to produce integrated outputs.
+accuracy is computed only for curated labeled values that can be matched to a
+predicted fused value. The fusion-evaluated-values column is therefore the
+denominator for this metric; if that denominator is zero, report generation
+fails instead of publishing a misleading zero.
 
 \subsection{{Linkage and operational behavior}}
 {_latex_table(confusion_rows, [("config", "Config", "l"), ("tp", "TP", "r"), ("fp", "FP", "r"), ("tn", "TN", "r"), ("fn", "FN", "r"), ("precision", "Precision", "r"), ("recall", "Recall", "r")], "Linkage confusion matrix on the test split.", "tab:confusion")}
@@ -3021,6 +3068,13 @@ def _round(value: Any) -> float:
         return round(float(value), 4)
     except (TypeError, ValueError):
         return 0.0
+
+
+def _round_optional(value: Any) -> float | str:
+    try:
+        return round(float(value), 4)
+    except (TypeError, ValueError):
+        return ""
 
 
 def _mean_present(values: list[Any]) -> float:

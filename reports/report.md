@@ -44,7 +44,7 @@ Dataset id: `alaska_monitor_live_subset_60`
 
 | sources | records | entities | positive_pairs | attributes |
 | --- | --- | --- | --- | --- |
-| 26 | 782 | 60 | 4975 | 94 |
+| 26 | 790 | 60 | 5075 | 94 |
 
 Repository: https://github.com/Forest904/selective-llm-product-integration.git
 
@@ -53,7 +53,8 @@ and normalization process every selected source record, while linkage,
 clustering, schema, and fusion metrics are computed where filtered gold labels
 support a precise comparison. Candidate-pair count and reduction ratio describe
 the run scale; precision, recall, F1, and fusion accuracy describe the labeled
-slice.
+slice. The subset is seeded with curated fusion-gold coverage so the
+fusion-accuracy denominator is nonzero for the reported live comparison.
 
 The dataset contains 26 sources from the same monitor
 vertical, but those sources disagree heavily on attribute names and product
@@ -193,24 +194,24 @@ how much quality is retained when the number of routed calls is capped.
 
 | pipeline | config | schema_f1 | linkage_f1 | cluster_f1 | fusion_acc | e2e |
 | --- | --- | --- | --- | --- | --- | --- |
-| Deterministic | A0 | 0.4727 | 0.827 | 0.2246 | 0.0 | 0.3811 |
-| LLM | C-LLM | 0.4103 | 0.2051 | 0.0901 | 0.0 | 0.1764 |
-| Hybrid | B-All | 0.4727 | 0.8216 | 0.2236 | 0.0 | 0.3795 |
+| Deterministic | A0 | 0.4727 | 0.807 | 0.2136 | 0.6667 | 0.54 |
+| LLM | C-LLM | 0.4103 | 0.2272 | 0.0794 | 1.0 | 0.4292 |
+| Hybrid | B-All | 0.4727 | 0.8627 | 0.212 | 0.75 | 0.5744 |
 
 | pipeline | config | schema_f1 | pairs | linkage_f1 | cluster_f1 | fusion_acc | e2e |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Deterministic | A0 | 0.4727 | 20576 | 0.827 | 0.2246 | 0.0 | 0.3811 |
-| LLM | C-LLM | 0.4103 | 18050 | 0.2051 | 0.0901 | 0.0 | 0.1764 |
-| Hybrid | B-All | 0.4727 | 20576 | 0.8216 | 0.2236 | 0.0 | 0.3795 |
-| B-S | B-S | 0.4727 | 20576 | 0.8258 | 0.2236 | 0.0 | 0.3805 |
-| B-L | B-L | 0.4727 | 20576 | 0.8228 | 0.2246 | 0.0 | 0.38 |
-| B-F | B-F | 0.4727 | 20576 | 0.827 | 0.2246 | 0.0 | 0.3811 |
-| B-SL | B-SL | 0.4727 | 20576 | 0.8216 | 0.2236 | 0.0 | 0.3795 |
-| B-LF | B-LF | 0.4727 | 20576 | 0.8228 | 0.2246 | 0.0 | 0.38 |
-| Budget-0 | Budget-0 | 0.4727 | 20576 | 0.827 | 0.2246 | 0.0 | 0.3811 |
-| Budget-5 | Budget-5 | 0.4727 | 20576 | 0.8246 | 0.2246 | 0.0 | 0.3805 |
-| Budget-10 | Budget-10 | 0.4727 | 20576 | 0.8228 | 0.2246 | 0.0 | 0.38 |
-| Budget-25 | Budget-25 | 0.4727 | 20576 | 0.8216 | 0.2236 | 0.0 | 0.3795 |
+| Deterministic | A0 | 0.4727 | 25953 | 0.807 | 0.2136 | 0.6667 | 0.54 |
+| LLM | C-LLM | 0.4103 | 22985 | 0.2272 | 0.0794 | 1.0 | 0.4292 |
+| Hybrid | B-All | 0.4727 | 18484 | 0.8627 | 0.212 | 0.75 | 0.5744 |
+| B-S | B-S | 0.4727 | 18484 | 0.8679 | 0.212 | 0.75 | 0.5756 |
+| B-L | B-L | 0.4727 | 18484 | 0.8639 | 0.2127 | 0.75 | 0.5748 |
+| B-F | B-F | 0.4727 | 18484 | 0.869 | 0.2127 | 0.75 | 0.5761 |
+| B-SL | B-SL | 0.4727 | 18484 | 0.8627 | 0.212 | 0.75 | 0.5744 |
+| B-LF | B-LF | 0.4727 | 18484 | 0.8639 | 0.2127 | 0.75 | 0.5748 |
+| Budget-0 | Budget-0 | 0.4727 | 18484 | 0.869 | 0.2127 | 0.75 | 0.5761 |
+| Budget-5 | Budget-5 | 0.4727 | 18484 | 0.8672 | 0.2127 | 0.75 | 0.5756 |
+| Budget-10 | Budget-10 | 0.4727 | 18484 | 0.865 | 0.2127 | 0.75 | 0.5751 |
+| Budget-25 | Budget-25 | 0.4727 | 18484 | 0.8627 | 0.212 | 0.75 | 0.5744 |
 
 Full metric tables are written to
 `reports/release/tables/metrics_summary.csv`.
@@ -224,26 +225,26 @@ larger Monitor, Notebook, and Camera inputs without live LLM calls.
 
 | config | vertical | candidate_pairs | schema_f1 | linkage_f1 | cluster_f1 | fusion_acc |
 | --- | --- | --- | --- | --- | --- | --- |
-| A0-camera | camera | 793890 | 0.0323 | 0.9874 | 0.0193 | 0.0 |
+| A0-camera | camera | 793890 | 0.0323 | 0.9874 | 0.0193 |  |
 | A0-monitor | monitor | 532325 | 0.4833 | 0.9468 | 0.1272 | 0.7143 |
-| A0-notebook | notebook | 873320 | 0.0341 | 0.6934 | 0.0109 | 0.0 |
+| A0-notebook | notebook | 873320 | 0.0341 | 0.6934 | 0.0109 |  |
 
 On this release, the LLM-primary pipeline records schema F1
 0.4103, linkage test F1
-0.2051, clustering F1
-0.0901, fusion accuracy
-0.0, and end-to-end summary
-0.1764. B-All records schema F1
+0.2272, clustering F1
+0.0794, fusion accuracy
+1.0, and end-to-end summary
+0.4292. B-All records schema F1
 0.4727,
-linkage test F1 0.8216, clustering F1
-0.2236, fusion accuracy
-0.0, and end-to-end summary
-0.3795. The deterministic A0 reference
+linkage test F1 0.8627, clustering F1
+0.212, fusion accuracy
+0.75, and end-to-end summary
+0.5744. The deterministic A0 reference
 records schema F1 0.4727, linkage test F1
-0.827, clustering F1
-0.2246, fusion accuracy
-0.0, and end-to-end summary
-0.3811.
+0.807, clustering F1
+0.2136, fusion accuracy
+0.6667, and end-to-end summary
+0.54.
 
 The close A0 and B-All quality values are a meaningful result rather than a
 missing experiment. The selective routing policy is conservative, and many
@@ -261,21 +262,21 @@ classical pipeline with strong blocking, calibration, and clustering
 constraints.
 
 Fusion accuracy should be read with the label-coverage caveat in mind. The
-subset report exports fused entities and claim-supported values, but the
-supervised fusion labels available for this subset are too sparse to evaluate
-many selected values directly. A zero in the fusion-accuracy column therefore
-means no supervised correct values were observed in that labeled slice, not that
-the pipeline failed to produce integrated fused outputs.
+subset report exports fused entities and claim-supported values, but supervised
+fusion accuracy is computed only for curated labeled values that can be matched
+to a predicted fused value. The `fusion_evaluated_values` column is therefore
+the denominator for this metric; if that denominator is zero, report generation
+fails instead of publishing a misleading zero.
 
 ## Linkage Confusion Matrix
 
 | config | tp | fp | tn | fn | precision | recall |
 | --- | --- | --- | --- | --- | --- | --- |
-| A0 | 822 | 173 | 417 | 171 | 0.8261 | 0.8278 |
-| B-All | 813 | 173 | 417 | 180 | 0.8245 | 0.8187 |
-| B-L | 815 | 173 | 417 | 178 | 0.8249 | 0.8207 |
-| B-SL | 813 | 173 | 417 | 180 | 0.8245 | 0.8187 |
-| B-LF | 815 | 173 | 417 | 178 | 0.8249 | 0.8207 |
+| A0 | 803 | 221 | 524 | 163 | 0.7842 | 0.8313 |
+| B-All | 880 | 193 | 286 | 87 | 0.8201 | 0.91 |
+| B-L | 882 | 193 | 286 | 85 | 0.8205 | 0.9121 |
+| B-SL | 880 | 193 | 286 | 87 | 0.8201 | 0.91 |
+| B-LF | 882 | 193 | 286 | 85 | 0.8205 | 0.9121 |
 
 The linkage confusion matrix shows that the test split remains stable across
 the assisted linkage variants. This is desirable when routed examples are
@@ -290,17 +291,17 @@ Operational metrics summarize cost and reliability of selective LLM use.
 | pipeline | config | calls | accepted | defaulted | tokens_in | tokens_out | cost_usd | fallbacks_per_call | invalids_per_call |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Deterministic | A0 | 0 | 0 | 0 | 0 | 0 | 0.0 | 0.0 | 0.0 |
-| LLM | C-LLM | 667 | 2605 | 19286 | 6624214 | 503023 | 3.4545 | 4.5832 | 1.5892 |
-| Hybrid | B-All | 75 | 46 | 29 | 71871 | 11995 | 0.0479 | 0.3867 | 0.0 |
+| LLM | C-LLM | 667 | 2567 | 24275 | 6683661 | 500205 | 3.4738 | 4.6402 | 1.6342 |
+| Hybrid | B-All | 75 | 47 | 28 | 72358 | 11789 | 0.0478 | 0.3733 | 0.0 |
 | B-S | B-S | 25 | 3 | 22 | 36556 | 3330 | 0.02 | 0.88 | 0.0 |
-| B-L | B-L | 25 | 22 | 3 | 23286 | 4970 | 0.0173 | 0.12 | 0.0 |
+| B-L | B-L | 25 | 20 | 5 | 23776 | 4815 | 0.0172 | 0.2 | 0.0 |
 | B-F | B-F | 25 | 24 | 1 | 12026 | 3644 | 0.0106 | 0.04 | 0.0 |
-| B-SL | B-SL | 50 | 22 | 28 | 59845 | 8351 | 0.0373 | 0.56 | 0.0 |
-| B-LF | B-LF | 50 | 46 | 4 | 35312 | 8614 | 0.0279 | 0.08 | 0.0 |
+| B-SL | B-SL | 50 | 23 | 27 | 60332 | 8145 | 0.0372 | 0.54 | 0.0 |
+| B-LF | B-LF | 50 | 44 | 6 | 35802 | 8459 | 0.0279 | 0.12 | 0.0 |
 | Budget-0 | Budget-0 | 0 | 0 | 0 | 0 | 0 | 0.0 | 0.0 | 0.0 |
-| Budget-5 | Budget-5 | 15 | 10 | 5 | 14927 | 2527 | 0.01 | 0.3333 | 0.0 |
-| Budget-10 | Budget-10 | 30 | 20 | 10 | 29669 | 4747 | 0.0195 | 0.3333 | 0.0 |
-| Budget-25 | Budget-25 | 75 | 46 | 29 | 71871 | 11995 | 0.0479 | 0.3867 | 0.0 |
+| Budget-5 | Budget-5 | 15 | 10 | 5 | 14568 | 2493 | 0.0098 | 0.3333 | 0.0 |
+| Budget-10 | Budget-10 | 30 | 19 | 11 | 28998 | 4692 | 0.0191 | 0.3667 | 0.0 |
+| Budget-25 | Budget-25 | 75 | 47 | 28 | 72358 | 11789 | 0.0478 | 0.3733 | 0.0 |
 
 The operational columns `fallbacks_per_call` and `invalids_per_call` are
 decision-level counts divided by provider call count. They can exceed 1 for
@@ -313,21 +314,21 @@ cases much more tightly.
 
 | pipeline | eligible | selected | calls | accepted | defaulted | invalid | cost_usd |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| LLM | 21891 | 5662 | 667 | 2605 | 19286 | 1060 | 3.4545 |
-| Hybrid | 7478 | 75 | 75 | 46 | 29 | 0 | 0.0479 |
+| LLM | 26842 | 5662 | 667 | 2567 | 24275 | 1090 | 3.4738 |
+| Hybrid | 8027 | 75 | 75 | 47 | 28 | 0 | 0.0478 |
 
 ## Routing Budget Results
 
 | config | calls | cost_usd | schema_f1 | linkage_f1 | fusion_acc | e2e |
 | --- | --- | --- | --- | --- | --- | --- |
-| Budget-0 | 0 | 0.0 | 0.4727 | 0.827 | 0.0 | 0.3811 |
-| Budget-5 | 15 | 0.01 | 0.4727 | 0.8246 | 0.0 | 0.3805 |
-| Budget-10 | 30 | 0.0195 | 0.4727 | 0.8228 | 0.0 | 0.38 |
-| Budget-25 | 75 | 0.0479 | 0.4727 | 0.8216 | 0.0 | 0.3795 |
+| Budget-0 | 0 | 0.0 | 0.4727 | 0.869 | 0.75 | 0.5761 |
+| Budget-5 | 15 | 0.0098 | 0.4727 | 0.8672 | 0.75 | 0.5756 |
+| Budget-10 | 30 | 0.0191 | 0.4727 | 0.865 | 0.75 | 0.5751 |
+| Budget-25 | 75 | 0.0478 | 0.4727 | 0.8627 | 0.75 | 0.5744 |
 
 The routing-budget variants show the cost envelope for the live release.
 B-All issued 75 model calls with an
-estimated cost of $0.0479. The
+estimated cost of $0.0478. The
 budgeted runs preserve the same deterministic backbone, so any quality movement
 comes only from the subset of routed decisions allowed by the cap. This makes
 the budget frontier interpretable: the x-axis is not total pipeline work, but
@@ -354,8 +355,8 @@ The appendix stores structured source-level cases in
 | stage | case | lesson |
 | --- | --- | --- |
 | schema_alignment | wrong mediated field | The source attribute was mapped to the wrong mediated-schema field, which can propagate into normalization and fusion. |
+| fusion | wrong fused value | The fused value disagrees with the curated or bootstrap fusion gold value, usually because conflicting source claims ... |
 | record_linkage | false pair decision | The pairwise matcher prediction disagrees with the labeled entity-resolution pair. |
-| clustering | under-merged entity | Records from one labeled truth entity were split across multiple predicted clusters, so downstream fusion sees incomp... |
 
 ## Detailed Cases
 
@@ -371,29 +372,29 @@ Explanation: The source attribute was mapped to the wrong mediated-schema field,
 
 Source evidence: `ca.pcpartpicker.com:122` title='HP Z22i 60Hz 21.5" Monitor (D7Q14A4#ABA) - PCPartPicker Canada' brand='HP' model='Z22i'; `ca.pcpartpicker.com:17` title='HP Z24i 60Hz 24.0" Monitor (D7P53A4#ABA) - PCPartPicker Canada' brand='HP' model='Z24i'; `ca.pcpartpicker.com:184` title='Dell U2913WM 60Hz 29.0" Monitor (U2913WM) - PCPartPicker Canada' brand='Dell' model=''
 
+### fusion_1_entity_000378
+
+Stage: `fusion`
+
+System output: {'entity_id': 'entity_000378', 'attribute': 'screen_brightness', 'predicted_value': '225'}
+
+Expected output: {'truth_entity_id': 'ENTITY#002', 'expected_value': '250'}
+
+Explanation: The fused value disagrees with the curated or bootstrap fusion gold value, usually because conflicting source claims normalize to close but not identical values.
+
+Source evidence: `www.ohc24.ch:318` title='OHC24 Shop : Monitor > Monitor search help > Elo - 1515L IntelliTouch E399324' brand='' model=''
+
 ### linkage_pair_00000025
 
 Stage: `record_linkage`
 
-System output: {'candidate_pair_id': 'pair_00000025', 'match_prediction': 0, 'match_probability': 0.45589268898553187}
+System output: {'candidate_pair_id': 'pair_00000025', 'match_prediction': 0, 'match_probability': 0.3533711894020474}
 
 Expected output: {'ground_truth_label': 1}
 
 Explanation: The pairwise matcher prediction disagrees with the labeled entity-resolution pair.
 
 Source evidence: `ca.pcpartpicker.com:122` title='HP Z22i 60Hz 21.5" Monitor (D7Q14A4#ABA) - PCPartPicker Canada' brand='HP' model='Z22I'; `ca.pcpartpicker.com:73` title='HP Z22i (D7Q14A4) 60Hz 21.5" Monitor (D7Q14A8#ABA) - PCPartPicker Canada' brand='HP' model='Z22ID7Q14A4'
-
-### cluster_undermerge_ENTITY#022
-
-Stage: `clustering`
-
-System output: {'predicted_cluster_count': 6, 'predicted_entity_ids': ['entity_000083', 'entity_000104', 'entity_000270', 'entity_00...
-
-Expected output: {'ground_truth_entity_id': 'ENTITY#022', 'expected_cluster_count': 1}
-
-Explanation: Records from one labeled truth entity were split across multiple predicted clusters, so downstream fusion sees incomplete claim evidence.
-
-Source evidence: `www.cleverboxes.com:295` title='Cleverboxes - 19B4LCB5/00 | Philips (19 inch) LCD Monitor with SmartImage LED Backlight 1280x1024 (Black)' brand='' model=''; `www.ebay.com:11038` title='Philips Brilliance 19B4LCB5 19" LED LCD Monitor 5 4 5 MS IGRMTL5510 | eBay' brand='Philips' model=''
 
 
 The error cases are selected from real run artifacts, not fixture placeholders.

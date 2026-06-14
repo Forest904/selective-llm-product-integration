@@ -1801,7 +1801,7 @@ def _fusion_metrics(
 ) -> dict[str, Any]:
     bootstrap = _fusion_metrics_for_gold(fused_rows, bootstrap_gold_path, clusters)
     curated = _fusion_metrics_for_gold(fused_rows, curated_gold_path, clusters)
-    primary = curated if curated["gold_available"] else bootstrap
+    primary = curated if curated_gold_path is not None else bootstrap
     return {
         "gold_available": primary["gold_available"],
         "evaluated_value_count": primary["evaluated_value_count"],
@@ -1819,9 +1819,10 @@ def _fusion_metrics_for_gold(
         return {
             "gold_available": False,
             "gold_path": str(gold_path) if gold_path is not None else None,
+            "gold_row_count": 0,
             "evaluated_value_count": 0,
             "correct_value_count": 0,
-            "accuracy": 0.0,
+            "accuracy": None,
             "rows": [],
         }
     fused = {
@@ -1834,12 +1835,14 @@ def _fusion_metrics_for_gold(
         if row.get("primary_ground_truth_entity_id") not in (None, "")
     }
     total = correct = 0
+    gold_row_count = 0
     evaluated_rows: list[dict[str, Any]] = []
     with gold_path.open(encoding="utf-8") as file:
         for line in file:
             if not line.strip():
                 continue
             row = json.loads(line)
+            gold_row_count += 1
             entity_id = str(row["entity_id"])
             predicted_entity_id = predicted_by_truth.get(entity_id, entity_id)
             key = (predicted_entity_id, str(row["mediated_attribute"]))
@@ -1861,13 +1864,14 @@ def _fusion_metrics_for_gold(
                 }
             )
     return {
-        "gold_available": True,
+        "gold_available": total > 0,
         "gold_path": repo_relative(gold_path, gold_path.parents[2])
         if len(gold_path.parents) > 2
         else str(gold_path),
+        "gold_row_count": gold_row_count,
         "evaluated_value_count": total,
         "correct_value_count": correct,
-        "accuracy": correct / total if total else 0.0,
+        "accuracy": correct / total if total else None,
         "rows": evaluated_rows,
     }
 
@@ -2010,6 +2014,12 @@ def _write_m2_baseline_summary(
     linkage = loaded_metrics.get("linkage_metrics", {})
     cluster = loaded_metrics.get("cluster_metrics", {})
     fusion = loaded_metrics.get("fusion_metrics", {})
+    curated_fusion_accuracy = _format_optional_metric(
+        fusion.get("curated_fusion_metrics", {}).get("accuracy")
+    )
+    bootstrap_fusion_accuracy = _format_optional_metric(
+        fusion.get("bootstrap_fusion_metrics", {}).get("accuracy")
+    )
     text = f"""# M2 Baseline Summary
 
 ## Run
@@ -2029,8 +2039,8 @@ def _write_m2_baseline_summary(
 - Linkage test F1: `{linkage.get("metrics_by_split", {}).get("test", {}).get("f1", 0):.4f}`
 - Agglomerative cluster F1: `{cluster.get("agglomerative", {}).get("f1", 0):.4f}`
 - Connected-components cluster F1: `{cluster.get("connected_components", {}).get("f1", 0):.4f}`
-- Curated fusion accuracy: `{fusion.get("curated_fusion_metrics", {}).get("accuracy", 0):.4f}`
-- Bootstrap fusion accuracy: `{fusion.get("bootstrap_fusion_metrics", {}).get("accuracy", 0):.4f}`
+- Curated fusion accuracy: `{curated_fusion_accuracy}`
+- Bootstrap fusion accuracy: `{bootstrap_fusion_accuracy}`
 
 ## Known Weaknesses
 
@@ -2047,6 +2057,13 @@ def _write_m2_baseline_summary(
 """
     summary_path.write_text(text, encoding="utf-8")
     return summary_path
+
+
+def _format_optional_metric(value: Any) -> str:
+    try:
+        return f"{float(value):.4f}"
+    except (TypeError, ValueError):
+        return "NA"
 
 
 def _is_specification_candidate(row: dict[str, Any]) -> bool:

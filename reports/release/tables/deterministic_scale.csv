@@ -1,4 +1,4 @@
 blocking_pair_completeness,blocking_reduction_ratio,candidate_pairs,cluster_f1,cluster_precision,cluster_recall,configuration_id,core_schema_f1,detail_schema_f1,end_to_end_quality,fusion_accuracy,fusion_evaluated_values,linkage_fn,linkage_fp,linkage_test_f1,linkage_test_precision,linkage_test_recall,linkage_tn,linkage_tp,report_label,run_id,schema_f1
-0.5864,0.9982,793890,0.0193,0.1798,0.0102,A0-camera,0.9231,0.0,0.2597,0.0,0,62,213,0.9874,0.9805,0.9943,77,10736,Deterministic Scale,run_20260614T101426Z_baseline_m2_alaska_camer_b6d1f293,0.0323
+0.5864,0.9982,793890,0.0193,0.1798,0.0102,A0-camera,0.9231,0.0,0.3463,,0,62,213,0.9874,0.9805,0.9943,77,10736,Deterministic Scale,run_20260614T101426Z_baseline_m2_alaska_camer_b6d1f293,0.0323
 0.9634,0.9962,532325,0.1272,0.1528,0.109,A0-monitor,0.898,0.4687,0.5679,0.7143,7,85,134,0.9468,0.9357,0.9582,166,1949,Deterministic Scale,run_20260614T102624Z_baseline_m2_alaska_monit_62a131a8,0.4833
-0.9142,0.9967,873320,0.0109,0.0811,0.0059,A0-notebook,0.8571,0.0,0.1846,0.0,0,2290,178,0.6934,0.94,0.5493,236,2791,Deterministic Scale,run_20260614T103210Z_baseline_m2_alaska_noteb_b675e2fa,0.0341
+0.9142,0.9967,873320,0.0109,0.0811,0.0059,A0-notebook,0.8571,0.0,0.2461,,0,2290,178,0.6934,0.94,0.5493,236,2791,Deterministic Scale,run_20260614T103210Z_baseline_m2_alaska_noteb_b675e2fa,0.0341

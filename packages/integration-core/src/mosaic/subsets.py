@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import csv
 import json
+import os
 import shutil
+import stat
 from collections import defaultdict
 from pathlib import Path
 from typing import Any, Literal
@@ -21,6 +23,7 @@ class SubsetSpec(BaseModel):
     base_dataset_config: str
     entity_count: int
     random_seed: int = 13
+    required_entity_ids: list[str] = []
     strategy: Literal["entity_balanced"] = "entity_balanced"
     output_root: str
 
@@ -55,6 +58,7 @@ def materialize_subset(spec_path: Path, repo_root: Path) -> MaterializedSubset:
         repo_root / base_config.ground_truth_path,
         entity_count=spec.entity_count,
         seed=spec.random_seed,
+        required_entity_ids=spec.required_entity_ids,
     )
     selected_entity_set = set(selected_entities)
     selected_specs = _selected_specs(repo_root / base_config.ground_truth_path, selected_entity_set)
@@ -62,7 +66,7 @@ def materialize_subset(spec_path: Path, repo_root: Path) -> MaterializedSubset:
 
     specs_root = output_root / "specs"
     if specs_root.exists():
-        shutil.rmtree(specs_root)
+        _remove_tree(specs_root)
     sources = _copy_selected_records(base_config, repo_root, specs_root, selected_records)
 
     ground_truth_path = output_root / "ground_truth" / "entity_resolution_gt.csv"
@@ -135,15 +139,32 @@ def materialize_subset(spec_path: Path, repo_root: Path) -> MaterializedSubset:
     return metadata
 
 
-def _select_entities(path: Path, *, entity_count: int, seed: int) -> list[str]:
+def _select_entities(
+    path: Path, *, entity_count: int, seed: int, required_entity_ids: list[str] | None = None
+) -> list[str]:
     clusters = _read_clusters(path)
+    required = list(dict.fromkeys(required_entity_ids or []))
+    missing = [entity_id for entity_id in required if entity_id not in clusters]
+    if missing:
+        raise RuntimeError(
+            f"required subset entities not found in {path}: {', '.join(sorted(missing))}"
+        )
+    if len(required) > entity_count:
+        raise RuntimeError(
+            f"required {len(required)} subset entities but entity_count is {entity_count}"
+        )
     scored = []
     for entity_id, specs in clusters.items():
         sources = {spec_id.split("//", 1)[0] for spec_id in specs if "//" in spec_id}
         tie_break = sha256_text(f"{seed}|{entity_id}")[:16]
         scored.append((-len(sources), -len(specs), tie_break, entity_id))
     scored.sort()
-    selected = sorted(entity_id for *_prefix, entity_id in scored[:entity_count])
+    selected_set = set(required)
+    for *_prefix, entity_id in scored:
+        if len(selected_set) >= entity_count:
+            break
+        selected_set.add(entity_id)
+    selected = sorted(selected_set)
     if len(selected) != entity_count:
         raise RuntimeError(
             f"requested {entity_count} entities but only selected {len(selected)} from {path}"
@@ -217,6 +238,14 @@ def _copy_selected_records(
                 )
             )
     return sources
+
+
+def _remove_tree(path: Path) -> None:
+    def clear_readonly_and_retry(function: Any, target: str, _error: BaseException) -> None:
+        os.chmod(target, stat.S_IWRITE)
+        function(target)
+
+    shutil.rmtree(path, onexc=clear_readonly_and_retry)
 
 
 def _write_ground_truth(path: Path, selected_specs: dict[str, list[str]]) -> None:

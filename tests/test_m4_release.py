@@ -9,6 +9,8 @@ from mosaic.cli import app
 from mosaic.m4_release import (
     _export_error_cases,
     _load_root_env,
+    _resume_id_for_configuration,
+    _summarize_run,
     _validate_report_manifest,
     aggregate_operational_metrics,
     build_m4_report,
@@ -76,6 +78,39 @@ def test_operational_metrics_sum_counts_cost_and_weighted_latency() -> None:
     assert payload["llm_call_count"] == 3
     assert payload["estimated_cost_usd"] == 0.03
     assert payload["average_latency_ms"] == 200
+
+
+def test_explicit_resume_run_id_only_applies_to_current_configuration() -> None:
+    checkpoint = {"current_configuration": "C-LLM"}
+    run_ids_by_config = {"A0": "run_a0"}
+
+    assert (
+        _resume_id_for_configuration(
+            "C-LLM",
+            explicit_resume_run_id="run_partial",
+            run_ids_by_config=run_ids_by_config,
+            checkpoint=checkpoint,
+        )
+        == "run_partial"
+    )
+    assert (
+        _resume_id_for_configuration(
+            "B-All",
+            explicit_resume_run_id="run_partial",
+            run_ids_by_config=run_ids_by_config,
+            checkpoint=checkpoint,
+        )
+        is None
+    )
+    assert (
+        _resume_id_for_configuration(
+            "A0",
+            explicit_resume_run_id="run_partial",
+            run_ids_by_config=run_ids_by_config,
+            checkpoint=checkpoint,
+        )
+        == "run_a0"
+    )
 
 
 def test_fixture_report_builder_writes_release_bundle(tmp_path: Path) -> None:
@@ -152,6 +187,42 @@ def test_subset_live_manifest_shape_is_accepted() -> None:
     _validate_report_manifest(manifest, fixture=False)
 
 
+def test_zero_denominator_fusion_accuracy_is_unavailable(tmp_path: Path) -> None:
+    metrics_path = tmp_path / "fusion_metrics.json"
+    metrics_path.write_text(
+        json.dumps(
+            {
+                "curated_fusion_metrics": {
+                    "accuracy": None,
+                    "evaluated_value_count": 0,
+                    "correct_value_count": 0,
+                    "gold_available": False,
+                },
+                "bootstrap_fusion_metrics": {
+                    "accuracy": 1.0,
+                    "evaluated_value_count": 1,
+                    "correct_value_count": 1,
+                    "gold_available": True,
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    summary = _summarize_run(
+        {
+            "configuration_id": "A0",
+            "run_id": "run_zero_fusion_denominator",
+            "metrics": {"fusion_metrics": metrics_path.relative_to(tmp_path).as_posix()},
+        },
+        tmp_path,
+    )
+
+    assert summary["fusion_accuracy"] == ""
+    assert summary["fusion_evaluated_values"] == 0
+    assert summary["end_to_end_quality"] == 0.0
+
+
 def test_default_report_requires_deterministic_scale_manifest(tmp_path: Path) -> None:
     manifest_path = tmp_path / "subset_manifest.json"
     manifest_path.write_text(
@@ -184,6 +255,79 @@ def test_default_report_requires_deterministic_scale_manifest(tmp_path: Path) ->
             REPO_ROOT,
             manifest_path=manifest_path,
             scale_manifest_path=tmp_path / "missing_scale.json",
+            build_pdf=False,
+        )
+
+
+def test_submission_report_rejects_zero_evaluated_fusion_values(tmp_path: Path) -> None:
+    metrics_path = tmp_path / "fusion_metrics.json"
+    metrics_path.write_text(
+        json.dumps(
+            {
+                "curated_fusion_metrics": {
+                    "accuracy": None,
+                    "evaluated_value_count": 0,
+                    "correct_value_count": 0,
+                    "gold_available": False,
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    manifest_path = tmp_path / "subset_manifest.json"
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "mode": "subset_live",
+                "reported_live_assisted": True,
+                "subset": {"subset_id": "alaska_monitor_live_subset_60"},
+                "runs": [
+                    {
+                        "configuration_id": config,
+                        "run_id": f"run_{config.lower().replace('-', '_')}",
+                        "metrics": {
+                            "fusion_metrics": metrics_path.relative_to(tmp_path).as_posix()
+                        },
+                    }
+                    for config in [
+                        "A0",
+                        "C-LLM",
+                        "B-All",
+                        "B-S",
+                        "B-L",
+                        "B-F",
+                        "B-SL",
+                        "B-LF",
+                        "Budget-0",
+                        "Budget-5",
+                        "Budget-10",
+                        "Budget-25",
+                    ]
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    scale_manifest_path = tmp_path / "scale_manifest.json"
+    scale_manifest_path.write_text(
+        json.dumps(
+            {
+                "mode": "deterministic_scale",
+                "runs": [
+                    {"configuration_id": "A0-camera"},
+                    {"configuration_id": "A0-monitor"},
+                    {"configuration_id": "A0-notebook"},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(RuntimeError, match="no evaluated curated fusion values"):
+        build_m4_report(
+            tmp_path,
+            manifest_path=manifest_path,
+            scale_manifest_path=scale_manifest_path,
             build_pdf=False,
         )
 

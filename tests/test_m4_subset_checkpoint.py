@@ -45,6 +45,19 @@ def test_subset_materialization_is_deterministic_and_filters_labels(tmp_path: Pa
         "not_selected//price,price\n",
         encoding="utf-8",
     )
+    curated_gold_path = repo / "data/ground_truth/monitor_fusion_curated_gold.jsonl"
+    curated_gold_path.parent.mkdir(parents=True)
+    curated_gold_path.write_text(
+        json.dumps(
+            {
+                "entity_id": "ENTITY#002",
+                "mediated_attribute": "brand",
+                "selected_truth_value": "Elo",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
     dataset_path = repo / "configs/datasets/selected_dataset.json"
     dataset_path.parent.mkdir(parents=True)
     dataset_path.write_text(
@@ -79,6 +92,7 @@ def test_subset_materialization_is_deterministic_and_filters_labels(tmp_path: Pa
                 "base_dataset_config": dataset_path.relative_to(repo).as_posix(),
                 "entity_count": 60,
                 "random_seed": 13,
+                "required_entity_ids": ["ENTITY#002"],
                 "strategy": "entity_balanced",
                 "output_root": "data/processed/subsets/alaska_monitor_live_subset_60",
             }
@@ -91,12 +105,16 @@ def test_subset_materialization_is_deterministic_and_filters_labels(tmp_path: Pa
 
     assert first.selected_entity_count == 60
     assert first.subset_hash == second.subset_hash
+    selected_entities = json.loads((repo / first.selected_entities_path).read_text())
+    assert "ENTITY#002" in selected_entities
     subset_er = repo / first.output_root / "ground_truth/entity_resolution_gt.csv"
     assert sum(1 for _ in csv.DictReader(subset_er.open(encoding="utf-8"))) > 60
     subset_sm = (repo / first.output_root / "ground_truth/schema_matching_gt.csv").read_text(
         encoding="utf-8"
     )
     assert "not_selected" not in subset_sm
+    subset_curated_gold = repo / first.output_root / "ground_truth/fusion_curated_gold.jsonl"
+    assert subset_curated_gold.read_text(encoding="utf-8").strip()
 
 
 def test_cleanup_dry_run_preserves_raw_data(tmp_path: Path) -> None:
