@@ -1,7 +1,7 @@
 ---
 title: "Mosaic: Selective LLM Assistance for Product Data Integration"
 author: "Mosaic Research Release"
-date: "2026-06-11"
+date: "2026-06-14"
 geometry: margin=1in
 fontsize: 10pt
 ---
@@ -15,7 +15,7 @@ where LLM decisions improve an otherwise reproducible integration workflow, and
 where deterministic methods remain preferable because they are cheaper, faster,
 easier to audit, or less prone to unsupported outputs.
 
-This build is a fixture-equivalent reproduction report, not the final live submission.
+This build is the subset live academic release; assisted metrics come from live or cached OpenAI calls on the same 60-entity Monitor subset.
 
 The assignment asks for a traditional baseline, an LLM-assisted pipeline that
 uses the model in multiple integration stages, component metrics, operational
@@ -26,30 +26,36 @@ Parquet/JSONL outputs under the release bundle.
 
 # Dataset And Scope
 
-The selected dataset is the Alaska Monitor benchmark subset. The full input
-dataset is separated from the labeled evaluation subset: all source records are
-processed, while schema, linkage, clustering, and fusion metrics are computed
-where gold labels are available.
+The reported LLM comparison uses the deterministic
+`alaska_monitor_live_subset_60` subset: 60 official Alaska Monitor entities
+with all source records for those entities. Running A0, C-LLM, and B-All on the
+same subset keeps the probabilistic comparison fair and keeps live model cost
+bounded. Full Monitor, Notebook, and Camera runs are deterministic-only scale
+evidence, reported separately below.
 
-Dataset id: `fixture_m1_products`
+This distinction is deliberate. The subset-live experiment is the supervised
+comparison point for LLM assistance, because every compared pipeline sees the
+same records, labels, prompts, and budget envelope. The full-scale deterministic
+runs answer a different question: whether the integration stack can process the
+larger benchmark verticals end to end without calling an external model on
+hundreds of thousands of candidate pairs.
+
+Dataset id: `alaska_monitor_live_subset_60`
 
 | sources | records | entities | positive_pairs | attributes |
 | --- | --- | --- | --- | --- |
-| 3 | 6 | 2 | 6 | 8 |
+| 26 | 782 | 60 | 4975 | 94 |
 
 Repository: https://github.com/Forest904/selective-llm-product-integration.git
 
-The Alaska Monitor data is deliberately larger than the labeled evaluation
-subset. This matters for grading because the pipeline must run over realistic
-source scale even when labels are sparse. Blocking and normalization see every
-one of the 6 source records. Linkage, clustering, and
-fusion quality are then measured wherever the entity-resolution, schema, and
-fusion gold files can support a precise comparison. The report therefore
-separates operational scale from labeled quality: candidate-pair count and
-reduction ratio describe the full run, while precision, recall, F1, and fusion
-accuracy describe the labeled slice.
+The subset still separates operational inputs from labeled quality: blocking
+and normalization process every selected source record, while linkage,
+clustering, schema, and fusion metrics are computed where filtered gold labels
+support a precise comparison. Candidate-pair count and reduction ratio describe
+the run scale; precision, recall, F1, and fusion accuracy describe the labeled
+slice.
 
-The dataset contains 3 sources from the same monitor
+The dataset contains 26 sources from the same monitor
 vertical, but those sources disagree heavily on attribute names and product
 detail. Some sources expose common catalog fields, while others expose dozens
 of display-specific specifications. That heterogeneity is the reason Mosaic
@@ -89,7 +95,10 @@ with strict structured outputs and deterministic fallback.
 
 The reported assisted model is configured through committed JSON files. The
 default M4 live model is `gpt-4.1-mini`, temperature `0`, strict structured
-outputs, versioned prompts, and cached call logging for repeatability.
+outputs, maximum 1024 output tokens, two provider retries, versioned prompts,
+and cached call logging for repeatability. The OpenAI responses API is called
+with a JSON schema output contract; every model response is parsed and
+validated before the pipeline can use it.
 
 LLM calls are selective rather than exhaustive. Schema calls are routed from
 low-margin or unmapped source attributes. Linkage calls are routed from
@@ -130,14 +139,15 @@ traceable back to raw records.
 
 The release command loads `OPENAI_API_KEY` from the ignored root `.env` only
 when the shell has not already provided the variable. Secrets are never printed
-or written into the manifest. Full submission report builds require a manifest
-with `mode: full_live` and `reported_live_assisted: true`; fixture-only output
-requires the explicit `--fixture` path.
+or written into the manifest. Submission report builds require a subset live
+manifest with `mode: subset_live`, a deterministic-scale manifest, and
+`reported_live_assisted: true`; fixture-only output requires the explicit
+`--fixture` path.
 
 # Experimental Protocol
 
-The grading-focused matrix includes A0, B-All, stage ablations, and
-routing-budget variants, plus C-LLM as the practical LLM-primary comparison
+The grading-focused live matrix includes subset A0, B-All, stage ablations,
+routing-budget variants, and C-LLM as the practical LLM-primary comparison
 point. Every run records the code commit, configuration hash, prompt versions,
 model settings, metrics, and artifact paths in a release manifest.
 
@@ -157,8 +167,13 @@ Release manifest: `reports/release/m4_release_manifest.json`
 Invalid JSON, missing fields, hallucinated or unsupported values, empty
 responses, abstentions, and timeouts are treated as measured failures unless the
 documented deterministic fallback handles them. The fixture release is retained
-for reproducibility checks, but the submission release must use full-live or
-cache-backed OpenAI calls over the selected Alaska Monitor dataset.
+for reproducibility checks, but the submission release must use live or
+cache-backed OpenAI calls over the selected Monitor subset.
+
+Prompt versions are committed under `prompts/`, model behavior is committed
+under `configs/models/`, and routing thresholds are committed under
+`configs/experiments/`. That separation keeps secrets out of the repository
+while making the non-secret experimental protocol inspectable.
 
 The stage ablations answer a narrower question than the full B-All run. B-S
 tests schema assistance while leaving linkage and fusion deterministic. B-L
@@ -176,33 +191,59 @@ how much quality is retained when the number of routed calls is capped.
 
 ## Three-Way Pipeline Comparison
 
-
+| pipeline | config | schema_f1 | linkage_f1 | cluster_f1 | fusion_acc | e2e |
+| --- | --- | --- | --- | --- | --- | --- |
+| Deterministic | A0 | 0.4727 | 0.827 | 0.2246 | 0.0 | 0.3811 |
+| LLM | C-LLM | 0.4103 | 0.2051 | 0.0901 | 0.0 | 0.1764 |
+| Hybrid | B-All | 0.4727 | 0.8216 | 0.2236 | 0.0 | 0.3795 |
 
 | pipeline | config | schema_f1 | pairs | linkage_f1 | cluster_f1 | fusion_acc | e2e |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Deterministic | fixture-A0 | 0.9697 | 8 | 0.0 | 1.0 | 0.0 | 0.4924 |
-| LLM | fixture-C-LLM | 1.0 | 8 | 0.0 | 1.0 | 0.0 | 0.5 |
-| Hybrid | fixture-B-All | 1.0 | 8 | 0.0 | 1.0 | 0.0 | 0.5 |
+| Deterministic | A0 | 0.4727 | 20576 | 0.827 | 0.2246 | 0.0 | 0.3811 |
+| LLM | C-LLM | 0.4103 | 18050 | 0.2051 | 0.0901 | 0.0 | 0.1764 |
+| Hybrid | B-All | 0.4727 | 20576 | 0.8216 | 0.2236 | 0.0 | 0.3795 |
+| B-S | B-S | 0.4727 | 20576 | 0.8258 | 0.2236 | 0.0 | 0.3805 |
+| B-L | B-L | 0.4727 | 20576 | 0.8228 | 0.2246 | 0.0 | 0.38 |
+| B-F | B-F | 0.4727 | 20576 | 0.827 | 0.2246 | 0.0 | 0.3811 |
+| B-SL | B-SL | 0.4727 | 20576 | 0.8216 | 0.2236 | 0.0 | 0.3795 |
+| B-LF | B-LF | 0.4727 | 20576 | 0.8228 | 0.2246 | 0.0 | 0.38 |
+| Budget-0 | Budget-0 | 0.4727 | 20576 | 0.827 | 0.2246 | 0.0 | 0.3811 |
+| Budget-5 | Budget-5 | 0.4727 | 20576 | 0.8246 | 0.2246 | 0.0 | 0.3805 |
+| Budget-10 | Budget-10 | 0.4727 | 20576 | 0.8228 | 0.2246 | 0.0 | 0.38 |
+| Budget-25 | Budget-25 | 0.4727 | 20576 | 0.8216 | 0.2236 | 0.0 | 0.3795 |
 
 Full metric tables are written to
 `reports/release/tables/metrics_summary.csv`.
 
+## Deterministic Scale Evidence
+
+The full Alaska verticals are run with the deterministic A0 pipeline only. This
+keeps the assignment's probabilistic comparison focused on the common subset
+while still showing that the deterministic integration stack can process the
+larger Monitor, Notebook, and Camera inputs without live LLM calls.
+
+| config | vertical | candidate_pairs | schema_f1 | linkage_f1 | cluster_f1 | fusion_acc |
+| --- | --- | --- | --- | --- | --- | --- |
+| A0-camera | camera | 793890 | 0.0323 | 0.9874 | 0.0193 | 0.0 |
+| A0-monitor | monitor | 532325 | 0.4833 | 0.9468 | 0.1272 | 0.7143 |
+| A0-notebook | notebook | 873320 | 0.0341 | 0.6934 | 0.0109 | 0.0 |
+
 On this release, the LLM-primary pipeline records schema F1
-, linkage test F1
-, clustering F1
-, fusion accuracy
-, and end-to-end summary
-. B-All records schema F1
-,
-linkage test F1 , clustering F1
-, fusion accuracy
-, and end-to-end summary
-. The deterministic A0 reference
-records schema F1 , linkage test F1
-, clustering F1
-, fusion accuracy
-, and end-to-end summary
-.
+0.4103, linkage test F1
+0.2051, clustering F1
+0.0901, fusion accuracy
+0.0, and end-to-end summary
+0.1764. B-All records schema F1
+0.4727,
+linkage test F1 0.8216, clustering F1
+0.2236, fusion accuracy
+0.0, and end-to-end summary
+0.3795. The deterministic A0 reference
+records schema F1 0.4727, linkage test F1
+0.827, clustering F1
+0.2246, fusion accuracy
+0.0, and end-to-end summary
+0.3811.
 
 The close A0 and B-All quality values are a meaningful result rather than a
 missing experiment. The selective routing policy is conservative, and many
@@ -212,9 +253,29 @@ accepted LLM decisions cannot dominate the full pipeline metrics. The report
 therefore treats operational reliability and failure handling as first-class
 results alongside F1.
 
+The C-LLM result is also informative: making the model the primary decision
+maker worsens schema, linkage, clustering, and end-to-end quality in this run.
+This supports the assignment's central question. LLMs are useful as bounded
+judges for difficult cases, but they are not automatically better than a
+classical pipeline with strong blocking, calibration, and clustering
+constraints.
+
+Fusion accuracy should be read with the label-coverage caveat in mind. The
+subset report exports fused entities and claim-supported values, but the
+supervised fusion labels available for this subset are too sparse to evaluate
+many selected values directly. A zero in the fusion-accuracy column therefore
+means no supervised correct values were observed in that labeled slice, not that
+the pipeline failed to produce integrated fused outputs.
+
 ## Linkage Confusion Matrix
 
-
+| config | tp | fp | tn | fn | precision | recall |
+| --- | --- | --- | --- | --- | --- | --- |
+| A0 | 822 | 173 | 417 | 171 | 0.8261 | 0.8278 |
+| B-All | 813 | 173 | 417 | 180 | 0.8245 | 0.8187 |
+| B-L | 815 | 173 | 417 | 178 | 0.8249 | 0.8207 |
+| B-SL | 813 | 173 | 417 | 180 | 0.8245 | 0.8187 |
+| B-LF | 815 | 173 | 417 | 178 | 0.8249 | 0.8207 |
 
 The linkage confusion matrix shows that the test split remains stable across
 the assisted linkage variants. This is desirable when routed examples are
@@ -224,27 +285,49 @@ precision loss. The accepted changes in this release are small enough that
 cluster-level metrics remain controlled by the deterministic constraints and
 the underlying gold-label sparsity.
 
-![Routing budget frontier](reports/release/figures/routing_budget_frontier.png)
-
 Operational metrics summarize cost and reliability of selective LLM use.
 
-| pipeline | config | calls | accepted | defaulted | tokens_in | tokens_out | cost_usd | fallback_rate | invalid_rate |
+| pipeline | config | calls | accepted | defaulted | tokens_in | tokens_out | cost_usd | fallbacks_per_call | invalids_per_call |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Deterministic | fixture-A0 | 0 | 0 | 0 | 0 | 0 | 0.0 | 0.0 | 0.0 |
-| LLM | fixture-C-LLM | 24 | 47 | 0 | 28161 | 2770 | 0.0 | 0.0 | 0.0 |
-| Hybrid | fixture-B-All | 23 | 7 | 16 | 13792 | 1418 | 0.0 | 0.6957 | 0.0 |
+| Deterministic | A0 | 0 | 0 | 0 | 0 | 0 | 0.0 | 0.0 | 0.0 |
+| LLM | C-LLM | 667 | 2605 | 19286 | 6624214 | 503023 | 3.4545 | 4.5832 | 1.5892 |
+| Hybrid | B-All | 75 | 46 | 29 | 71871 | 11995 | 0.0479 | 0.3867 | 0.0 |
+| B-S | B-S | 25 | 3 | 22 | 36556 | 3330 | 0.02 | 0.88 | 0.0 |
+| B-L | B-L | 25 | 22 | 3 | 23286 | 4970 | 0.0173 | 0.12 | 0.0 |
+| B-F | B-F | 25 | 24 | 1 | 12026 | 3644 | 0.0106 | 0.04 | 0.0 |
+| B-SL | B-SL | 50 | 22 | 28 | 59845 | 8351 | 0.0373 | 0.56 | 0.0 |
+| B-LF | B-LF | 50 | 46 | 4 | 35312 | 8614 | 0.0279 | 0.08 | 0.0 |
+| Budget-0 | Budget-0 | 0 | 0 | 0 | 0 | 0 | 0.0 | 0.0 | 0.0 |
+| Budget-5 | Budget-5 | 15 | 10 | 5 | 14927 | 2527 | 0.01 | 0.3333 | 0.0 |
+| Budget-10 | Budget-10 | 30 | 20 | 10 | 29669 | 4747 | 0.0195 | 0.3333 | 0.0 |
+| Budget-25 | Budget-25 | 75 | 46 | 29 | 71871 | 11995 | 0.0479 | 0.3867 | 0.0 |
+
+The operational columns `fallbacks_per_call` and `invalids_per_call` are
+decision-level counts divided by provider call count. They can exceed 1 for
+batched C-LLM calls because one model response can contain many decisions, and
+one invalid batch can default many downstream decisions. The B-All hybrid rows
+are easier to interpret as per-call rates because routing caps the selected
+cases much more tightly.
 
 ## LLM Intervention Funnel
 
-
+| pipeline | eligible | selected | calls | accepted | defaulted | invalid | cost_usd |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| LLM | 21891 | 5662 | 667 | 2605 | 19286 | 1060 | 3.4545 |
+| Hybrid | 7478 | 75 | 75 | 46 | 29 | 0 | 0.0479 |
 
 ## Routing Budget Results
 
-
+| config | calls | cost_usd | schema_f1 | linkage_f1 | fusion_acc | e2e |
+| --- | --- | --- | --- | --- | --- | --- |
+| Budget-0 | 0 | 0.0 | 0.4727 | 0.827 | 0.0 | 0.3811 |
+| Budget-5 | 15 | 0.01 | 0.4727 | 0.8246 | 0.0 | 0.3805 |
+| Budget-10 | 30 | 0.0195 | 0.4727 | 0.8228 | 0.0 | 0.38 |
+| Budget-25 | 75 | 0.0479 | 0.4727 | 0.8216 | 0.0 | 0.3795 |
 
 The routing-budget variants show the cost envelope for the live release.
-B-All issued 0 model calls with an
-estimated cost of $0.0. The
+B-All issued 75 model calls with an
+estimated cost of $0.0479. The
 budgeted runs preserve the same deterministic backbone, so any quality movement
 comes only from the subset of routed decisions allowed by the cap. This makes
 the budget frontier interpretable: the x-axis is not total pipeline work, but
@@ -268,58 +351,60 @@ The appendix stores structured source-level cases in
 `reports/appendix/m4_error_cases.json` and
 `reports/appendix/m4_error_cases.md`.
 
-| case_id | stage | explanation |
+| stage | case | lesson |
 | --- | --- | --- |
-| schema_source_alpha//price | schema_alignment | The source attribute was mapped to the wrong mediated-schema field, which can propagate into normalization and fusion. |
-| fusion_1_entity_000001 | fusion | The fused value disagrees with the curated or bootstrap fusion gold value, usually because conflicting source claims normalize to close but not identical values |
-| fixture_placeholder_3 | fixture_only | Fixture-only placeholder. This cannot satisfy the M4 submission gate. |
+| schema_alignment | wrong mediated field | The source attribute was mapped to the wrong mediated-schema field, which can propagate into normalization and fusion. |
+| record_linkage | false pair decision | The pairwise matcher prediction disagrees with the labeled entity-resolution pair. |
+| clustering | under-merged entity | Records from one labeled truth entity were split across multiple predicted clusters, so downstream fusion sees incomp... |
 
 ## Detailed Cases
 
-### schema_source_alpha//price
+### schema_ca.pcpartpicker.com//displayport
 
 Stage: `schema_alignment`
 
-System output: `{'source_attribute_id': 'source_alpha//price', 'predicted_target_attribute_name': 'UNMAPPED', 'score_total': 1.0, 'method': 'deterministic_schema_v1'}`
+System output: {'source_attribute_id': 'ca.pcpartpicker.com//displayport', 'predicted_target_attribute_name': 'has_displayport', 'sc...
 
-Expected output: `{'gold_target_attribute_name': 'price'}`
+Expected output: {'gold_target_attribute_name': 'displayport_quantity'}
 
 Explanation: The source attribute was mapped to the wrong mediated-schema field, which can propagate into normalization and fusion.
 
-Source evidence: No source record excerpt was available in the fixture artifact.
+Source evidence: `ca.pcpartpicker.com:122` title='HP Z22i 60Hz 21.5" Monitor (D7Q14A4#ABA) - PCPartPicker Canada' brand='HP' model='Z22i'; `ca.pcpartpicker.com:17` title='HP Z24i 60Hz 24.0" Monitor (D7P53A4#ABA) - PCPartPicker Canada' brand='HP' model='Z24i'; `ca.pcpartpicker.com:184` title='Dell U2913WM 60Hz 29.0" Monitor (U2913WM) - PCPartPicker Canada' brand='Dell' model=''
 
-### fusion_1_entity_000001
+### linkage_pair_00000025
 
-Stage: `fusion`
+Stage: `record_linkage`
 
-System output: `{'entity_id': 'entity_000001', 'attribute': 'price', 'predicted_value': '305.00'}`
+System output: {'candidate_pair_id': 'pair_00000025', 'match_prediction': 0, 'match_probability': 0.45589268898553187}
 
-Expected output: `{'truth_entity_id': 'ENTITY#001', 'expected_value': 'None'}`
+Expected output: {'ground_truth_label': 1}
 
-Explanation: The fused value disagrees with the curated or bootstrap fusion gold value, usually because conflicting source claims normalize to close but not identical values.
+Explanation: The pairwise matcher prediction disagrees with the labeled entity-resolution pair.
 
-Source evidence: `source_alpha:a100` title='Canon EOS 4000D DSLR Camera Kit' brand='Canon' model='EOS4000D'; `source_beta:b200` title='Canon 4000D 18MP Digital SLR' brand='Canon' model='4000D'; `source_gamma:c300` title='EOS 4000D Camera from Canon' brand='Canon' model='EOS4000D'
+Source evidence: `ca.pcpartpicker.com:122` title='HP Z22i 60Hz 21.5" Monitor (D7Q14A4#ABA) - PCPartPicker Canada' brand='HP' model='Z22I'; `ca.pcpartpicker.com:73` title='HP Z22i (D7Q14A4) 60Hz 21.5" Monitor (D7Q14A8#ABA) - PCPartPicker Canada' brand='HP' model='Z22ID7Q14A4'
 
-### fixture_placeholder_3
+### cluster_undermerge_ENTITY#022
 
-Stage: `fixture_only`
+Stage: `clustering`
 
-System output: `No additional labeled error was available.`
+System output: {'predicted_cluster_count': 6, 'predicted_entity_ids': ['entity_000083', 'entity_000104', 'entity_000270', 'entity_00...
 
-Expected output: `N/A`
+Expected output: {'ground_truth_entity_id': 'ENTITY#022', 'expected_cluster_count': 1}
 
-Explanation: Fixture-only placeholder. This cannot satisfy the M4 submission gate.
+Explanation: Records from one labeled truth entity were split across multiple predicted clusters, so downstream fusion sees incomplete claim evidence.
 
-Source evidence: No source record excerpt was available in the fixture artifact.
+Source evidence: `www.cleverboxes.com:295` title='Cleverboxes - 19B4LCB5/00 | Philips (19 inch) LCD Monitor with SmartImage LED Backlight 1280x1024 (Black)' brand='' model=''; `www.ebay.com:11038` title='Philips Brilliance 19B4LCB5 19" LED LCD Monitor 5 4 5 MS IGRMTL5510 | eBay' brand='Philips' model=''
 
 
 The error cases are selected from real run artifacts, not fixture placeholders.
 They are intentionally concrete: each case includes source records, system
 output, expected output, explanation, stage of origin, and links to the metric
 or artifact files that produced the case. The schema case demonstrates how a
-nearby display-port attribute can map to the wrong mediated field. The fusion
-cases demonstrate how cluster-level evidence can still leave close but
-different numeric values for display specifications.
+nearby display-port attribute can map to the wrong mediated field. The linkage
+case shows that near-duplicate product titles and model variants can still sit
+on the wrong side of the calibrated threshold. The clustering case shows the
+cost of conservative safeguards: avoiding unsafe merges can split a true entity
+and leave downstream fusion with incomplete evidence.
 
 The most important pattern is propagation. A schema error can change which
 normalized values exist. A linkage or clustering error can change which source
@@ -327,6 +412,13 @@ claims are pooled into an entity. A fusion error can then select the wrong
 canonical value even when individual source records are correctly parsed. This
 is why the report lists the stage of origin rather than treating every final
 wrong value as a fusion-only failure.
+
+These cases also explain the hybrid design. The LLM can help inspect ambiguous
+labels or borderline pairs, but every accepted intervention must still satisfy
+the mediated-schema, candidate-pair, and claim-support constraints. When those
+constraints reject an output, the fallback is a feature rather than a cleanup
+step: it prevents a fluent but unsupported model answer from entering the final
+dataset.
 
 # Discussion
 
@@ -351,7 +443,7 @@ Gold labels do not cover every final fused attribute, bootstrap fusion labels
 are diagnostic rather than manual truth, and routed LLM calls trade cost and
 latency for selective quality improvements. Reproducibility depends on committed
 prompts, committed model settings, cached/logged responses, and clear separation
-between fixture checks and the full reported run.
+between fixture checks and the subset live reported run.
 
 ## Where Deterministic Methods Remain Preferable
 
@@ -409,10 +501,11 @@ Repository: https://github.com/Forest904/selective-llm-product-integration.git
 Reproduction summary:
 
 ```bash
-make install
-make reproduce
+uv sync --dev --python 3.12
+uv run mosaic reproduce --fixture
 uv run mosaic experiment release --live
-make report
+uv run mosaic experiment deterministic-scale
+uv run mosaic report build
 ```
 
 \newpage
@@ -423,7 +516,8 @@ make report
 
 | requirement | artifact | evidence |
 | --- | --- | --- |
-| Baseline and assisted runs | reports/release/m4_release_manifest.json | A0, C-LLM, B-All, ablations, and budgets |
+| Baseline and assisted runs | reports/release/m4_release_manifest.json | Subset A0, C-LLM, B-All, ablations, and budgets |
+| Deterministic scale runs | reports/release/tables/deterministic_scale.csv | Full Monitor, Notebook, and Camera A0 runs |
 | Component metrics | reports/release/tables/metrics_summary.csv | Schema, blocking, linkage, clustering, fusion |
 | Operational metrics | reports/release/tables/operational_metrics.csv | Calls, tokens, cost, fallbacks, invalid outputs |
 | Concrete error cases | reports/appendix/m4_error_cases.json | Source records, outputs, expected values |
@@ -442,13 +536,15 @@ clone reproduction check from being mistaken for the reported live experiment.
 ## Regeneration Commands
 
 ```bash
-make install
-make lint
-make test
-make reproduce
-make report-fixture
+uv sync --dev --python 3.12
+uv run ruff check .
+uv run mypy
+uv run pytest
+uv run mosaic reproduce --fixture
+uv run mosaic report build --fixture
 uv run mosaic experiment release --live
-make report
+uv run mosaic experiment deterministic-scale
+uv run mosaic report build
 ```
 
 ## Clean Clone Expectations
@@ -461,15 +557,15 @@ assisted metrics in this report.
 
 The submission-grade path is intentionally stricter. `uv run mosaic experiment
 release --live` must see `OPENAI_API_KEY` either in the shell or in the ignored
-root `.env` file. The command then runs A0 and the full assisted matrix over the
-Alaska Monitor configuration, writes model call logs under the ignored artifact
+root `.env` file. The command then runs A0 and the assisted matrix over the
+60-entity Monitor subset, writes model call logs under the ignored artifact
 tree, and emits a compact release manifest. `make report` consumes that manifest
-and refuses to proceed if it only sees fixture mode or a manifest that lacks
-`reported_live_assisted: true`.
+plus the deterministic scale manifest and refuses to proceed if it only sees
+fixture mode or a manifest that lacks `reported_live_assisted: true`.
 
 This separation is important for academic reproducibility. Fixture mode proves
 that a reviewer can regenerate the report mechanics without spending money or
-calling external services. Full-live mode proves that the reported LLM-assisted
+calling external services. Subset-live mode proves that the reported LLM-assisted
 results came from the selected dataset, committed prompts, committed model
 settings, and logged responses. The report tables are regenerated from the
 manifest each time, so stale hand-entered results cannot silently survive a

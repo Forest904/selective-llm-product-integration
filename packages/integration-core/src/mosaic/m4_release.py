@@ -1,3 +1,5 @@
+# ruff: noqa: E501
+
 from __future__ import annotations
 
 import csv
@@ -6,6 +8,7 @@ import os
 import shutil
 import struct
 import subprocess
+import textwrap
 import zlib
 from collections.abc import Iterable
 from datetime import UTC, datetime
@@ -333,6 +336,7 @@ def build_m4_report(
     _write_json(release_manifest_copy, manifest)
     final_dataset = _copy_final_dataset(repo_root, manifest, release_dir)
     report_md = repo_root / "reports" / "report.md"
+    report_tex = repo_root / "reports" / "report.tex"
     report_text = _report_markdown(
         manifest=manifest,
         dataset=dataset,
@@ -344,13 +348,26 @@ def build_m4_report(
         scale_summaries=scale_summaries,
     )
     report_md.write_text(report_text, encoding="utf-8")
+    report_tex.write_text(
+        _report_latex(
+            manifest=manifest,
+            dataset=dataset,
+            summaries=summaries,
+            operational=operational,
+            error_cases=error_cases,
+            final_dataset=final_dataset,
+            fixture=fixture or manifest.get("mode") == "fixture",
+            scale_summaries=scale_summaries,
+        ),
+        encoding="utf-8",
+    )
     appendix_dir.joinpath("m4_error_cases.json").write_text(
         json.dumps(error_cases, indent=2, sort_keys=True), encoding="utf-8"
     )
 
     pdf_path: Path | None = None
     if build_pdf:
-        pdf_path = _build_pdf(repo_root, report_md)
+        pdf_path = _build_pdf(repo_root, report_tex, fallback_md=report_md)
         if pdf_path is not None:
             _render_pdf_check(repo_root, pdf_path)
 
@@ -361,6 +378,7 @@ def build_m4_report(
         else None,
         "release_manifest": release_manifest_copy,
         "report_md": report_md,
+        "report_tex": report_tex,
         "report_pdf": pdf_path,
         "final_dataset": final_dataset,
     }
@@ -1223,8 +1241,8 @@ def _report_markdown(
                 "tokens_in": row["input_tokens"],
                 "tokens_out": row["output_tokens"],
                 "cost_usd": _round(row["estimated_cost_usd"]),
-                "fallback_rate": row["fallback_rate"],
-                "invalid_rate": row["invalid_output_rate"],
+                "fallbacks_per_call": row["fallback_rate"],
+                "invalids_per_call": row["invalid_output_rate"],
             }
             for row in operational
         ]
@@ -1232,9 +1250,9 @@ def _report_markdown(
     cases_table = _markdown_table(
         [
             {
-                "case_id": case["case_id"],
                 "stage": case["stage"],
-                "explanation": case["explanation"],
+                "case": _case_summary_label(case),
+                "lesson": case["explanation"],
             }
             for case in error_cases
         ]
@@ -1242,6 +1260,7 @@ def _report_markdown(
     scale_table = _markdown_table(
         [
             {
+                "config": row["configuration_id"],
                 "vertical": str(row["configuration_id"]).replace("A0-", ""),
                 "candidate_pairs": row["candidate_pairs"],
                 "schema_f1": row["schema_f1"],
@@ -1413,6 +1432,13 @@ same subset keeps the probabilistic comparison fair and keeps live model cost
 bounded. Full Monitor, Notebook, and Camera runs are deterministic-only scale
 evidence, reported separately below.
 
+This distinction is deliberate. The subset-live experiment is the supervised
+comparison point for LLM assistance, because every compared pipeline sees the
+same records, labels, prompts, and budget envelope. The full-scale deterministic
+runs answer a different question: whether the integration stack can process the
+larger benchmark verticals end to end without calling an external model on
+hundreds of thousands of candidate pairs.
+
 Dataset id: `{dataset["dataset_id"]}`
 
 {dataset_table}
@@ -1466,7 +1492,10 @@ with strict structured outputs and deterministic fallback.
 
 The reported assisted model is configured through committed JSON files. The
 default M4 live model is `gpt-4.1-mini`, temperature `0`, strict structured
-outputs, versioned prompts, and cached call logging for repeatability.
+outputs, maximum 1024 output tokens, two provider retries, versioned prompts,
+and cached call logging for repeatability. The OpenAI responses API is called
+with a JSON schema output contract; every model response is parsed and
+validated before the pipeline can use it.
 
 LLM calls are selective rather than exhaustive. Schema calls are routed from
 low-margin or unmapped source attributes. Linkage calls are routed from
@@ -1529,6 +1558,11 @@ documented deterministic fallback handles them. The fixture release is retained
 for reproducibility checks, but the submission release must use live or
 cache-backed OpenAI calls over the selected Monitor subset.
 
+Prompt versions are committed under `prompts/`, model behavior is committed
+under `configs/models/`, and routing thresholds are committed under
+`configs/experiments/`. That separation keeps secrets out of the repository
+while making the non-secret experimental protocol inspectable.
+
 The stage ablations answer a narrower question than the full B-All run. B-S
 tests schema assistance while leaving linkage and fusion deterministic. B-L
 tests linkage assistance alone. B-F tests fusion assistance alone. B-SL and
@@ -1586,6 +1620,20 @@ accepted LLM decisions cannot dominate the full pipeline metrics. The report
 therefore treats operational reliability and failure handling as first-class
 results alongside F1.
 
+The C-LLM result is also informative: making the model the primary decision
+maker worsens schema, linkage, clustering, and end-to-end quality in this run.
+This supports the assignment's central question. LLMs are useful as bounded
+judges for difficult cases, but they are not automatically better than a
+classical pipeline with strong blocking, calibration, and clustering
+constraints.
+
+Fusion accuracy should be read with the label-coverage caveat in mind. The
+subset report exports fused entities and claim-supported values, but the
+supervised fusion labels available for this subset are too sparse to evaluate
+many selected values directly. A zero in the fusion-accuracy column therefore
+means no supervised correct values were observed in that labeled slice, not that
+the pipeline failed to produce integrated fused outputs.
+
 ## Linkage Confusion Matrix
 
 {confusion_table}
@@ -1598,11 +1646,16 @@ precision loss. The accepted changes in this release are small enough that
 cluster-level metrics remain controlled by the deterministic constraints and
 the underlying gold-label sparsity.
 
-![Routing budget frontier]({M4_RELEASE_DIR.as_posix()}/figures/routing_budget_frontier.png)
-
 Operational metrics summarize cost and reliability of selective LLM use.
 
 {operational_table}
+
+The operational columns `fallbacks_per_call` and `invalids_per_call` are
+decision-level counts divided by provider call count. They can exceed 1 for
+batched C-LLM calls because one model response can contain many decisions, and
+one invalid batch can default many downstream decisions. The B-All hybrid rows
+are easier to interpret as per-call rates because routing caps the selected
+cases much more tightly.
 
 ## LLM Intervention Funnel
 
@@ -1646,9 +1699,11 @@ The error cases are selected from real run artifacts, not fixture placeholders.
 They are intentionally concrete: each case includes source records, system
 output, expected output, explanation, stage of origin, and links to the metric
 or artifact files that produced the case. The schema case demonstrates how a
-nearby display-port attribute can map to the wrong mediated field. The fusion
-cases demonstrate how cluster-level evidence can still leave close but
-different numeric values for display specifications.
+nearby display-port attribute can map to the wrong mediated field. The linkage
+case shows that near-duplicate product titles and model variants can still sit
+on the wrong side of the calibrated threshold. The clustering case shows the
+cost of conservative safeguards: avoiding unsafe merges can split a true entity
+and leave downstream fusion with incomplete evidence.
 
 The most important pattern is propagation. A schema error can change which
 normalized values exist. A linkage or clustering error can change which source
@@ -1656,6 +1711,13 @@ claims are pooled into an entity. A fusion error can then select the wrong
 canonical value even when individual source records are correctly parsed. This
 is why the report lists the stage of origin rather than treating every final
 wrong value as a fusion-only failure.
+
+These cases also explain the hybrid design. The LLM can help inspect ambiguous
+labels or borderline pairs, but every accepted intervention must still satisfy
+the mediated-schema, candidate-pair, and claim-support constraints. When those
+constraints reject an output, the fallback is a feature rather than a cleanup
+step: it prevents a fluent but unsupported model answer from entering the final
+dataset.
 
 # Discussion
 
@@ -1738,10 +1800,11 @@ Repository: {dataset.get("repository_url") or "https://github.com/Forest904/sele
 Reproduction summary:
 
 ```bash
-make install
-make reproduce
+uv sync --dev --python 3.12
+uv run mosaic reproduce --fixture
 uv run mosaic experiment release --live
-make report
+uv run mosaic experiment deterministic-scale
+uv run mosaic report build
 ```
 
 \\newpage
@@ -1764,13 +1827,15 @@ clone reproduction check from being mistaken for the reported live experiment.
 ## Regeneration Commands
 
 ```bash
-make install
-make lint
-make test
-make reproduce
-make report-fixture
+uv sync --dev --python 3.12
+uv run ruff check .
+uv run mypy
+uv run pytest
+uv run mosaic reproduce --fixture
+uv run mosaic report build --fixture
 uv run mosaic experiment release --live
-make report
+uv run mosaic experiment deterministic-scale
+uv run mosaic report build
 ```
 
 ## Clean Clone Expectations
@@ -1818,29 +1883,826 @@ directories remain ignored and regenerable.
 """
 
 
-def _build_pdf(repo_root: Path, report_md: Path) -> Path | None:
-    pandoc = shutil.which("pandoc")
-    if pandoc is None:
-        return None
-    pdf_path = repo_root / "reports" / "report.pdf"
-    completed = subprocess.run(
-        [
-            pandoc,
-            str(report_md),
-            "--from",
-            "markdown",
-            "--pdf-engine=xelatex",
-            "-o",
-            str(pdf_path),
-        ],
-        cwd=repo_root,
-        capture_output=True,
-        text=True,
-        timeout=120,
+def _report_latex(
+    *,
+    manifest: dict[str, Any],
+    dataset: dict[str, Any],
+    summaries: list[dict[str, Any]],
+    operational: list[dict[str, Any]],
+    error_cases: list[dict[str, Any]],
+    final_dataset: Path | None,
+    fixture: bool,
+    scale_summaries: list[dict[str, Any]],
+) -> str:
+    mode_note = (
+        "This is a fixture-equivalent reproduction report, not the final live submission."
+        if fixture
+        else (
+            "This is the subset-live academic release: assisted metrics come from live or "
+            "cached OpenAI calls on the same 60-entity Monitor subset."
+        )
     )
-    if completed.returncode != 0:
-        raise RuntimeError(completed.stderr or completed.stdout)
+    final_dataset_text = (
+        repo_relative(final_dataset, final_dataset.parents[2])
+        if final_dataset is not None
+        else "not exported"
+    )
+    summary_by_config = {str(row["configuration_id"]): row for row in summaries}
+    operational_by_config = {str(row["configuration_id"]): row for row in operational}
+    baseline = summary_by_config.get("A0", {})
+    llm_primary = summary_by_config.get("C-LLM", {})
+    assisted = summary_by_config.get("B-All", {})
+    llm_ops = operational_by_config.get("C-LLM", {})
+    assisted_ops = operational_by_config.get("B-All", {})
+    repo_url = str(
+        dataset.get("repository_url") or "https://github.com/Forest904/selective-llm-product-integration"
+    )
+    today = datetime.now(UTC).date().isoformat()
+
+    dataset_rows = [
+        {
+            "sources": dataset["source_count"],
+            "records": dataset["record_count"],
+            "entities": dataset["entity_count"],
+            "positive_pairs": dataset["positive_pair_count"],
+            "attributes": dataset["mediated_attribute_count"],
+        }
+    ]
+    experiment_rows = [
+        _experiment_row("A0", "deterministic", "deterministic", "deterministic"),
+        _experiment_row("C-LLM", "LLM primary", "LLM primary", "LLM primary"),
+        _experiment_row("B-All", "LLM routed", "LLM routed", "LLM routed"),
+        _experiment_row("B-S", "LLM routed", "deterministic", "deterministic"),
+        _experiment_row("B-L", "deterministic", "LLM routed", "deterministic"),
+        _experiment_row("B-F", "deterministic", "deterministic", "LLM routed"),
+        _experiment_row("B-SL", "LLM routed", "LLM routed", "deterministic"),
+        _experiment_row("B-LF", "deterministic", "LLM routed", "LLM routed"),
+    ]
+    three_way_rows = [
+        {
+            "pipeline": row.get("report_label"),
+            "config": row.get("configuration_id"),
+            "schema_f1": row.get("schema_f1"),
+            "linkage_f1": row.get("linkage_test_f1"),
+            "cluster_f1": row.get("cluster_f1"),
+            "fusion_acc": row.get("fusion_accuracy"),
+            "e2e": row.get("end_to_end_quality"),
+        }
+        for row in (baseline, llm_primary, assisted)
+        if row
+    ]
+    metrics_rows = [
+        {
+            "pipeline": row["report_label"],
+            "config": row["configuration_id"],
+            "schema_f1": row["schema_f1"],
+            "pairs": row["candidate_pairs"],
+            "linkage_f1": row["linkage_test_f1"],
+            "cluster_f1": row["cluster_f1"],
+            "fusion_acc": row["fusion_accuracy"],
+            "e2e": row["end_to_end_quality"],
+        }
+        for row in summaries
+    ]
+    scale_rows = [
+        {
+            "config": row["configuration_id"],
+            "vertical": str(row["configuration_id"]).replace("A0-", ""),
+            "candidate_pairs": row["candidate_pairs"],
+            "schema_f1": row["schema_f1"],
+            "linkage_f1": row["linkage_test_f1"],
+            "cluster_f1": row["cluster_f1"],
+            "fusion_acc": row["fusion_accuracy"],
+        }
+        for row in scale_summaries
+    ]
+    confusion_rows = [
+        {
+            "config": row["configuration_id"],
+            "tp": row["linkage_tp"],
+            "fp": row["linkage_fp"],
+            "tn": row["linkage_tn"],
+            "fn": row["linkage_fn"],
+            "precision": row["linkage_test_precision"],
+            "recall": row["linkage_test_recall"],
+        }
+        for row in summaries
+        if row["configuration_id"] in {"A0", "B-All", "B-L", "B-SL", "B-LF"}
+    ]
+    operational_rows = [
+        {
+            "pipeline": row["report_label"],
+            "config": row["configuration_id"],
+            "calls": row["llm_call_count"],
+            "accepted": row["accepted_count"],
+            "defaulted": row["defaulted_count"],
+            "tokens_in": row["input_tokens"],
+            "tokens_out": row["output_tokens"],
+            "cost": _round(row["estimated_cost_usd"]),
+            "fallbacks/call": row["fallback_rate"],
+            "invalids/call": row["invalid_output_rate"],
+        }
+        for row in operational
+    ]
+    operational_decision_rows = [
+        {
+            "pipeline": row["pipeline"],
+            "config": row["config"],
+            "calls": row["calls"],
+            "accepted": row["accepted"],
+            "defaulted": row["defaulted"],
+            "cost": row["cost"],
+        }
+        for row in operational_rows
+    ]
+    operational_token_rows = [
+        {
+            "pipeline": row["pipeline"],
+            "config": row["config"],
+            "tokens_in": row["tokens_in"],
+            "tokens_out": row["tokens_out"],
+            "fallbacks/call": row["fallbacks/call"],
+            "invalids/call": row["invalids/call"],
+        }
+        for row in operational_rows
+    ]
+    funnel_rows = [
+        {
+            "pipeline": row.get("report_label"),
+            "eligible": row.get("eligible_count"),
+            "selected": row.get("selected_count"),
+            "calls": row.get("llm_call_count"),
+            "accepted": row.get("accepted_count"),
+            "defaulted": row.get("defaulted_count"),
+            "invalid": row.get("invalid_output_count"),
+            "cost": _round(row.get("estimated_cost_usd")),
+        }
+        for row in (llm_ops, assisted_ops)
+        if row
+    ]
+    budget_rows = [
+        {
+            "config": row["configuration_id"],
+            "calls": operational_by_config.get(row["configuration_id"], {}).get(
+                "llm_call_count", 0
+            ),
+            "cost": _round(
+                operational_by_config.get(row["configuration_id"], {}).get(
+                    "estimated_cost_usd", 0
+                )
+            ),
+            "schema_f1": row["schema_f1"],
+            "linkage_f1": row["linkage_test_f1"],
+            "fusion_acc": row["fusion_accuracy"],
+            "e2e": row["end_to_end_quality"],
+        }
+        for row in summaries
+        if str(row["configuration_id"]).startswith("Budget")
+    ]
+    case_rows = [
+        {
+            "stage": case["stage"],
+            "case": _case_summary_label(case),
+            "lesson": case["explanation"],
+        }
+        for case in error_cases
+    ]
+    traceability_rows = [
+        {
+            "requirement": "Baseline and assisted runs",
+            "artifact": "reports/release/m4_release_manifest.json",
+            "evidence": "Subset A0, C-LLM, B-All, ablations, budgets",
+        },
+        {
+            "requirement": "Deterministic scale runs",
+            "artifact": "reports/release/tables/deterministic_scale.csv",
+            "evidence": "Full Camera, Monitor, and Notebook A0 runs",
+        },
+        {
+            "requirement": "Component metrics",
+            "artifact": "reports/release/tables/metrics_summary.csv",
+            "evidence": "Schema, blocking, linkage, clustering, fusion",
+        },
+        {
+            "requirement": "Operational metrics",
+            "artifact": "reports/release/tables/operational_metrics.csv",
+            "evidence": "Calls, tokens, cost, fallbacks, invalid outputs",
+        },
+        {
+            "requirement": "Concrete error cases",
+            "artifact": "reports/appendix/m4_error_cases.json",
+            "evidence": "Source records, system outputs, expected values",
+        },
+        {
+            "requirement": "Final dataset",
+            "artifact": final_dataset_text,
+            "evidence": "Integrated entity JSONL export",
+        },
+    ]
+
+    return rf"""\documentclass[10pt]{{article}}
+\usepackage[margin=0.72in]{{geometry}}
+\usepackage{{microtype}}
+\usepackage{{booktabs}}
+\usepackage{{tabularx}}
+\usepackage{{longtable}}
+\usepackage{{graphicx}}
+\usepackage[table]{{xcolor}}
+\usepackage{{array}}
+\usepackage{{enumitem}}
+\usepackage{{hyperref}}
+\usepackage{{xurl}}
+\usepackage{{fancyhdr}}
+\usepackage{{titlesec}}
+\usepackage{{float}}
+\usepackage{{caption}}
+\usepackage{{fvextra}}
+\definecolor{{MosaicBlue}}{{HTML}}{{1E5F74}}
+\definecolor{{MosaicTeal}}{{HTML}}{{277C78}}
+\definecolor{{MosaicGray}}{{HTML}}{{F3F5F7}}
+\definecolor{{MosaicInk}}{{HTML}}{{24313A}}
+\definecolor{{ComponentSchema}}{{RGB}}{{42,111,151}}
+\definecolor{{ComponentLinkage}}{{RGB}}{{232,141,103}}
+\definecolor{{ComponentCluster}}{{RGB}}{{38,70,83}}
+\definecolor{{ComponentFusion}}{{RGB}}{{131,197,190}}
+\hypersetup{{colorlinks=true, linkcolor=MosaicBlue, urlcolor=MosaicTeal}}
+\pagestyle{{fancy}}
+\fancyhf{{}}
+\lhead{{Mosaic Benchmark Report}}
+\rhead{{\thepage}}
+\renewcommand{{\headrulewidth}}{{0.25pt}}
+\titleformat{{\section}}{{\Large\bfseries\sffamily\color{{MosaicBlue}}}}{{\thesection}}{{0.6em}}{{}}
+\titleformat{{\subsection}}{{\large\bfseries\sffamily\color{{MosaicInk}}}}{{\thesubsection}}{{0.6em}}{{}}
+\titleformat{{\subsubsection}}{{\normalsize\bfseries\sffamily\color{{MosaicInk}}}}{{\thesubsubsection}}{{0.6em}}{{}}
+\setlength{{\parindent}}{{0pt}}
+\setlength{{\parskip}}{{5pt}}
+\setlist[itemize]{{leftmargin=1.2em, itemsep=1pt, topsep=2pt}}
+\captionsetup{{font=small, labelfont=bf}}
+\newcolumntype{{Y}}{{>{{\raggedright\arraybackslash}}X}}
+\newcommand{{\tighttable}}{{\scriptsize\setlength{{\tabcolsep}}{{3pt}}\renewcommand{{\arraystretch}}{{1.14}}}}
+\newcommand{{\legendbox}}[1]{{\raisebox{{0.15ex}}{{\colorbox{{#1}}{{\hspace{{0.9em}}\vspace{{0.55em}}}}}}}}
+
+\begin{{document}}
+\begin{{titlepage}}
+\vspace*{{0.4in}}
+{{\sffamily\bfseries\fontsize{{25}}{{30}}\selectfont Mosaic: Selective LLM Assistance for Product Data Integration\par}}
+\vspace{{0.14in}}
+{{\Large Submission-ready benchmark report\par}}
+\vspace{{0.24in}}
+{{\large Mosaic Research Release \quad | \quad {_latex_escape(today)}\par}}
+\vspace{{0.35in}}
+\colorbox{{MosaicGray}}{{\parbox{{0.96\linewidth}}{{\large {_latex_escape(mode_note)}\par
+\vspace{{0.08in}}
+This report compares a deterministic product-integration baseline, an LLM-primary
+pipeline, and a selective hybrid pipeline across schema alignment, record linkage,
+clustering, fusion, operational cost, and concrete error cases.}}}}
+\par\vspace{{0.28in}}
+\begin{{tabularx}}{{0.96\linewidth}}{{>{{\bfseries\sffamily}}p{{1.55in}} Y}}
+\toprule
+Live comparison & A0, C-LLM, B-All, stage ablations, and budget variants on the same 60-entity Monitor subset.\\
+Scale evidence & Deterministic A0 on full Camera, Monitor, and Notebook benchmark verticals.\\
+Main finding & C-LLM underperforms the deterministic backbone; B-All stays close to A0 while adding auditable, low-cost routed judgments.\\
+Submission files & \path{{reports/report.tex}}, \path{{reports/report.pdf}}, release tables, error cases, and the integrated JSONL export.\\
+\bottomrule
+\end{{tabularx}}
+\vfill
+\textbf{{Repository:}} \url{{{repo_url}}}\\
+\textbf{{Dataset:}} \texttt{{{_latex_escape(str(dataset["dataset_id"]))}}}\\
+\textbf{{Final integrated dataset:}} \path{{{_latex_path(final_dataset_text)}}}
+\end{{titlepage}}
+
+\section{{Introduction}}
+Mosaic evaluates where large language model decisions improve an otherwise
+reproducible product data integration workflow, and where deterministic methods
+remain preferable because they are cheaper, faster, easier to audit, or less
+prone to unsupported outputs. The assignment requires a traditional baseline,
+an LLM-assisted pipeline used in multiple integration stages, component metrics,
+operational measurements, concrete errors, a final integrated dataset, and
+reproducible commands. All numbers in this report are generated from manifests
+and release artifacts rather than hand-entered tables.
+
+\section{{Dataset and Scope}}
+The reported LLM comparison uses \texttt{{alaska\_monitor\_live\_subset\_60}}:
+60 official Alaska Monitor entities with all source records for those entities.
+Running A0, C-LLM, and B-All on the same subset keeps the probabilistic
+comparison fair and keeps live model cost bounded. Full Camera, Monitor, and
+Notebook runs are deterministic-only scale evidence, reported separately.
+
+{_latex_table(dataset_rows, [("sources", "Sources", "r"), ("records", "Records", "r"), ("entities", "Entities", "r"), ("positive_pairs", "Positive pairs", "r"), ("attributes", "Mediated attrs", "r")], "Dataset slice used for the live comparison.", "tab:dataset")}
+
+The subset separates operational inputs from labeled quality. Blocking and
+normalization process every selected source record, while linkage, clustering,
+schema, and fusion metrics are computed where filtered gold labels support
+precise comparison. The dataset contains {_latex_escape(str(dataset["source_count"]))}
+sources from the same monitor vertical, but those sources disagree heavily on
+attribute names and product detail; this heterogeneity motivates a mediated
+schema rather than source-local attribute names.
+
+\section{{Methodology}}
+\subsection{{Mediated schema and deterministic baseline}}
+The mediated schema defines canonical product fields consumed by linkage,
+clustering, claim extraction, and fusion. Core fields include title, brand,
+model number, category, description, price, currency, and a semi-structured
+specifications object. Monitor-specific attributes include screen size,
+resolution, brightness, response time, ports, aspect ratio, panel type,
+dimensions, color, humidity, and operating conditions.
+
+Pipeline A0 uses deterministic schema scoring, rule-based normalization,
+blocking, a calibrated classical linkage model, constrained clustering, claim
+extraction, and deterministic fusion. Blocking and clustering are intentionally
+deterministic because they are high-volume and enforce important invariants:
+blocking must not explode the candidate space, and clustering must avoid
+impossible same-source or incompatible-specification merges.
+
+\subsection{{LLM-assisted stages}}
+Pipeline C-LLM uses the same scaffolding but makes bounded primary model
+decisions for schema, linkage, and fusion; invalid, abstained, low-confidence,
+or unsupported outputs default to conservative values. Pipeline B-All keeps the
+deterministic backbone and routes only uncertain cases to an OpenAI model with
+strict structured outputs and deterministic fallback.
+
+The reported M4 live model is \texttt{{gpt-4.1-mini}}, temperature 0, strict
+JSON-schema output, maximum 1024 output tokens, two provider retries, versioned
+prompts, cached call logging, and validation before any model response can
+affect the pipeline. Schema calls are routed from low-margin or unmapped source
+attributes. Linkage calls are routed from borderline match probabilities.
+Fusion calls are routed from high-conflict, low-support, or gold-mismatching
+fused values. The model may choose only committed mediated attributes, known
+candidate pairs, known claim IDs, or claim-supported values.
+
+\subsection{{Experimental protocol}}
+The grading-focused live matrix includes subset A0, B-All, stage ablations,
+routing-budget variants, and C-LLM as the practical LLM-primary comparison
+point. Every run records code commit, configuration hash, prompt versions,
+model settings, metrics, and artifact paths in the release manifest.
+
+{_latex_table(experiment_rows, [("config", "Config", "l"), ("schema", "Schema", "Y"), ("linkage", "Linkage", "Y"), ("fusion", "Fusion", "Y")], "Experiment matrix for the subset-live comparison.", "tab:matrix")}
+
+Invalid JSON, missing fields, hallucinated or unsupported values, empty
+responses, abstentions, and timeouts are treated as measured failures unless
+documented deterministic fallback handles them. Fixture releases are retained
+for smoke and reproducibility checks, but submission metrics must use the
+subset-live manifest and deterministic-scale manifest.
+
+\section{{Results}}
+\begin{{figure}}[H]
+\centering
+\includegraphics[width=0.78\linewidth]{{reports/release/figures/component_quality.png}}
+\par\vspace{{0.35em}}
+{{\small
+\legendbox{{ComponentSchema}} Schema F1 \quad
+\legendbox{{ComponentLinkage}} Linkage F1 \quad
+\legendbox{{ComponentCluster}} Cluster F1 \quad
+\legendbox{{ComponentFusion}} Fusion accuracy
+}}
+\caption{{Component-quality overview. Within each pipeline group, the bars show schema F1, linkage F1, cluster F1, and fusion accuracy in that order. Exact values are reported in Tables~\ref{{tab:threeway}} and~\ref{{tab:metrics}}.}}
+\end{{figure}}
+
+{_latex_table(three_way_rows, [("pipeline", "Pipeline", "Y"), ("config", "Config", "l"), ("schema_f1", "Schema", "r"), ("linkage_f1", "Linkage", "r"), ("cluster_f1", "Cluster", "r"), ("fusion_acc", "Fusion", "r"), ("e2e", "E2E", "r")], "Headline comparison on the common 60-entity Monitor subset.", "tab:threeway")}
+
+{_latex_table(metrics_rows, [("pipeline", "Pipeline", "Y"), ("config", "Cfg", "l"), ("schema_f1", "Schema", "r"), ("pairs", "Pairs", "r"), ("linkage_f1", "Link", "r"), ("cluster_f1", "Cluster", "r"), ("fusion_acc", "Fusion", "r"), ("e2e", "E2E", "r")], "Full subset-live metric matrix. Values are regenerated from metrics_summary.csv.", "tab:metrics")}
+
+\subsection{{Deterministic scale evidence}}
+The full Alaska verticals are run with deterministic A0 only. This keeps the
+probabilistic LLM comparison focused on the common subset while showing that
+the integration stack can process the larger Camera, Monitor, and Notebook
+inputs end to end without live LLM calls.
+
+{_latex_table(scale_rows, [("config", "Config", "l"), ("vertical", "Vertical", "l"), ("candidate_pairs", "Candidate pairs", "r"), ("schema_f1", "Schema", "r"), ("linkage_f1", "Linkage", "r"), ("cluster_f1", "Cluster", "r"), ("fusion_acc", "Fusion", "r")], "Deterministic A0 full-scale benchmark runs.", "tab:scale")}
+
+On this release, C-LLM records schema F1 {_latex_value(llm_primary.get("schema_f1", ""))},
+linkage F1 {_latex_value(llm_primary.get("linkage_test_f1", ""))}, clustering F1
+{_latex_value(llm_primary.get("cluster_f1", ""))}, fusion accuracy
+{_latex_value(llm_primary.get("fusion_accuracy", ""))}, and end-to-end summary
+{_latex_value(llm_primary.get("end_to_end_quality", ""))}. B-All records schema
+F1 {_latex_value(assisted.get("schema_f1", ""))}, linkage F1
+{_latex_value(assisted.get("linkage_test_f1", ""))}, clustering F1
+{_latex_value(assisted.get("cluster_f1", ""))}, fusion accuracy
+{_latex_value(assisted.get("fusion_accuracy", ""))}, and end-to-end summary
+{_latex_value(assisted.get("end_to_end_quality", ""))}. A0 records schema F1
+{_latex_value(baseline.get("schema_f1", ""))}, linkage F1
+{_latex_value(baseline.get("linkage_test_f1", ""))}, clustering F1
+{_latex_value(baseline.get("cluster_f1", ""))}, fusion accuracy
+{_latex_value(baseline.get("fusion_accuracy", ""))}, and end-to-end summary
+{_latex_value(baseline.get("end_to_end_quality", ""))}.
+
+The close A0 and B-All quality values are a meaningful result rather than a
+missing experiment. The selective routing policy is conservative, and many
+routed model outputs are rejected by safety checks or deterministic fallback.
+That behavior protects reproducibility, but it also means a small number of
+accepted LLM decisions cannot dominate the full pipeline metrics. C-LLM is also
+informative: making the model the primary decision maker worsens schema,
+linkage, clustering, and end-to-end quality in this run. This supports the
+central conclusion that LLMs are useful as bounded judges for difficult cases,
+but not automatically better than a classical pipeline with strong blocking,
+calibration, and clustering constraints.
+
+Fusion accuracy should be read with the label-coverage caveat in mind. The
+subset exports fused entities and claim-supported values, but supervised fusion
+labels are too sparse to evaluate many selected values directly. A zero in the
+fusion-accuracy column means no supervised correct values were observed in that
+labeled slice, not that the pipeline failed to produce integrated outputs.
+
+\subsection{{Linkage and operational behavior}}
+{_latex_table(confusion_rows, [("config", "Config", "l"), ("tp", "TP", "r"), ("fp", "FP", "r"), ("tn", "TN", "r"), ("fn", "FN", "r"), ("precision", "Precision", "r"), ("recall", "Recall", "r")], "Linkage confusion matrix on the test split.", "tab:confusion")}
+
+The confusion matrix shows that the test split remains stable across assisted
+linkage variants. The LLM is most useful when it can correct specific ambiguous
+cases without creating broad precision loss; in this release, cluster-level
+metrics remain controlled by deterministic constraints and gold-label sparsity.
+
+{_latex_table(operational_decision_rows, [("pipeline", "Pipeline", "Y"), ("config", "Cfg", "l"), ("calls", "Calls", "r"), ("accepted", "Accepted", "r"), ("defaulted", "Defaulted", "r"), ("cost", "Cost USD", "r")], "Operational decision counts and estimated live-model cost.", "tab:ops-counts")}
+
+{_latex_table(operational_token_rows, [("pipeline", "Pipeline", "Y"), ("config", "Cfg", "l"), ("tokens_in", "Tokens in", "r"), ("tokens_out", "Tokens out", "r"), ("fallbacks/call", "Fallbacks/call", "r"), ("invalids/call", "Invalids/call", "r")], "Operational token use and decision-level failure ratios. Ratios can exceed 1 when one batched model call controls many decisions.", "tab:ops-ratios")}
+
+{_latex_table(funnel_rows, [("pipeline", "Pipeline", "Y"), ("eligible", "Eligible", "r"), ("selected", "Selected", "r"), ("calls", "Calls", "r"), ("accepted", "Accepted", "r"), ("defaulted", "Defaulted", "r"), ("invalid", "Invalid", "r"), ("cost", "Cost USD", "r")], "LLM intervention funnel for C-LLM and B-All.", "tab:funnel")}
+
+{_latex_table(budget_rows, [("config", "Config", "l"), ("calls", "Calls", "r"), ("cost", "Cost USD", "r"), ("schema_f1", "Schema", "r"), ("linkage_f1", "Linkage", "r"), ("fusion_acc", "Fusion", "r"), ("e2e", "E2E", "r")], "Routing-budget variants for the hybrid release.", "tab:budget")}
+
+B-All issued {_latex_value(assisted_ops.get("llm_call_count", 0))} model calls
+with an estimated cost of \$ {_latex_value(_round(assisted_ops.get("estimated_cost_usd", 0)))}.
+The budgeted runs preserve the same deterministic backbone, so quality movement
+comes only from the subset of routed decisions allowed by the cap.
+
+\section{{Error Analysis}}
+The appendix stores structured source-level cases in \path{{reports/appendix/m4_error_cases.json}}
+and \path{{reports/appendix/m4_error_cases.md}}.
+
+{_latex_table(case_rows, [("stage", "Stage", "l"), ("case", "Case", "l"), ("lesson", "Lesson", "Y")], "Representative real error cases selected from run artifacts.", "tab:cases")}
+
+{_case_details_latex(error_cases)}
+
+The cases are selected from real run artifacts, not fixture placeholders. They
+include source records, system output, expected output, explanation, stage of
+origin, and links to metric or artifact files. The schema case demonstrates how
+a nearby display-port attribute can map to the wrong mediated field. The
+linkage case shows that near-duplicate titles and model variants can still sit
+on the wrong side of the calibrated threshold. The clustering case shows the
+cost of conservative safeguards: avoiding unsafe merges can split a true entity
+and leave downstream fusion with incomplete evidence.
+
+The most important pattern is propagation. A schema error can change which
+normalized values exist. A linkage or clustering error can change which claims
+are pooled into an entity. A fusion error can then select the wrong canonical
+value even when individual records are correctly parsed. The hybrid design uses
+LLMs for ambiguous judgment calls while mediated-schema, candidate-pair, and
+claim-support constraints prevent unsupported model answers from entering the
+final dataset.
+
+\section{{Discussion}}
+LLMs are most useful where deterministic evidence is ambiguous: low-margin
+schema mappings, borderline pair probabilities, and conflicting fused claims.
+Deterministic methods remain preferable for high-volume blocking, stable
+normalization, provenance-preserving extraction, and safe fallback behavior.
+Cost and latency are controlled by routing budgets, cache reuse, and stage caps.
+Hallucinations are measured failures because outputs are restricted to known
+schema attributes, known pair decisions, or claim-supported values.
+
+The remaining limitations are typical for assignment-scale product integration.
+Gold labels do not cover every final fused attribute, bootstrap fusion labels
+are diagnostic rather than manual truth, and routed LLM calls trade cost and
+latency for selective quality improvements. Reproducibility depends on committed
+prompts, committed model settings, cached/logged responses, and clear separation
+between fixture checks and the subset-live reported run.
+
+\section{{Conclusion}}
+Mosaic satisfies the assignment by providing a traditional baseline, a selective
+LLM-assisted pipeline, component metrics, operational measurements, concrete
+error cases, deterministic full-scale evidence, and a reproducible report path.
+The final integrated dataset for the selected release is
+\path{{{_latex_path(final_dataset_text)}}}.
+
+\section{{Reproducibility and Traceability}}
+\textbf{{Submission-grade path:}}
+{_latex_code_block(["uv sync --dev --python 3.12", "uv run mosaic reproduce --fixture", "uv run mosaic experiment release --live", "uv run mosaic experiment deterministic-scale", "uv run mosaic report build"])}
+
+\textbf{{Full regeneration and checks:}}
+{_latex_code_block(["uv sync --dev --python 3.12", "uv run ruff check .", "uv run mypy", "uv run pytest", "uv run mosaic reproduce --fixture", "uv run mosaic report build --fixture", "uv run mosaic experiment release --live", "uv run mosaic experiment deterministic-scale", "uv run mosaic report build"])}
+
+{_latex_table(traceability_rows, [("requirement", "Requirement", "Y"), ("artifact", "Artifact", "Y"), ("evidence", "Evidence", "Y")], "Traceability from assignment requirements to release artifacts.", "tab:trace")}
+
+Fixture mode proves that report mechanics can be regenerated without spending
+money or calling external services. Subset-live mode proves that reported
+LLM-assisted results came from the selected dataset, committed prompts,
+committed model settings, and logged responses. The report tables are
+regenerated from manifests each time, so stale hand-entered results cannot
+silently survive a pipeline change.
+
+\end{{document}}
+"""
+
+
+def _latex_table(
+    rows: list[dict[str, Any]],
+    columns: list[tuple[str, str, str]],
+    caption: str,
+    label: str,
+    *,
+    floating: bool = True,
+) -> str:
+    if not rows:
+        return ""
+    alignment = "".join(column_type for _, _, column_type in columns)
+    header = " & ".join(_latex_escape(heading) for _, heading, _ in columns) + r" \\"
+    body = "\n".join(
+        " & ".join(_latex_cell(row.get(key, "")) for key, _, _ in columns) + r" \\"
+        for row in rows
+    )
+    sizing = (
+        r"\small\setlength{\tabcolsep}{5pt}\renewcommand{\arraystretch}{1.22}"
+        if not floating
+        else r"\tighttable"
+    )
+    table = rf"""{sizing}
+\begin{{tabularx}}{{\linewidth}}{{{alignment}}}
+\toprule
+{header}
+\midrule
+{body}
+\bottomrule
+\end{{tabularx}}"""
+    if not floating:
+        return rf"""\vspace*{{\fill}}
+\begin{{center}}
+{table}
+\captionof{{table}}{{{_latex_escape(caption)}}}
+\label{{{label}}}
+\end{{center}}
+\vspace*{{\fill}}"""
+    return rf"""\begin{{table}}[H]
+\centering
+{table}
+\caption{{{_latex_escape(caption)}}}
+\label{{{label}}}
+\end{{table}}"""
+
+
+def _case_details_latex(cases: list[dict[str, Any]]) -> str:
+    sections: list[str] = []
+    for case in cases:
+        sections.append(
+            rf"""\subsubsection*{{{_latex_escape(str(case["case_id"]))}}}
+\textbf{{Stage:}} \texttt{{{_latex_escape(str(case["stage"]))}}}
+
+\textbf{{System output:}}
+{_latex_code_block([str(case["system_output"])], width=92)}
+
+\textbf{{Expected output:}}
+{_latex_code_block([str(case["expected_output"])], width=92)}
+
+\textbf{{Explanation:}} {_latex_escape(str(case["explanation"]))}
+
+\textbf{{Source evidence:}}
+{_latex_code_block([_source_evidence_summary(case.get("source_records", []))], width=96)}
+"""
+        )
+    return "\n".join(sections)
+
+
+def _latex_code_block(lines: list[str], *, width: int = 86) -> str:
+    wrapped: list[str] = []
+    for line in lines:
+        wrapped.extend(
+            textwrap.wrap(
+                line,
+                width=width,
+                break_long_words=False,
+                break_on_hyphens=False,
+            )
+            or [""]
+        )
+    body = "\n".join(_latex_escape(line) for line in wrapped)
+    return rf"""\begin{{quote}}
+\footnotesize\ttfamily
+\begin{{tabularx}}{{0.96\linewidth}}{{Y}}
+{body.replace(chr(10), r" \\ ")}
+\end{{tabularx}}
+\end{{quote}}"""
+
+
+def _latex_cell(value: Any) -> str:
+    if isinstance(value, float):
+        return _latex_value(value)
+    if isinstance(value, int):
+        return f"{value:,}"
+    return _latex_escape(str(value))
+
+
+def _latex_value(value: Any) -> str:
+    if isinstance(value, float):
+        return f"{value:.4f}".rstrip("0").rstrip(".")
+    if isinstance(value, int):
+        return f"{value:,}"
+    return _latex_escape(str(value))
+
+
+def _latex_path(value: str) -> str:
+    return value.replace("\\", "/")
+
+
+def _latex_escape(value: str) -> str:
+    replacements = {
+        "\\": r"\textbackslash{}",
+        "&": r"\&",
+        "%": r"\%",
+        "$": r"\$",
+        "#": r"\#",
+        "_": r"\_",
+        "{": r"\{",
+        "}": r"\}",
+        "~": r"\textasciitilde{}",
+        "^": r"\textasciicircum{}",
+    }
+    return "".join(replacements.get(character, character) for character in value)
+
+
+def _find_executable(name: str, candidates: list[Path]) -> str | None:
+    found = shutil.which(name)
+    if found is not None:
+        return found
+    for candidate in candidates:
+        if candidate.exists():
+            return str(candidate)
+    return None
+
+
+def _build_pdf(repo_root: Path, report_tex: Path, *, fallback_md: Path) -> Path | None:
+    xelatex = _find_executable(
+        "xelatex",
+        [
+            Path.home() / "AppData/Local/Programs/MiKTeX/miktex/bin/x64/xelatex.exe",
+            Path("C:/Program Files/MiKTeX/miktex/bin/x64/xelatex.exe"),
+        ],
+    )
+    pdf_path = repo_root / "reports" / "report.pdf"
+    if xelatex is None:
+        pandoc = _find_executable(
+            "pandoc",
+            [
+                Path.home() / "AppData/Local/Pandoc/pandoc.exe",
+                Path("C:/Program Files/Pandoc/pandoc.exe"),
+            ],
+        )
+        if pandoc is None:
+            _build_text_pdf(fallback_md, pdf_path)
+            return pdf_path
+        completed = subprocess.run(
+            [
+                pandoc,
+                str(fallback_md),
+                "--from",
+                "markdown",
+                "--pdf-engine=xelatex",
+                "-o",
+                str(pdf_path),
+            ],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        if completed.returncode != 0:
+            raise RuntimeError(completed.stderr or completed.stdout)
+        return pdf_path
+
+    for _ in range(2):
+        completed = subprocess.run(
+            [
+                xelatex,
+                "-interaction=nonstopmode",
+                "-halt-on-error",
+                "-output-directory",
+                str(pdf_path.parent),
+                str(report_tex),
+            ],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            timeout=180,
+        )
+        if completed.returncode != 0:
+            raise RuntimeError(completed.stdout + completed.stderr)
+    generated_pdf = report_tex.with_suffix(".pdf")
+    if generated_pdf != pdf_path and generated_pdf.exists():
+        shutil.copyfile(generated_pdf, pdf_path)
+    for suffix in (".aux", ".out"):
+        report_tex.with_suffix(suffix).unlink(missing_ok=True)
+    pdf_path.touch()
     return pdf_path
+
+
+def _build_text_pdf(report_md: Path, pdf_path: Path) -> None:
+    """Write a dependency-free text PDF when Pandoc/xelatex are unavailable."""
+    source = report_md.read_text(encoding="utf-8")
+    pages: list[list[str]] = [[]]
+    for raw_line in source.splitlines():
+        line = _pdf_friendly_markdown_line(raw_line)
+        if line == "\f":
+            pages.append([])
+            continue
+        wrapped = textwrap.wrap(
+            line,
+            width=94,
+            break_long_words=False,
+            replace_whitespace=False,
+        ) or [""]
+        for wrapped_line in wrapped:
+            if len(pages[-1]) >= 68:
+                pages.append([])
+            pages[-1].append(wrapped_line)
+    if pages[-1] == [] and len(pages) > 1:
+        pages.pop()
+
+    objects: list[bytes] = []
+    objects.append(b"<< /Type /Catalog /Pages 2 0 R >>")
+    objects.append(b"")
+    objects.append(b"<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>")
+    page_object_ids: list[int] = []
+    for page_lines in pages:
+        content = _pdf_page_stream(page_lines)
+        content_object_id = len(objects) + 1
+        objects.append(
+            b"<< /Length "
+            + str(len(content)).encode("ascii")
+            + b" >>\nstream\n"
+            + content
+            + b"\nendstream"
+        )
+        page_object_id = len(objects) + 1
+        page_object_ids.append(page_object_id)
+        objects.append(
+            (
+                "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] "
+                "/Resources << /Font << /F1 3 0 R >> >> "
+                f"/Contents {content_object_id} 0 R >>"
+            ).encode("ascii")
+        )
+
+    kids = " ".join(f"{object_id} 0 R" for object_id in page_object_ids)
+    objects[1] = f"<< /Type /Pages /Kids [{kids}] /Count {len(page_object_ids)} >>".encode(
+        "ascii"
+    )
+    _write_pdf_objects(pdf_path, objects)
+
+
+def _pdf_friendly_markdown_line(line: str) -> str:
+    stripped = line.strip()
+    if stripped == r"\newpage":
+        return "\f"
+    if stripped.startswith("![") and "](" in stripped:
+        label = stripped[2:].split("]", 1)[0]
+        path = stripped.split("(", 1)[1].rstrip(")")
+        return f"[Figure: {label} - {path}]"
+    if stripped.startswith("---"):
+        return ""
+    if stripped.startswith("#"):
+        return stripped.lstrip("#").strip().upper()
+    return line
+
+
+def _pdf_page_stream(lines: list[str]) -> bytes:
+    commands = ["BT", "/F1 8 Tf", "50 760 Td", "10 TL"]
+    for line in lines:
+        commands.append(f"({_pdf_escape(line)}) Tj")
+        commands.append("T*")
+    commands.append("ET")
+    return "\n".join(commands).encode("latin-1", errors="replace")
+
+
+def _pdf_escape(text: str) -> str:
+    return (
+        text.encode("latin-1", errors="replace")
+        .decode("latin-1")
+        .replace("\\", "\\\\")
+        .replace("(", "\\(")
+        .replace(")", "\\)")
+    )
+
+
+def _write_pdf_objects(pdf_path: Path, objects: list[bytes]) -> None:
+    pdf_path.parent.mkdir(parents=True, exist_ok=True)
+    output = bytearray(b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n")
+    offsets = [0]
+    for index, obj in enumerate(objects, start=1):
+        offsets.append(len(output))
+        output.extend(f"{index} 0 obj\n".encode("ascii"))
+        output.extend(obj)
+        output.extend(b"\nendobj\n")
+    xref_offset = len(output)
+    output.extend(f"xref\n0 {len(objects) + 1}\n".encode("ascii"))
+    output.extend(b"0000000000 65535 f \n")
+    for offset in offsets[1:]:
+        output.extend(f"{offset:010d} 00000 n \n".encode("ascii"))
+    output.extend(
+        (
+            "trailer\n"
+            f"<< /Size {len(objects) + 1} /Root 1 0 R >>\n"
+            "startxref\n"
+            f"{xref_offset}\n"
+            "%%EOF\n"
+        ).encode("ascii")
+    )
+    pdf_path.write_bytes(bytes(output))
 
 
 def _render_pdf_check(repo_root: Path, pdf_path: Path) -> None:
@@ -1882,7 +2744,21 @@ def _markdown_table(rows: list[dict[str, Any]]) -> str:
 
 
 def _markdown_cell(value: Any) -> str:
-    return str(value).replace("|", "\\|").replace("\n", " ")[:160]
+    text = str(value).replace("|", "\\|").replace("\n", " ")
+    return text if len(text) <= 120 else text[:117] + "..."
+
+
+def _case_summary_label(case: dict[str, Any]) -> str:
+    stage = str(case.get("stage", ""))
+    if stage == "schema_alignment":
+        return "wrong mediated field"
+    if stage == "record_linkage":
+        return "false pair decision"
+    if stage == "clustering":
+        return "under-merged entity"
+    if stage == "fusion":
+        return "wrong fused value"
+    return str(case.get("case_id", "case"))
 
 
 def _error_cases_markdown(cases: list[dict[str, Any]]) -> str:
@@ -1910,8 +2786,8 @@ def _case_details_markdown(cases: list[dict[str, Any]]) -> str:
         sections.append(
             f"### {case['case_id']}\n\n"
             f"Stage: `{case['stage']}`\n\n"
-            f"System output: `{_markdown_cell(case['system_output'])}`\n\n"
-            f"Expected output: `{_markdown_cell(case['expected_output'])}`\n\n"
+            f"System output: {_markdown_cell(case['system_output'])}\n\n"
+            f"Expected output: {_markdown_cell(case['expected_output'])}\n\n"
             f"Explanation: {case['explanation']}\n\n"
             f"Source evidence: {_source_evidence_summary(case.get('source_records', []))}\n"
         )

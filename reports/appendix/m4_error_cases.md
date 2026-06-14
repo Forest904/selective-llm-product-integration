@@ -1,22 +1,22 @@
 # M4 Error Case Appendix
 
-## schema_source_alpha//price
+## schema_ca.pcpartpicker.com//displayport
 
 - Stage: `schema_alignment`
-- System output: `{'source_attribute_id': 'source_alpha//price', 'predicted_target_attribute_name': 'UNMAPPED', 'score_total': 1.0, 'method': 'deterministic_schema_v1'}`
-- Expected output: `{'gold_target_attribute_name': 'price'}`
+- System output: `{'source_attribute_id': 'ca.pcpartpicker.com//displayport', 'predicted_target_attribute_name': 'has_displayport', 'sc...`
+- Expected output: `{'gold_target_attribute_name': 'displayport_quantity'}`
 - Explanation: The source attribute was mapped to the wrong mediated-schema field, which can propagate into normalization and fusion.
 
-## fusion_1_entity_000001
+## linkage_pair_00000025
 
-- Stage: `fusion`
-- System output: `{'entity_id': 'entity_000001', 'attribute': 'price', 'predicted_value': '305.00'}`
-- Expected output: `{'truth_entity_id': 'ENTITY#001', 'expected_value': 'None'}`
-- Explanation: The fused value disagrees with the curated or bootstrap fusion gold value, usually because conflicting source claims normalize to close but not identical values.
+- Stage: `record_linkage`
+- System output: `{'candidate_pair_id': 'pair_00000025', 'match_prediction': 0, 'match_probability': 0.45589268898553187}`
+- Expected output: `{'ground_truth_label': 1}`
+- Explanation: The pairwise matcher prediction disagrees with the labeled entity-resolution pair.
 
-## fixture_placeholder_3
+## cluster_undermerge_ENTITY#022
 
-- Stage: `fixture_only`
-- System output: `No additional labeled error was available.`
-- Expected output: `N/A`
-- Explanation: Fixture-only placeholder. This cannot satisfy the M4 submission gate.
+- Stage: `clustering`
+- System output: `{'predicted_cluster_count': 6, 'predicted_entity_ids': ['entity_000083', 'entity_000104', 'entity_000270', 'entity_00...`
+- Expected output: `{'ground_truth_entity_id': 'ENTITY#022', 'expected_cluster_count': 1}`
+- Explanation: Records from one labeled truth entity were split across multiple predicted clusters, so downstream fusion sees incomplete claim evidence.

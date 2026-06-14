@@ -1,0 +1,588 @@
+\documentclass[10pt]{article}
+\usepackage[margin=0.72in]{geometry}
+\usepackage{microtype}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{graphicx}
+\usepackage[table]{xcolor}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{xurl}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{fvextra}
+\definecolor{MosaicBlue}{HTML}{1E5F74}
+\definecolor{MosaicTeal}{HTML}{277C78}
+\definecolor{MosaicGray}{HTML}{F3F5F7}
+\definecolor{MosaicInk}{HTML}{24313A}
+\definecolor{ComponentSchema}{RGB}{42,111,151}
+\definecolor{ComponentLinkage}{RGB}{232,141,103}
+\definecolor{ComponentCluster}{RGB}{38,70,83}
+\definecolor{ComponentFusion}{RGB}{131,197,190}
+\hypersetup{colorlinks=true, linkcolor=MosaicBlue, urlcolor=MosaicTeal}
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{Mosaic Benchmark Report}
+\rhead{\thepage}
+\renewcommand{\headrulewidth}{0.25pt}
+\titleformat{\section}{\Large\bfseries\sffamily\color{MosaicBlue}}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\large\bfseries\sffamily\color{MosaicInk}}{\thesubsection}{0.6em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries\sffamily\color{MosaicInk}}{\thesubsubsection}{0.6em}{}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{5pt}
+\setlist[itemize]{leftmargin=1.2em, itemsep=1pt, topsep=2pt}
+\captionsetup{font=small, labelfont=bf}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\newcommand{\tighttable}{\scriptsize\setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{1.14}}
+\newcommand{\legendbox}[1]{\raisebox{0.15ex}{\colorbox{#1}{\hspace{0.9em}\vspace{0.55em}}}}
+
+\begin{document}
+\begin{titlepage}
+\vspace*{0.4in}
+{\sffamily\bfseries\fontsize{25}{30}\selectfont Mosaic: Selective LLM Assistance for Product Data Integration\par}
+\vspace{0.14in}
+{\Large Submission-ready benchmark report\par}
+\vspace{0.24in}
+{\large Mosaic Research Release \quad | \quad 2026-06-14\par}
+\vspace{0.35in}
+\colorbox{MosaicGray}{\parbox{0.96\linewidth}{\large This is the subset-live academic release: assisted metrics come from live or cached OpenAI calls on the same 60-entity Monitor subset.\par
+\vspace{0.08in}
+This report compares a deterministic product-integration baseline, an LLM-primary
+pipeline, and a selective hybrid pipeline across schema alignment, record linkage,
+clustering, fusion, operational cost, and concrete error cases.}}
+\par\vspace{0.28in}
+\begin{tabularx}{0.96\linewidth}{>{\bfseries\sffamily}p{1.55in} Y}
+\toprule
+Live comparison & A0, C-LLM, B-All, stage ablations, and budget variants on the same 60-entity Monitor subset.\\
+Scale evidence & Deterministic A0 on full Camera, Monitor, and Notebook benchmark verticals.\\
+Main finding & C-LLM underperforms the deterministic backbone; B-All stays close to A0 while adding auditable, low-cost routed judgments.\\
+Submission files & \path{reports/report.tex}, \path{reports/report.pdf}, release tables, error cases, and the integrated JSONL export.\\
+\bottomrule
+\end{tabularx}
+\vfill
+\textbf{Repository:} \url{https://github.com/Forest904/selective-llm-product-integration.git}\\
+\textbf{Dataset:} \texttt{alaska\_monitor\_live\_subset\_60}\\
+\textbf{Final integrated dataset:} \path{reports/release/final_integrated_dataset.jsonl}
+\end{titlepage}
+
+\section{Introduction}
+Mosaic evaluates where large language model decisions improve an otherwise
+reproducible product data integration workflow, and where deterministic methods
+remain preferable because they are cheaper, faster, easier to audit, or less
+prone to unsupported outputs. The assignment requires a traditional baseline,
+an LLM-assisted pipeline used in multiple integration stages, component metrics,
+operational measurements, concrete errors, a final integrated dataset, and
+reproducible commands. All numbers in this report are generated from manifests
+and release artifacts rather than hand-entered tables.
+
+\section{Dataset and Scope}
+The reported LLM comparison uses \texttt{alaska\_monitor\_live\_subset\_60}:
+60 official Alaska Monitor entities with all source records for those entities.
+Running A0, C-LLM, and B-All on the same subset keeps the probabilistic
+comparison fair and keeps live model cost bounded. Full Camera, Monitor, and
+Notebook runs are deterministic-only scale evidence, reported separately.
+
+\begin{table}[H]
+\centering
+\tighttable
+\begin{tabularx}{\linewidth}{rrrrr}
+\toprule
+Sources & Records & Entities & Positive pairs & Mediated attrs \\
+\midrule
+26 & 782 & 60 & 4,975 & 94 \\
+\bottomrule
+\end{tabularx}
+\caption{Dataset slice used for the live comparison.}
+\label{tab:dataset}
+\end{table}
+
+The subset separates operational inputs from labeled quality. Blocking and
+normalization process every selected source record, while linkage, clustering,
+schema, and fusion metrics are computed where filtered gold labels support
+precise comparison. The dataset contains 26
+sources from the same monitor vertical, but those sources disagree heavily on
+attribute names and product detail; this heterogeneity motivates a mediated
+schema rather than source-local attribute names.
+
+\section{Methodology}
+\subsection{Mediated schema and deterministic baseline}
+The mediated schema defines canonical product fields consumed by linkage,
+clustering, claim extraction, and fusion. Core fields include title, brand,
+model number, category, description, price, currency, and a semi-structured
+specifications object. Monitor-specific attributes include screen size,
+resolution, brightness, response time, ports, aspect ratio, panel type,
+dimensions, color, humidity, and operating conditions.
+
+Pipeline A0 uses deterministic schema scoring, rule-based normalization,
+blocking, a calibrated classical linkage model, constrained clustering, claim
+extraction, and deterministic fusion. Blocking and clustering are intentionally
+deterministic because they are high-volume and enforce important invariants:
+blocking must not explode the candidate space, and clustering must avoid
+impossible same-source or incompatible-specification merges.
+
+\subsection{LLM-assisted stages}
+Pipeline C-LLM uses the same scaffolding but makes bounded primary model
+decisions for schema, linkage, and fusion; invalid, abstained, low-confidence,
+or unsupported outputs default to conservative values. Pipeline B-All keeps the
+deterministic backbone and routes only uncertain cases to an OpenAI model with
+strict structured outputs and deterministic fallback.
+
+The reported M4 live model is \texttt{gpt-4.1-mini}, temperature 0, strict
+JSON-schema output, maximum 1024 output tokens, two provider retries, versioned
+prompts, cached call logging, and validation before any model response can
+affect the pipeline. Schema calls are routed from low-margin or unmapped source
+attributes. Linkage calls are routed from borderline match probabilities.
+Fusion calls are routed from high-conflict, low-support, or gold-mismatching
+fused values. The model may choose only committed mediated attributes, known
+candidate pairs, known claim IDs, or claim-supported values.
+
+\subsection{Experimental protocol}
+The grading-focused live matrix includes subset A0, B-All, stage ablations,
+routing-budget variants, and C-LLM as the practical LLM-primary comparison
+point. Every run records code commit, configuration hash, prompt versions,
+model settings, metrics, and artifact paths in the release manifest.
+
+\begin{table}[H]
+\centering
+\tighttable
+\begin{tabularx}{\linewidth}{lYYY}
+\toprule
+Config & Schema & Linkage & Fusion \\
+\midrule
+A0 & deterministic & deterministic & deterministic \\
+C-LLM & LLM primary & LLM primary & LLM primary \\
+B-All & LLM routed & LLM routed & LLM routed \\
+B-S & LLM routed & deterministic & deterministic \\
+B-L & deterministic & LLM routed & deterministic \\
+B-F & deterministic & deterministic & LLM routed \\
+B-SL & LLM routed & LLM routed & deterministic \\
+B-LF & deterministic & LLM routed & LLM routed \\
+\bottomrule
+\end{tabularx}
+\caption{Experiment matrix for the subset-live comparison.}
+\label{tab:matrix}
+\end{table}
+
+Invalid JSON, missing fields, hallucinated or unsupported values, empty
+responses, abstentions, and timeouts are treated as measured failures unless
+documented deterministic fallback handles them. Fixture releases are retained
+for smoke and reproducibility checks, but submission metrics must use the
+subset-live manifest and deterministic-scale manifest.
+
+\section{Results}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.78\linewidth]{reports/release/figures/component_quality.png}
+\par\vspace{0.35em}
+{\small
+\legendbox{ComponentSchema} Schema F1 \quad
+\legendbox{ComponentLinkage} Linkage F1 \quad
+\legendbox{ComponentCluster} Cluster F1 \quad
+\legendbox{ComponentFusion} Fusion accuracy
+}
+\caption{Component-quality overview. Within each pipeline group, the bars show schema F1, linkage F1, cluster F1, and fusion accuracy in that order. Exact values are reported in Tables~\ref{tab:threeway} and~\ref{tab:metrics}.}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\tighttable
+\begin{tabularx}{\linewidth}{Ylrrrrr}
+\toprule
+Pipeline & Config & Schema & Linkage & Cluster & Fusion & E2E \\
+\midrule
+Deterministic & A0 & 0.4727 & 0.827 & 0.2246 & 0 & 0.3811 \\
+LLM & C-LLM & 0.4103 & 0.2051 & 0.0901 & 0 & 0.1764 \\
+Hybrid & B-All & 0.4727 & 0.8216 & 0.2236 & 0 & 0.3795 \\
+\bottomrule
+\end{tabularx}
+\caption{Headline comparison on the common 60-entity Monitor subset.}
+\label{tab:threeway}
+\end{table}
+
+\begin{table}[H]
+\centering
+\tighttable
+\begin{tabularx}{\linewidth}{Ylrrrrrr}
+\toprule
+Pipeline & Cfg & Schema & Pairs & Link & Cluster & Fusion & E2E \\
+\midrule
+Deterministic & A0 & 0.4727 & 20,576 & 0.827 & 0.2246 & 0 & 0.3811 \\
+LLM & C-LLM & 0.4103 & 18,050 & 0.2051 & 0.0901 & 0 & 0.1764 \\
+Hybrid & B-All & 0.4727 & 20,576 & 0.8216 & 0.2236 & 0 & 0.3795 \\
+B-S & B-S & 0.4727 & 20,576 & 0.8258 & 0.2236 & 0 & 0.3805 \\
+B-L & B-L & 0.4727 & 20,576 & 0.8228 & 0.2246 & 0 & 0.38 \\
+B-F & B-F & 0.4727 & 20,576 & 0.827 & 0.2246 & 0 & 0.3811 \\
+B-SL & B-SL & 0.4727 & 20,576 & 0.8216 & 0.2236 & 0 & 0.3795 \\
+B-LF & B-LF & 0.4727 & 20,576 & 0.8228 & 0.2246 & 0 & 0.38 \\
+Budget-0 & Budget-0 & 0.4727 & 20,576 & 0.827 & 0.2246 & 0 & 0.3811 \\
+Budget-5 & Budget-5 & 0.4727 & 20,576 & 0.8246 & 0.2246 & 0 & 0.3805 \\
+Budget-10 & Budget-10 & 0.4727 & 20,576 & 0.8228 & 0.2246 & 0 & 0.38 \\
+Budget-25 & Budget-25 & 0.4727 & 20,576 & 0.8216 & 0.2236 & 0 & 0.3795 \\
+\bottomrule
+\end{tabularx}
+\caption{Full subset-live metric matrix. Values are regenerated from metrics\_summary.csv.}
+\label{tab:metrics}
+\end{table}
+
+\subsection{Deterministic scale evidence}
+The full Alaska verticals are run with deterministic A0 only. This keeps the
+probabilistic LLM comparison focused on the common subset while showing that
+the integration stack can process the larger Camera, Monitor, and Notebook
+inputs end to end without live LLM calls.
+
+\begin{table}[H]
+\centering
+\tighttable
+\begin{tabularx}{\linewidth}{llrrrrr}
+\toprule
+Config & Vertical & Candidate pairs & Schema & Linkage & Cluster & Fusion \\
+\midrule
+A0-camera & camera & 793,890 & 0.0323 & 0.9874 & 0.0193 & 0 \\
+A0-monitor & monitor & 532,325 & 0.4833 & 0.9468 & 0.1272 & 0.7143 \\
+A0-notebook & notebook & 873,320 & 0.0341 & 0.6934 & 0.0109 & 0 \\
+\bottomrule
+\end{tabularx}
+\caption{Deterministic A0 full-scale benchmark runs.}
+\label{tab:scale}
+\end{table}
+
+On this release, C-LLM records schema F1 0.4103,
+linkage F1 0.2051, clustering F1
+0.0901, fusion accuracy
+0, and end-to-end summary
+0.1764. B-All records schema
+F1 0.4727, linkage F1
+0.8216, clustering F1
+0.2236, fusion accuracy
+0, and end-to-end summary
+0.3795. A0 records schema F1
+0.4727, linkage F1
+0.827, clustering F1
+0.2246, fusion accuracy
+0, and end-to-end summary
+0.3811.
+
+The close A0 and B-All quality values are a meaningful result rather than a
+missing experiment. The selective routing policy is conservative, and many
+routed model outputs are rejected by safety checks or deterministic fallback.
+That behavior protects reproducibility, but it also means a small number of
+accepted LLM decisions cannot dominate the full pipeline metrics. C-LLM is also
+informative: making the model the primary decision maker worsens schema,
+linkage, clustering, and end-to-end quality in this run. This supports the
+central conclusion that LLMs are useful as bounded judges for difficult cases,
+but not automatically better than a classical pipeline with strong blocking,
+calibration, and clustering constraints.
+
+Fusion accuracy should be read with the label-coverage caveat in mind. The
+subset exports fused entities and claim-supported values, but supervised fusion
+labels are too sparse to evaluate many selected values directly. A zero in the
+fusion-accuracy column means no supervised correct values were observed in that
+labeled slice, not that the pipeline failed to produce integrated outputs.
+
+\subsection{Linkage and operational behavior}
+\begin{table}[H]
+\centering
+\tighttable
+\begin{tabularx}{\linewidth}{lrrrrrr}
+\toprule
+Config & TP & FP & TN & FN & Precision & Recall \\
+\midrule
+A0 & 822 & 173 & 417 & 171 & 0.8261 & 0.8278 \\
+B-All & 813 & 173 & 417 & 180 & 0.8245 & 0.8187 \\
+B-L & 815 & 173 & 417 & 178 & 0.8249 & 0.8207 \\
+B-SL & 813 & 173 & 417 & 180 & 0.8245 & 0.8187 \\
+B-LF & 815 & 173 & 417 & 178 & 0.8249 & 0.8207 \\
+\bottomrule
+\end{tabularx}
+\caption{Linkage confusion matrix on the test split.}
+\label{tab:confusion}
+\end{table}
+
+The confusion matrix shows that the test split remains stable across assisted
+linkage variants. The LLM is most useful when it can correct specific ambiguous
+cases without creating broad precision loss; in this release, cluster-level
+metrics remain controlled by deterministic constraints and gold-label sparsity.
+
+\begin{table}[H]
+\centering
+\tighttable
+\begin{tabularx}{\linewidth}{Ylrrrr}
+\toprule
+Pipeline & Cfg & Calls & Accepted & Defaulted & Cost USD \\
+\midrule
+Deterministic & A0 & 0 & 0 & 0 & 0 \\
+LLM & C-LLM & 667 & 2,605 & 19,286 & 3.4545 \\
+Hybrid & B-All & 75 & 46 & 29 & 0.0479 \\
+B-S & B-S & 25 & 3 & 22 & 0.02 \\
+B-L & B-L & 25 & 22 & 3 & 0.0173 \\
+B-F & B-F & 25 & 24 & 1 & 0.0106 \\
+B-SL & B-SL & 50 & 22 & 28 & 0.0373 \\
+B-LF & B-LF & 50 & 46 & 4 & 0.0279 \\
+Budget-0 & Budget-0 & 0 & 0 & 0 & 0 \\
+Budget-5 & Budget-5 & 15 & 10 & 5 & 0.01 \\
+Budget-10 & Budget-10 & 30 & 20 & 10 & 0.0195 \\
+Budget-25 & Budget-25 & 75 & 46 & 29 & 0.0479 \\
+\bottomrule
+\end{tabularx}
+\caption{Operational decision counts and estimated live-model cost.}
+\label{tab:ops-counts}
+\end{table}
+
+\begin{table}[H]
+\centering
+\tighttable
+\begin{tabularx}{\linewidth}{Ylrrrr}
+\toprule
+Pipeline & Cfg & Tokens in & Tokens out & Fallbacks/call & Invalids/call \\
+\midrule
+Deterministic & A0 & 0 & 0 & 0 & 0 \\
+LLM & C-LLM & 6,624,214 & 503,023 & 4.5832 & 1.5892 \\
+Hybrid & B-All & 71,871 & 11,995 & 0.3867 & 0 \\
+B-S & B-S & 36,556 & 3,330 & 0.88 & 0 \\
+B-L & B-L & 23,286 & 4,970 & 0.12 & 0 \\
+B-F & B-F & 12,026 & 3,644 & 0.04 & 0 \\
+B-SL & B-SL & 59,845 & 8,351 & 0.56 & 0 \\
+B-LF & B-LF & 35,312 & 8,614 & 0.08 & 0 \\
+Budget-0 & Budget-0 & 0 & 0 & 0 & 0 \\
+Budget-5 & Budget-5 & 14,927 & 2,527 & 0.3333 & 0 \\
+Budget-10 & Budget-10 & 29,669 & 4,747 & 0.3333 & 0 \\
+Budget-25 & Budget-25 & 71,871 & 11,995 & 0.3867 & 0 \\
+\bottomrule
+\end{tabularx}
+\caption{Operational token use and decision-level failure ratios. Ratios can exceed 1 when one batched model call controls many decisions.}
+\label{tab:ops-ratios}
+\end{table}
+
+\begin{table}[H]
+\centering
+\tighttable
+\begin{tabularx}{\linewidth}{Yrrrrrrr}
+\toprule
+Pipeline & Eligible & Selected & Calls & Accepted & Defaulted & Invalid & Cost USD \\
+\midrule
+LLM & 21,891 & 5,662 & 667 & 2,605 & 19,286 & 1,060 & 3.4545 \\
+Hybrid & 7,478 & 75 & 75 & 46 & 29 & 0 & 0.0479 \\
+\bottomrule
+\end{tabularx}
+\caption{LLM intervention funnel for C-LLM and B-All.}
+\label{tab:funnel}
+\end{table}
+
+\begin{table}[H]
+\centering
+\tighttable
+\begin{tabularx}{\linewidth}{lrrrrrr}
+\toprule
+Config & Calls & Cost USD & Schema & Linkage & Fusion & E2E \\
+\midrule
+Budget-0 & 0 & 0 & 0.4727 & 0.827 & 0 & 0.3811 \\
+Budget-5 & 15 & 0.01 & 0.4727 & 0.8246 & 0 & 0.3805 \\
+Budget-10 & 30 & 0.0195 & 0.4727 & 0.8228 & 0 & 0.38 \\
+Budget-25 & 75 & 0.0479 & 0.4727 & 0.8216 & 0 & 0.3795 \\
+\bottomrule
+\end{tabularx}
+\caption{Routing-budget variants for the hybrid release.}
+\label{tab:budget}
+\end{table}
+
+B-All issued 75 model calls
+with an estimated cost of \$ 0.0479.
+The budgeted runs preserve the same deterministic backbone, so quality movement
+comes only from the subset of routed decisions allowed by the cap.
+
+\section{Error Analysis}
+The appendix stores structured source-level cases in \path{reports/appendix/m4_error_cases.json}
+and \path{reports/appendix/m4_error_cases.md}.
+
+\begin{table}[H]
+\centering
+\tighttable
+\begin{tabularx}{\linewidth}{llY}
+\toprule
+Stage & Case & Lesson \\
+\midrule
+schema\_alignment & wrong mediated field & The source attribute was mapped to the wrong mediated-schema field, which can propagate into normalization and fusion. \\
+record\_linkage & false pair decision & The pairwise matcher prediction disagrees with the labeled entity-resolution pair. \\
+clustering & under-merged entity & Records from one labeled truth entity were split across multiple predicted clusters, so downstream fusion sees incomplete claim evidence. \\
+\bottomrule
+\end{tabularx}
+\caption{Representative real error cases selected from run artifacts.}
+\label{tab:cases}
+\end{table}
+
+\subsubsection*{schema\_ca.pcpartpicker.com//displayport}
+\textbf{Stage:} \texttt{schema\_alignment}
+
+\textbf{System output:}
+\begin{quote}
+\footnotesize\ttfamily
+\begin{tabularx}{0.96\linewidth}{Y}
+\{'source\_attribute\_id': 'ca.pcpartpicker.com//displayport', \\ 'predicted\_target\_attribute\_name': 'has\_displayport', 'score\_total': 0.781603, 'method': \\ 'deterministic\_schema\_v1'\}
+\end{tabularx}
+\end{quote}
+
+\textbf{Expected output:}
+\begin{quote}
+\footnotesize\ttfamily
+\begin{tabularx}{0.96\linewidth}{Y}
+\{'gold\_target\_attribute\_name': 'displayport\_quantity'\}
+\end{tabularx}
+\end{quote}
+
+\textbf{Explanation:} The source attribute was mapped to the wrong mediated-schema field, which can propagate into normalization and fusion.
+
+\textbf{Source evidence:}
+\begin{quote}
+\footnotesize\ttfamily
+\begin{tabularx}{0.96\linewidth}{Y}
+`ca.pcpartpicker.com:122` title='HP Z22i 60Hz 21.5" Monitor (D7Q14A4\#ABA) - PCPartPicker Canada' \\ brand='HP' model='Z22i'; `ca.pcpartpicker.com:17` title='HP Z24i 60Hz 24.0" Monitor \\ (D7P53A4\#ABA) - PCPartPicker Canada' brand='HP' model='Z24i'; `ca.pcpartpicker.com:184` \\ title='Dell U2913WM 60Hz 29.0" Monitor (U2913WM) - PCPartPicker Canada' brand='Dell' model=''
+\end{tabularx}
+\end{quote}
+
+\subsubsection*{linkage\_pair\_00000025}
+\textbf{Stage:} \texttt{record\_linkage}
+
+\textbf{System output:}
+\begin{quote}
+\footnotesize\ttfamily
+\begin{tabularx}{0.96\linewidth}{Y}
+\{'candidate\_pair\_id': 'pair\_00000025', 'match\_prediction': 0, 'match\_probability': \\ 0.45589268898553187\}
+\end{tabularx}
+\end{quote}
+
+\textbf{Expected output:}
+\begin{quote}
+\footnotesize\ttfamily
+\begin{tabularx}{0.96\linewidth}{Y}
+\{'ground\_truth\_label': 1\}
+\end{tabularx}
+\end{quote}
+
+\textbf{Explanation:} The pairwise matcher prediction disagrees with the labeled entity-resolution pair.
+
+\textbf{Source evidence:}
+\begin{quote}
+\footnotesize\ttfamily
+\begin{tabularx}{0.96\linewidth}{Y}
+`ca.pcpartpicker.com:122` title='HP Z22i 60Hz 21.5" Monitor (D7Q14A4\#ABA) - PCPartPicker Canada' \\ brand='HP' model='Z22I'; `ca.pcpartpicker.com:73` title='HP Z22i (D7Q14A4) 60Hz 21.5" Monitor \\ (D7Q14A8\#ABA) - PCPartPicker Canada' brand='HP' model='Z22ID7Q14A4'
+\end{tabularx}
+\end{quote}
+
+\subsubsection*{cluster\_undermerge\_ENTITY\#022}
+\textbf{Stage:} \texttt{clustering}
+
+\textbf{System output:}
+\begin{quote}
+\footnotesize\ttfamily
+\begin{tabularx}{0.96\linewidth}{Y}
+\{'predicted\_cluster\_count': 6, 'predicted\_entity\_ids': ['entity\_000083', 'entity\_000104', \\ 'entity\_000270', 'entity\_000285', 'entity\_000366', 'entity\_000435']\}
+\end{tabularx}
+\end{quote}
+
+\textbf{Expected output:}
+\begin{quote}
+\footnotesize\ttfamily
+\begin{tabularx}{0.96\linewidth}{Y}
+\{'ground\_truth\_entity\_id': 'ENTITY\#022', 'expected\_cluster\_count': 1\}
+\end{tabularx}
+\end{quote}
+
+\textbf{Explanation:} Records from one labeled truth entity were split across multiple predicted clusters, so downstream fusion sees incomplete claim evidence.
+
+\textbf{Source evidence:}
+\begin{quote}
+\footnotesize\ttfamily
+\begin{tabularx}{0.96\linewidth}{Y}
+`www.cleverboxes.com:295` title='Cleverboxes - 19B4LCB5/00 | Philips (19 inch) LCD Monitor with \\ SmartImage LED Backlight 1280x1024 (Black)' brand='' model=''; `www.ebay.com:11038` \\ title='Philips Brilliance 19B4LCB5 19" LED LCD Monitor 5 4 5 MS IGRMTL5510 | eBay' \\ brand='Philips' model=''
+\end{tabularx}
+\end{quote}
+
+
+The cases are selected from real run artifacts, not fixture placeholders. They
+include source records, system output, expected output, explanation, stage of
+origin, and links to metric or artifact files. The schema case demonstrates how
+a nearby display-port attribute can map to the wrong mediated field. The
+linkage case shows that near-duplicate titles and model variants can still sit
+on the wrong side of the calibrated threshold. The clustering case shows the
+cost of conservative safeguards: avoiding unsafe merges can split a true entity
+and leave downstream fusion with incomplete evidence.
+
+The most important pattern is propagation. A schema error can change which
+normalized values exist. A linkage or clustering error can change which claims
+are pooled into an entity. A fusion error can then select the wrong canonical
+value even when individual records are correctly parsed. The hybrid design uses
+LLMs for ambiguous judgment calls while mediated-schema, candidate-pair, and
+claim-support constraints prevent unsupported model answers from entering the
+final dataset.
+
+\section{Discussion}
+LLMs are most useful where deterministic evidence is ambiguous: low-margin
+schema mappings, borderline pair probabilities, and conflicting fused claims.
+Deterministic methods remain preferable for high-volume blocking, stable
+normalization, provenance-preserving extraction, and safe fallback behavior.
+Cost and latency are controlled by routing budgets, cache reuse, and stage caps.
+Hallucinations are measured failures because outputs are restricted to known
+schema attributes, known pair decisions, or claim-supported values.
+
+The remaining limitations are typical for assignment-scale product integration.
+Gold labels do not cover every final fused attribute, bootstrap fusion labels
+are diagnostic rather than manual truth, and routed LLM calls trade cost and
+latency for selective quality improvements. Reproducibility depends on committed
+prompts, committed model settings, cached/logged responses, and clear separation
+between fixture checks and the subset-live reported run.
+
+\section{Conclusion}
+Mosaic satisfies the assignment by providing a traditional baseline, a selective
+LLM-assisted pipeline, component metrics, operational measurements, concrete
+error cases, deterministic full-scale evidence, and a reproducible report path.
+The final integrated dataset for the selected release is
+\path{reports/release/final_integrated_dataset.jsonl}.
+
+\section{Reproducibility and Traceability}
+\textbf{Submission-grade path:}
+\begin{quote}
+\footnotesize\ttfamily
+\begin{tabularx}{0.96\linewidth}{Y}
+uv sync --dev --python 3.12 \\ uv run mosaic reproduce --fixture \\ uv run mosaic experiment release --live \\ uv run mosaic experiment deterministic-scale \\ uv run mosaic report build
+\end{tabularx}
+\end{quote}
+
+\textbf{Full regeneration and checks:}
+\begin{quote}
+\footnotesize\ttfamily
+\begin{tabularx}{0.96\linewidth}{Y}
+uv sync --dev --python 3.12 \\ uv run ruff check . \\ uv run mypy \\ uv run pytest \\ uv run mosaic reproduce --fixture \\ uv run mosaic report build --fixture \\ uv run mosaic experiment release --live \\ uv run mosaic experiment deterministic-scale \\ uv run mosaic report build
+\end{tabularx}
+\end{quote}
+
+\begin{table}[H]
+\centering
+\tighttable
+\begin{tabularx}{\linewidth}{YYY}
+\toprule
+Requirement & Artifact & Evidence \\
+\midrule
+Baseline and assisted runs & reports/release/m4\_release\_manifest.json & Subset A0, C-LLM, B-All, ablations, budgets \\
+Deterministic scale runs & reports/release/tables/deterministic\_scale.csv & Full Camera, Monitor, and Notebook A0 runs \\
+Component metrics & reports/release/tables/metrics\_summary.csv & Schema, blocking, linkage, clustering, fusion \\
+Operational metrics & reports/release/tables/operational\_metrics.csv & Calls, tokens, cost, fallbacks, invalid outputs \\
+Concrete error cases & reports/appendix/m4\_error\_cases.json & Source records, system outputs, expected values \\
+Final dataset & reports/release/final\_integrated\_dataset.jsonl & Integrated entity JSONL export \\
+\bottomrule
+\end{tabularx}
+\caption{Traceability from assignment requirements to release artifacts.}
+\label{tab:trace}
+\end{table}
+
+Fixture mode proves that report mechanics can be regenerated without spending
+money or calling external services. Subset-live mode proves that reported
+LLM-assisted results came from the selected dataset, committed prompts,
+committed model settings, and logged responses. The report tables are
+regenerated from manifests each time, so stale hand-entered results cannot
+silently survive a pipeline change.
+
+\end{document}

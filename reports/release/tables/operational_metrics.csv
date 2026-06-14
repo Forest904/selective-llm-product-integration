@@ -1,4 +1,13 @@
 abstention_count,abstention_rate,accepted_count,average_latency_ms,cache_hit_count,configuration_id,defaulted_count,eligible_count,estimated_cost_usd,fallback_count,fallback_rate,input_tokens,invalid_output_count,invalid_output_rate,llm_call_count,output_tokens,report_label,run_id,selected_count,unselected_default_count,unsupported_value_count
-0,0.0,0,0.0,0,fixture-A0,0,0,0,0,0.0,0,0,0.0,0,0,Deterministic,run_20260611T135307Z_baseline_m2_fixture_c6c23ded,0,0,0
-0,0.0,47,0.0,24,fixture-C-LLM,0,47,0.0,0,0.0,28161,0,0.0,24,2770,LLM,run_20260611T135308Z_m4_c_llm_primary_fixture_065b2876,47,0,0
-0,0.0,7,0.391304347826087,23,fixture-B-All,16,23,0.0,16,0.6957,13792,0,0.0,23,1418,Hybrid,run_20260611T135309Z_m3_llm_assisted_example_baabc273,23,0,8
+0,0.0,0,0.0,0,A0,0,0,0,0,0.0,0,0,0.0,0,0,Deterministic,run_20260613T091745Z_baseline_m2_alaska_monit_7817cc49,0,0,0
+192,0.2879,2605,10487.804417679834,0,C-LLM,19286,21891,3.4545224,3057,4.5832,6624214,1060,1.5892,667,503023,LLM,run_20260613T091805Z_m4_c_llm_primary_alaska__4ae8a368,5662,16229,2
+0,0.0,46,2816.6,0,B-All,29,7478,0.0479404,29,0.3867,71871,0,0.0,75,11995,Hybrid,run_20260613T111323Z_m4_b_all_alaska_monitor__ee8a03f0,75,0,0
+0,0.0,3,0.0,25,B-S,22,3141,0.0199504,22,0.88,36556,0,0.0,25,3330,B-S,run_20260613T111709Z_m4_b_schema_only_alaska__577d17ee,25,0,0
+0,0.0,22,3113.12,0,B-L,3,7476,0.0172664,3,0.12,23286,0,0.0,25,4970,B-L,run_20260613T111722Z_m4_b_linkage_only_alaska_044bc068,25,0,0
+0,0.0,24,0.0,25,B-F,1,3139,0.0106408,1,0.04,12026,0,0.0,25,3644,B-F,run_20260613T111854Z_m4_b_fusion_only_alaska__b2eacf9e,25,0,0
+0,0.0,22,0.0,50,B-SL,28,7478,0.0372996,28,0.56,59845,0,0.0,50,8351,B-SL,run_20260613T111908Z_m4_b_schema_linkage_alas_15b3b487,50,0,0
+0,0.0,46,0.0,50,B-LF,4,7476,0.0279072,4,0.08,35312,0,0.0,50,8614,B-LF,run_20260613T111922Z_m4_b_linkage_fusion_alas_7e7f8fb7,50,0,0
+0,0.0,0,0.0,0,Budget-0,0,7476,0.0,0,0.0,0,0,0.0,0,0,Budget-0,run_20260613T111937Z_m4_budget_cap_0_alaska_m_61706378,0,0,0
+0,0.0,10,0.0,15,Budget-5,5,7476,0.010014,5,0.3333,14927,0,0.0,15,2527,Budget-5,run_20260613T111954Z_m4_budget_cap_5_alaska_m_dfb53a41,15,0,0
+0,0.0,20,0.0,30,Budget-10,10,7476,0.019462800000000002,10,0.3333,29669,0,0.0,30,4747,Budget-10,run_20260613T112011Z_m4_budget_cap_10_alaska__9070bb18,30,0,0
+0,0.0,46,0.0,75,Budget-25,29,7478,0.0479404,29,0.3867,71871,0,0.0,75,11995,Budget-25,run_20260613T112028Z_m4_budget_cap_25_alaska__3eed2ae3,75,0,0

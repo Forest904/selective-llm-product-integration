@@ -2,23 +2,23 @@
 
 ## Run
 
-- Run ID: `run_20260611T135332Z_baseline_m2_alaska_monit_519964a4`
-- Pipeline: `baseline_m2_alaska_monitor`
-- Run artifacts: `artifacts/runs/run_20260611T135332Z_baseline_m2_alaska_monit_519964a4`
+- Run ID: `run_20260614T103210Z_baseline_m2_alaska_noteb_b675e2fa`
+- Pipeline: `baseline_m2_alaska_notebook_full`
+- Run artifacts: `artifacts/runs/run_20260614T103210Z_baseline_m2_alaska_noteb_b675e2fa`
 - LLM decisions: `False`
 
 ## Metrics
 
-- Schema F1: `0.4833`
-- Core schema F1: `0.8980`
-- Monitor detail schema F1: `0.4687`
-- Candidate pairs: `626353`
-- Blocking pair completeness: `0.9619`
-- Linkage test F1: `0.9275`
-- Agglomerative cluster F1: `0.1243`
-- Connected-components cluster F1: `0.0003`
-- Curated fusion accuracy: `0.6667`
-- Bootstrap fusion accuracy: `0.5921`
+- Schema F1: `0.0341`
+- Core schema F1: `0.8571`
+- Monitor detail schema F1: `0.0000`
+- Candidate pairs: `873320`
+- Blocking pair completeness: `0.9142`
+- Linkage test F1: `0.6934`
+- Agglomerative cluster F1: `0.0109`
+- Connected-components cluster F1: `0.0004`
+- Curated fusion accuracy: `0.0000`
+- Bootstrap fusion accuracy: `0.0000`
 
 ## Known Weaknesses
 

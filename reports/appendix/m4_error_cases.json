@@ -1,212 +1,576 @@
 [
   {
     "artifact_links": {
-      "schema_errors": "artifacts/runs/run_20260611T135307Z_baseline_m2_fixture_c6c23ded/schema/schema_false_positives.parquet",
-      "schema_metrics": "artifacts/runs/run_20260611T135309Z_m3_llm_assisted_example_baabc273/schema/assisted_schema_metrics.json"
+      "schema_errors": "artifacts/runs/run_20260613T091745Z_baseline_m2_alaska_monit_7817cc49/schema/schema_false_positives.parquet",
+      "schema_metrics": "artifacts/runs/run_20260613T111323Z_m4_b_all_alaska_monitor__ee8a03f0/schema/assisted_schema_metrics.json"
     },
-    "case_id": "schema_source_alpha//price",
+    "case_id": "schema_ca.pcpartpicker.com//displayport",
     "expected_output": {
-      "gold_target_attribute_name": "price"
+      "gold_target_attribute_name": "displayport_quantity"
     },
     "explanation": "The source attribute was mapped to the wrong mediated-schema field, which can propagate into normalization and fusion.",
-    "source_records": [],
+    "source_records": [
+      {
+        "attribute_name": "displayport",
+        "attribute_value": "1",
+        "raw_payload": {
+          "<page title>": "HP Z22i 60Hz 21.5\" Monitor (D7Q14A4#ABA) - PCPartPicker Canada",
+          "aspect ratio": "16:9",
+          "brightness": "250 cd/m\u00b2",
+          "builtin speakers": "Yes",
+          "contrast ratio": "1000:1",
+          "displayport": "1",
+          "dvid duallink": "1",
+          "ips": "Yes",
+          "led": "Yes",
+          "manufacturer": "HP",
+          "model": "Z22i",
+          "part": "D7Q14A4#ABA",
+          "recommended resolution": "1920 x 1080",
+          "refresh rate": "60Hz",
+          "response time": "8 ms",
+          "screen size": "21.5\"",
+          "vga": "1",
+          "widescreen": "Yes"
+        },
+        "record_uid": "ca.pcpartpicker.com:122",
+        "source_id": "ca.pcpartpicker.com",
+        "source_record_id": "122"
+      },
+      {
+        "attribute_name": "displayport",
+        "attribute_value": "1",
+        "raw_payload": {
+          "<page title>": "HP Z24i 60Hz 24.0\" Monitor (D7P53A4#ABA) - PCPartPicker Canada",
+          "aspect ratio": "16:10",
+          "brightness": "300 cd/m\u00b2",
+          "builtin speakers": "Yes",
+          "contrast ratio": "1000:1",
+          "displayport": "1",
+          "dvid duallink": "1",
+          "ips": "Yes",
+          "led": "Yes",
+          "manufacturer": "HP",
+          "model": "Z24i",
+          "part": "D7P53A4#ABA",
+          "recommended resolution": "1920 x 1200",
+          "refresh rate": "60Hz",
+          "response time": "8 ms",
+          "screen size": "24\"",
+          "vga": "1",
+          "viewing angle": "178\u00b0 H x 178\u00b0 V",
+          "widescreen": "Yes"
+        },
+        "record_uid": "ca.pcpartpicker.com:17",
+        "source_id": "ca.pcpartpicker.com",
+        "source_record_id": "17"
+      },
+      {
+        "attribute_name": "displayport",
+        "attribute_value": "2",
+        "raw_payload": {
+          "<page title>": "Dell U2913WM 60Hz 29.0\" Monitor (U2913WM) - PCPartPicker Canada",
+          "aspect ratio": "21:9",
+          "brightness": "300 cd/m\u00b2",
+          "builtin speakers": "No",
+          "contrast ratio": "DC 2,000,000:1 (1000:1)",
+          "display colors": "16700000",
+          "displayport": "2",
+          "dvi": "1",
+          "hdmi": "1",
+          "ips": "Yes",
+          "led": "Yes",
+          "manufacturer": "Dell",
+          "part": "U2913WM",
+          "recommended resolution": "2560 x 1080",
+          "refresh rate": "60Hz",
+          "response time": "8 ms",
+          "screen size": "29\"",
+          "vga": "1",
+          "viewing angle": "178\u00b0 H x 178\u00b0 V",
+          "widescreen": "Yes"
+        },
+        "record_uid": "ca.pcpartpicker.com:184",
+        "source_id": "ca.pcpartpicker.com",
+        "source_record_id": "184"
+      }
+    ],
     "stage": "schema_alignment",
     "system_output": {
       "method": "deterministic_schema_v1",
-      "predicted_target_attribute_name": "UNMAPPED",
-      "score_total": 1.0,
-      "source_attribute_id": "source_alpha//price"
+      "predicted_target_attribute_name": "has_displayport",
+      "score_total": 0.781603,
+      "source_attribute_id": "ca.pcpartpicker.com//displayport"
     }
   },
   {
     "artifact_links": {
-      "fused_values": "artifacts/runs/run_20260611T135309Z_m3_llm_assisted_example_baabc273/fusion/assisted_fused_values.parquet",
-      "fusion_metrics": "artifacts/runs/run_20260611T135309Z_m3_llm_assisted_example_baabc273/fusion/assisted_fusion_metrics.json"
+      "linkage_metrics": "artifacts/runs/run_20260613T111323Z_m4_b_all_alaska_monitor__ee8a03f0/matching/assisted_linkage_metrics.json",
+      "pair_predictions": "artifacts/runs/run_20260613T111323Z_m4_b_all_alaska_monitor__ee8a03f0/matching/assisted_pair_predictions.parquet"
     },
-    "case_id": "fusion_1_entity_000001",
+    "case_id": "linkage_pair_00000025",
     "expected_output": {
-      "expected_value": "None",
-      "truth_entity_id": "ENTITY#001"
+      "ground_truth_label": 1
     },
-    "explanation": "The fused value disagrees with the curated or bootstrap fusion gold value, usually because conflicting source claims normalize to close but not identical values.",
+    "explanation": "The pairwise matcher prediction disagrees with the labeled entity-resolution pair.",
     "source_records": [
       {
         "normalized_payload": {
-          "brand": "Canon",
-          "category": "camera",
-          "currency": "USD",
-          "description": "Entry level DSLR camera kit with lens.",
-          "model_number": "EOS4000D",
-          "price": "299.00",
+          "brand": "HP",
+          "contrast_ratio_static": "1000:1",
+          "has_displayport": "true",
+          "has_speakers": "true",
+          "has_vga_port": "true",
+          "model_number": "Z22I",
+          "response_time": "8",
+          "screen_brightness": "250",
+          "screen_size_diagonal": "21.5",
+          "screen_type": "yes",
           "specifications": {
-            "color": {
-              "normalized_value": "black",
-              "raw_value": "black",
+            "dvid_duallink": {
+              "normalized_value": "1",
+              "raw_value": "1",
               "source_claim_ids": [
-                "240d702844d79a56f7d35144"
+                "fbb6d01e2ec2724b9d15eb97"
               ],
               "unit": null
             },
-            "resolution": {
-              "normalized_value": "18",
-              "raw_value": "18 MP",
+            "widescreen": {
+              "normalized_value": "yes",
+              "raw_value": "Yes",
               "source_claim_ids": [
-                "10947c0cd57fdd639e54a511"
+                "0076d6a5d07951f9c10c595a"
               ],
-              "unit": "MP"
+              "unit": null
             }
           },
-          "title": "Canon EOS 4000D DSLR Camera Kit"
+          "supported_aspect_ratio": "16:9",
+          "supported_resolution": "1920",
+          "title": "HP Z22i 60Hz 21.5\" Monitor (D7Q14A4#ABA) - PCPartPicker Canada",
+          "vertical_refresh_rate_range": "60"
         },
-        "raw_payload": null,
-        "record_uid": "source_alpha:a100",
-        "source_id": "source_alpha",
-        "source_record_id": "a100"
+        "raw_payload": {
+          "<page title>": "HP Z22i 60Hz 21.5\" Monitor (D7Q14A4#ABA) - PCPartPicker Canada",
+          "aspect ratio": "16:9",
+          "brightness": "250 cd/m\u00b2",
+          "builtin speakers": "Yes",
+          "contrast ratio": "1000:1",
+          "displayport": "1",
+          "dvid duallink": "1",
+          "ips": "Yes",
+          "led": "Yes",
+          "manufacturer": "HP",
+          "model": "Z22i",
+          "part": "D7Q14A4#ABA",
+          "recommended resolution": "1920 x 1080",
+          "refresh rate": "60Hz",
+          "response time": "8 ms",
+          "screen size": "21.5\"",
+          "vga": "1",
+          "widescreen": "Yes"
+        },
+        "record_uid": "ca.pcpartpicker.com:122",
+        "source_id": "ca.pcpartpicker.com",
+        "source_record_id": "122"
       },
       {
         "normalized_payload": {
-          "brand": "Canon",
-          "category": "dslr camera",
-          "description": "Canon DSLR with 18 megapixel sensor.",
-          "model_number": "4000D",
-          "price": "310.00",
+          "brand": "HP",
+          "contrast_ratio_static": "dc 5,000,000:1 (1000:1)",
+          "has_displayport": "true",
+          "has_dvi_port": "true",
+          "has_speakers": "false",
+          "has_vga_port": "true",
+          "model_number": "Z22ID7Q14A4",
+          "response_time": "8",
+          "screen_brightness": "250",
+          "screen_size_diagonal": "21.5",
+          "screen_type": "yes",
           "specifications": {
-            "body_colour": {
-              "normalized_value": "black",
-              "raw_value": "black",
+            "viewing_angle": {
+              "normalized_value": "178\u00b0 h x 178\u00b0 v",
+              "raw_value": "178\u00b0 H x 178\u00b0 V",
               "source_claim_ids": [
-                "2a1459a59f9344530cc4234f"
+                "084d7e2acfa2014bc1b213dc"
               ],
               "unit": null
             },
-            "resolution": {
-              "normalized_value": "18",
-              "raw_value": "18.0 megapixels",
+            "widescreen": {
+              "normalized_value": "yes",
+              "raw_value": "Yes",
               "source_claim_ids": [
-                "0519f046fc7fdfa798c21eab"
-              ],
-              "unit": "MP"
-            }
-          },
-          "title": "Canon 4000D 18MP Digital SLR"
-        },
-        "raw_payload": null,
-        "record_uid": "source_beta:b200",
-        "source_id": "source_beta",
-        "source_record_id": "b200"
-      },
-      {
-        "normalized_payload": {
-          "brand": "Canon",
-          "category": "camera",
-          "description": "Black Canon 18MP camera bundle.",
-          "model_number": "EOS4000D",
-          "price": "305.00",
-          "specifications": {
-            "bundle": {
-              "normalized_value": "camera body and starter lens",
-              "raw_value": "camera body and starter lens",
-              "source_claim_ids": [
-                "f80dde3c44263d84346a4e8c"
+                "f25341fc5beb3e95b2288826"
               ],
               "unit": null
-            },
-            "megapixels": {
-              "normalized_value": "18",
-              "raw_value": "18",
-              "source_claim_ids": [
-                "d3b2a090c6a670676bb94abd"
-              ],
-              "unit": ""
             }
           },
-          "title": "EOS 4000D Camera from Canon"
+          "supported_aspect_ratio": "16:9",
+          "supported_resolution": "1920",
+          "title": "HP Z22i (D7Q14A4) 60Hz 21.5\" Monitor (D7Q14A8#ABA) - PCPartPicker Canada",
+          "vertical_refresh_rate_range": "60"
         },
-        "raw_payload": null,
-        "record_uid": "source_gamma:c300",
-        "source_id": "source_gamma",
-        "source_record_id": "c300"
+        "raw_payload": {
+          "<page title>": "HP Z22i (D7Q14A4) 60Hz 21.5\" Monitor (D7Q14A8#ABA) - PCPartPicker Canada",
+          "aspect ratio": "16:9",
+          "brightness": "250 cd/m\u00b2",
+          "builtin speakers": "No",
+          "contrast ratio": "DC 5,000,000:1 (1000:1)",
+          "displayport": "1",
+          "dvi": "1",
+          "ips": "Yes",
+          "led": "Yes",
+          "manufacturer": "HP",
+          "model": "Z22i (D7Q14A4)",
+          "part": "D7Q14A8#ABA",
+          "recommended resolution": "1920 x 1080",
+          "refresh rate": "60Hz",
+          "response time": "8 ms",
+          "screen size": "21.5\"",
+          "vga": "1",
+          "viewing angle": "178\u00b0 H x 178\u00b0 V",
+          "widescreen": "Yes"
+        },
+        "record_uid": "ca.pcpartpicker.com:73",
+        "source_id": "ca.pcpartpicker.com",
+        "source_record_id": "73"
       }
     ],
-    "stage": "fusion",
+    "stage": "record_linkage",
     "system_output": {
-      "attribute": "price",
-      "entity_id": "entity_000001",
-      "predicted_value": "305.00"
+      "candidate_pair_id": "pair_00000025",
+      "match_prediction": 0,
+      "match_probability": 0.45589268898553187
     }
   },
   {
     "artifact_links": {
-      "assisted_fused_values": "artifacts/runs/run_20260611T135309Z_m3_llm_assisted_example_baabc273/fusion/assisted_fused_values.parquet",
-      "assisted_integrated_entities": "artifacts/runs/run_20260611T135309Z_m3_llm_assisted_example_baabc273/fusion/assisted_integrated_entities.parquet",
-      "assisted_integrated_entities_jsonl": "artifacts/runs/run_20260611T135309Z_m3_llm_assisted_example_baabc273/fusion/assisted_integrated_entities.jsonl",
-      "assisted_pair_decisions": "artifacts/runs/run_20260611T135309Z_m3_llm_assisted_example_baabc273/matching/assisted_pair_decisions.parquet",
-      "assisted_pair_predictions": "artifacts/runs/run_20260611T135309Z_m3_llm_assisted_example_baabc273/matching/assisted_pair_predictions.parquet",
-      "assisted_schema_mappings": "artifacts/runs/run_20260611T135309Z_m3_llm_assisted_example_baabc273/schema/assisted_schema_mappings.parquet",
-      "attribute_claims": "artifacts/runs/run_20260611T135309Z_m3_llm_assisted_example_baabc273/claims/attribute_claims.parquet",
-      "baseline_accepted_schema_mappings": "artifacts/runs/run_20260611T135307Z_baseline_m2_fixture_c6c23ded/schema/accepted_schema_mappings.parquet",
-      "baseline_attribute_claims": "artifacts/runs/run_20260611T135307Z_baseline_m2_fixture_c6c23ded/claims/attribute_claims.parquet",
-      "baseline_baseline_error_candidates": "artifacts/runs/run_20260611T135307Z_baseline_m2_fixture_c6c23ded/fusion/baseline_error_candidates.parquet",
-      "baseline_candidate_pairs": "artifacts/runs/run_20260611T135307Z_baseline_m2_fixture_c6c23ded/blocking/candidate_pairs.parquet",
-      "baseline_cluster_evidence_summary": "artifacts/runs/run_20260611T135307Z_baseline_m2_fixture_c6c23ded/clustering/cluster_evidence_summary.parquet",
-      "baseline_cluster_largest_clusters": "artifacts/runs/run_20260611T135307Z_baseline_m2_fixture_c6c23ded/clustering/cluster_largest_clusters.parquet",
-      "baseline_cluster_memberships": "artifacts/runs/run_20260611T135307Z_baseline_m2_fixture_c6c23ded/clustering/cluster_memberships.parquet",
-      "baseline_cluster_merge_log": "artifacts/runs/run_20260611T135307Z_baseline_m2_fixture_c6c23ded/clustering/cluster_merge_log.parquet",
-      "baseline_cluster_overmerge_errors": "artifacts/runs/run_20260611T135307Z_baseline_m2_fixture_c6c23ded/clustering/cluster_overmerge_errors.parquet",
-      "baseline_cluster_undermerge_errors": "artifacts/runs/run_20260611T135307Z_baseline_m2_fixture_c6c23ded/clustering/cluster_undermerge_errors.parquet",
-      "baseline_cluster_weak_bridge_merges": "artifacts/runs/run_20260611T135307Z_baseline_m2_fixture_c6c23ded/clustering/cluster_weak_bridge_merges.parquet",
-      "baseline_clusters": "artifacts/runs/run_20260611T135307Z_baseline_m2_fixture_c6c23ded/clustering/clusters.parquet",
-      "baseline_connected_components_clusters": "artifacts/runs/run_20260611T135307Z_baseline_m2_fixture_c6c23ded/clustering/connected_components_clusters.parquet",
-      "baseline_error_candidates": "artifacts/runs/run_20260611T135309Z_m3_llm_assisted_example_baabc273/fusion/baseline_error_candidates.parquet",
-      "baseline_fused_values": "artifacts/runs/run_20260611T135307Z_baseline_m2_fixture_c6c23ded/fusion/fused_values.parquet",
-      "baseline_fusion_curated_errors": "artifacts/runs/run_20260611T135307Z_baseline_m2_fixture_c6c23ded/fusion/fusion_curated_errors.parquet",
-      "baseline_fusion_high_conflict_attributes": "artifacts/runs/run_20260611T135307Z_baseline_m2_fixture_c6c23ded/fusion/fusion_high_conflict_attributes.parquet",
-      "baseline_fusion_unsupported_values": "artifacts/runs/run_20260611T135307Z_baseline_m2_fixture_c6c23ded/fusion/fusion_unsupported_values.parquet",
-      "baseline_integrated_entities": "artifacts/runs/run_20260611T135307Z_baseline_m2_fixture_c6c23ded/fusion/integrated_entities.parquet",
-      "baseline_integrated_entities_jsonl": "artifacts/runs/run_20260611T135307Z_baseline_m2_fixture_c6c23ded/fusion/integrated_entities.jsonl",
-      "baseline_m2_baseline_summary": "artifacts/runs/run_20260611T135307Z_baseline_m2_fixture_c6c23ded/m2_fixture_baseline_summary.md",
-      "baseline_mapping_candidates": "artifacts/runs/run_20260611T135307Z_baseline_m2_fixture_c6c23ded/schema/mapping_candidates.parquet",
-      "baseline_normalized_records": "artifacts/runs/run_20260611T135307Z_baseline_m2_fixture_c6c23ded/normalization/normalized_records.parquet",
-      "baseline_normalized_values": "artifacts/runs/run_20260611T135307Z_baseline_m2_fixture_c6c23ded/normalization/normalized_values.parquet",
-      "baseline_pair_features": "artifacts/runs/run_20260611T135307Z_baseline_m2_fixture_c6c23ded/matching/pair_features.parquet",
-      "baseline_pair_predictions": "artifacts/runs/run_20260611T135307Z_baseline_m2_fixture_c6c23ded/matching/pair_predictions.parquet",
-      "baseline_run_manifest": "artifacts/runs/run_20260611T135307Z_baseline_m2_fixture_c6c23ded/run_manifest.json",
-      "baseline_schema_ambiguous_candidates": "artifacts/runs/run_20260611T135307Z_baseline_m2_fixture_c6c23ded/schema/schema_ambiguous_candidates.parquet",
-      "baseline_schema_false_negatives": "artifacts/runs/run_20260611T135307Z_baseline_m2_fixture_c6c23ded/schema/schema_false_negatives.parquet",
-      "baseline_schema_false_positives": "artifacts/runs/run_20260611T135307Z_baseline_m2_fixture_c6c23ded/schema/schema_false_positives.parquet",
-      "baseline_schema_unmapped_gold": "artifacts/runs/run_20260611T135307Z_baseline_m2_fixture_c6c23ded/schema/schema_unmapped_gold.parquet",
-      "candidate_pairs": "artifacts/runs/run_20260611T135309Z_m3_llm_assisted_example_baabc273/blocking/candidate_pairs.parquet",
-      "cluster_evidence_summary": "artifacts/runs/run_20260611T135309Z_m3_llm_assisted_example_baabc273/clustering/cluster_evidence_summary.parquet",
-      "cluster_largest_clusters": "artifacts/runs/run_20260611T135309Z_m3_llm_assisted_example_baabc273/clustering/cluster_largest_clusters.parquet",
-      "cluster_memberships": "artifacts/runs/run_20260611T135309Z_m3_llm_assisted_example_baabc273/clustering/cluster_memberships.parquet",
-      "cluster_merge_log": "artifacts/runs/run_20260611T135309Z_m3_llm_assisted_example_baabc273/clustering/cluster_merge_log.parquet",
-      "cluster_overmerge_errors": "artifacts/runs/run_20260611T135309Z_m3_llm_assisted_example_baabc273/clustering/cluster_overmerge_errors.parquet",
-      "cluster_undermerge_errors": "artifacts/runs/run_20260611T135309Z_m3_llm_assisted_example_baabc273/clustering/cluster_undermerge_errors.parquet",
-      "cluster_weak_bridge_merges": "artifacts/runs/run_20260611T135309Z_m3_llm_assisted_example_baabc273/clustering/cluster_weak_bridge_merges.parquet",
-      "clusters": "artifacts/runs/run_20260611T135309Z_m3_llm_assisted_example_baabc273/clustering/clusters.parquet",
-      "connected_components_clusters": "artifacts/runs/run_20260611T135309Z_m3_llm_assisted_example_baabc273/clustering/connected_components_clusters.parquet",
-      "fused_values": "artifacts/runs/run_20260611T135309Z_m3_llm_assisted_example_baabc273/fusion/fused_values.parquet",
-      "fusion_curated_errors": "artifacts/runs/run_20260611T135309Z_m3_llm_assisted_example_baabc273/fusion/fusion_curated_errors.parquet",
-      "fusion_high_conflict_attributes": "artifacts/runs/run_20260611T135309Z_m3_llm_assisted_example_baabc273/fusion/fusion_high_conflict_attributes.parquet",
-      "fusion_quality_cost": "artifacts/runs/run_20260611T135309Z_m3_llm_assisted_example_baabc273/fusion/fusion_quality_cost.json",
-      "fusion_routing_manifest": "artifacts/runs/run_20260611T135309Z_m3_llm_assisted_example_baabc273/fusion/fusion_routing_manifest.parquet",
-      "fusion_unsupported_values": "artifacts/runs/run_20260611T135309Z_m3_llm_assisted_example_baabc273/fusion/fusion_unsupported_values.parquet",
-      "integrated_entities": "artifacts/runs/run_20260611T135309Z_m3_llm_assisted_example_baabc273/fusion/integrated_entities.parquet",
-      "integrated_entities_jsonl": "artifacts/runs/run_20260611T135309Z_m3_llm_assisted_example_baabc273/fusion/integrated_entities.jsonl",
-      "linkage_quality_cost": "artifacts/runs/run_20260611T135309Z_m3_llm_assisted_example_baabc273/matching/linkage_quality_cost.json",
-      "linkage_routing_manifest": "artifacts/runs/run_20260611T135309Z_m3_llm_assisted_example_baabc273/matching/linkage_routing_manifest.parquet",
-      "normalized_records": "artifacts/runs/run_20260611T135309Z_m3_llm_assisted_example_baabc273/normalization/normalized_records.parquet",
-      "normalized_values": "artifacts/runs/run_20260611T135309Z_m3_llm_assisted_example_baabc273/normalization/normalized_values.parquet",
-      "pair_features": "artifacts/runs/run_20260611T135309Z_m3_llm_assisted_example_baabc273/matching/pair_features.parquet",
-      "pair_predictions": "artifacts/runs/run_20260611T135309Z_m3_llm_assisted_example_baabc273/matching/pair_predictions.parquet",
-      "schema_quality_cost": "artifacts/runs/run_20260611T135309Z_m3_llm_assisted_example_baabc273/schema/schema_quality_cost.json",
-      "schema_routing_manifest": "artifacts/runs/run_20260611T135309Z_m3_llm_assisted_example_baabc273/schema/schema_routing_manifest.parquet"
+      "cluster_metrics": "artifacts/runs/run_20260613T111323Z_m4_b_all_alaska_monitor__ee8a03f0/clustering/cluster_metrics.json",
+      "cluster_undermerge_errors": "artifacts/runs/run_20260613T111323Z_m4_b_all_alaska_monitor__ee8a03f0/clustering/cluster_undermerge_errors.parquet"
     },
-    "case_id": "fixture_placeholder_3",
-    "expected_output": "N/A",
-    "explanation": "Fixture-only placeholder. This cannot satisfy the M4 submission gate.",
-    "source_records": [],
-    "stage": "fixture_only",
-    "system_output": "No additional labeled error was available."
+    "case_id": "cluster_undermerge_ENTITY#022",
+    "expected_output": {
+      "expected_cluster_count": 1,
+      "ground_truth_entity_id": "ENTITY#022"
+    },
+    "explanation": "Records from one labeled truth entity were split across multiple predicted clusters, so downstream fusion sees incomplete claim evidence.",
+    "source_records": [
+      {
+        "normalized_payload": {
+          "category": "monitor",
+          "contrast_ratio_static": "1,000:1 (static) , 20,000,000:1 (dynamic)",
+          "description": "A pair of high quality stereo speakers built into a display device. It can be visible front firing, or invisible down firing, top firing, rear firing, etc depending on model and design. SmartImage is an exclusive leading edge Philips technology that analyzes the content displayed on your screen and gives you optimized display performance. This user friendly interface allows you to select various modes like Office, Photo, Movie, Game, Economy etc., to fit the application in use. Based on the selection, SmartImage dynamically optimizes the contrast, colour saturation and sharpness of images and videos for ultimate display performance. The Economy mode option offers you major power savings. All in real time with the press of a single button! PC software for fine tuning display performance and settings. Philips offers users two choices for display setting adjustment. Either navigate the multilevel On Screen Display menu through buttons on the display itself or use the Philips SmartControl software to easily adjust the various display settings in a familiar way.",
+          "has_speakers": "2 x 1.5w",
+          "monitor_width_with_stand": "40.4",
+          "pixel_pitch": "0.294 x 0.294mm",
+          "response_time": "5",
+          "screen_brightness": "250",
+          "screen_type": "tft lcd 16.7 million colour",
+          "specifications": {
+            "audio_line_in_ports": {
+              "normalized_value": "1 x 3.5mm pc audio input",
+              "raw_value": "1 x 3.5mm PC audio input",
+              "source_claim_ids": [
+                "50b7208b698c496494ee2b07"
+              ],
+              "unit": null
+            },
+            "backlight": {
+              "normalized_value": "led",
+              "raw_value": "LED",
+              "source_claim_ids": [
+                "6d63cdb6110c0d1859d49219"
+              ],
+              "unit": null
+            },
+            "case_colour": {
+              "normalized_value": "black",
+              "raw_value": "Black",
+              "source_claim_ids": [
+                "4baedcb5ccb43f4506c0c73f"
+              ],
+              "unit": null
+            },
+            "digital_in": {
+              "normalized_value": "1 x dvi-d",
+              "raw_value": "1 x DVI-D",
+              "source_claim_ids": [
+                "2cc0ec8a50174740b353a001"
+              ],
+              "unit": null
+            },
+            "headphone_ports": {
+              "normalized_value": "1 x headphone port",
+              "raw_value": "1 x Headphone Port",
+              "source_claim_ids": [
+                "c928f8bbd40e7c135cb0feb3"
+              ],
+              "unit": null
+            },
+            "height_adjustable": {
+              "normalized_value": "yes",
+              "raw_value": "Yes",
+              "source_claim_ids": [
+                "3bd81b869cba3a1acbaeea1d"
+              ],
+              "unit": null
+            },
+            "pivot": {
+              "normalized_value": "yes",
+              "raw_value": "Yes",
+              "source_claim_ids": [
+                "768a51adcdb44b71a5571d91"
+              ],
+              "unit": null
+            },
+            "power_consumption": {
+              "normalized_value": "14",
+              "raw_value": "14W (Max) / 0.1W (Standby)",
+              "source_claim_ids": [
+                "35015d3fcb42c36188bed9d6"
+              ],
+              "unit": "w"
+            },
+            "scan_frequency_horizontal": {
+              "normalized_value": "30khz to 83khz",
+              "raw_value": "30KHz to 83KHz",
+              "source_claim_ids": [
+                "4c22efd404809ca679800e6c"
+              ],
+              "unit": null
+            },
+            "scan_frequency_vertical": {
+              "normalized_value": "56",
+              "raw_value": "56Hz to 75Hz",
+              "source_claim_ids": [
+                "f5330907411da9d4193d63d3"
+              ],
+              "unit": "hz"
+            },
+            "screen_dimensions": {
+              "normalized_value": "19",
+              "raw_value": "19in (Diagonal)",
+              "source_claim_ids": [
+                "fde8436aa4bdae669421ae6a"
+              ],
+              "unit": "inch"
+            },
+            "swivel": {
+              "normalized_value": "\u00b165\u00b0",
+              "raw_value": "\u00b165\u00b0",
+              "source_claim_ids": [
+                "48a9aaf8e074ddf816107357"
+              ],
+              "unit": null
+            },
+            "synch_input": {
+              "normalized_value": "separate sync, sync on green",
+              "raw_value": "Separate sync, Sync on green",
+              "source_claim_ids": [
+                "158fd7485acf7ac5316c329e"
+              ],
+              "unit": null
+            },
+            "tilt_forwardbackward": {
+              "normalized_value": "-5 to +20\u00b0",
+              "raw_value": "-5 to +20\u00b0",
+              "source_claim_ids": [
+                "0c7249e56ecb6270a60484b0"
+              ],
+              "unit": null
+            },
+            "vga_in": {
+              "normalized_value": "1 x 15-pin d-sub",
+              "raw_value": "1 x 15-pin D-Sub",
+              "source_claim_ids": [
+                "b3a4f069018998106ee57f90"
+              ],
+              "unit": null
+            },
+            "view_angle": {
+              "normalized_value": "170\u00b0 (horizontal - max) x 160\u00b0 (vertical - max)",
+              "raw_value": "170\u00b0 (Horizontal - Max) x 160\u00b0 (Vertical - Max)",
+              "source_claim_ids": [
+                "6bdcb6eb0390213eb082af15"
+              ],
+              "unit": null
+            },
+            "voltagefrequency": {
+              "normalized_value": "100 to 240vac / 50 to 60hz",
+              "raw_value": "100 to 240VAC / 50 to 60Hz",
+              "source_claim_ids": [
+                "e4fa55c8bc2a2a1b0ebda56a"
+              ],
+              "unit": null
+            },
+            "wall_mount": {
+              "normalized_value": "100",
+              "raw_value": "Yes , VESA Compliant - 100mm x 100mm",
+              "source_claim_ids": [
+                "a18d332c9ad792ab1453272d"
+              ],
+              "unit": "mm"
+            }
+          },
+          "supported_aspect_ratio": "5:4",
+          "supported_resolution": "1280",
+          "title": "Cleverboxes - 19B4LCB5/00 | Philips (19 inch) LCD Monitor with SmartImage LED Backlight 1280x1024 (Black)"
+        },
+        "raw_payload": {
+          "<page title>": "Cleverboxes - 19B4LCB5/00 | Philips (19 inch) LCD Monitor with SmartImage LED Backlight 1280x1024 (Black)",
+          "aspect ratio": "5:4",
+          "audio line in ports": "1 x 3.5mm PC audio input",
+          "backlight": "LED",
+          "brightness": "250cd/m2",
+          "case colour": "Black",
+          "contrast ratio": "1,000:1 (Static) , 20,000,000:1 (Dynamic)",
+          "description": "A pair of high quality stereo speakers built into a display device. It can be visible front firing, or invisible down firing, top firing, rear firing, etc depending on model and design. SmartImage is an exclusive leading edge Philips technology that analyzes the content displayed on your screen and gives you optimized display performance. This user friendly interface allows you to select various modes like Office, Photo, Movie, Game, Economy etc., to fit the application in use. Based on the selection, SmartImage dynamically optimizes the contrast, colour saturation and sharpness of images and videos for ultimate display performance. The Economy mode option offers you major power savings. All in real time with the press of a single button! PC software for fine tuning display performance and settings. Philips offers users two choices for display setting adjustment. Either navigate the multilevel On Screen Display menu through buttons on the display itself or use the Philips SmartControl software to easily adjust the various display settings in a familiar way.",
+          "digital in": "1 x DVI-D",
+          "dimensions": "40.4cm (W) x 22.7cm (D) x 50.6cm (H) - Weight 4.61kg",
+          "headphone ports": "1 x Headphone Port",
+          "height adjustable": "Yes",
+          "pivot": "Yes",
+          "pixel pitch": "0.294 x 0.294mm",
+          "power consumption": "14W (Max) / 0.1W (Standby)",
+          "product type": "Monitor",
+          "resolution native": "1280 x 1024 Pixels",
+          "response time": "5ms",
+          "scan frequency horizontal": "30KHz to 83KHz",
+          "scan frequency vertical": "56Hz to 75Hz",
+          "screen dimensions": "19in (Diagonal)",
+          "screen type": "TFT LCD 16.7 Million Colour",
+          "speakers": "2 x 1.5W",
+          "swivel": "\u00b165\u00b0",
+          "synch input": "Separate sync, Sync on green",
+          "tilt forwardbackward": "-5 to +20\u00b0",
+          "vga in": "1 x 15-pin D-Sub",
+          "view angle": "170\u00b0 (Horizontal - Max) x 160\u00b0 (Vertical - Max)",
+          "voltagefrequency": "100 to 240VAC / 50 to 60Hz",
+          "wall mount": "Yes , VESA Compliant - 100mm x 100mm"
+        },
+        "record_uid": "www.cleverboxes.com:295",
+        "source_id": "www.cleverboxes.com",
+        "source_record_id": "295"
+      },
+      {
+        "normalized_payload": {
+          "brand": "Philips",
+          "contrast_ratio_static": "20,000,000:1",
+          "has_speakers": "true",
+          "response_time": "5",
+          "screen_brightness": "250",
+          "screen_size_diagonal": "19",
+          "specifications": {
+            "backlight_technology": {
+              "normalized_value": "led",
+              "raw_value": "LED",
+              "source_claim_ids": [
+                "01c6f04bde8ba83361410f96"
+              ],
+              "unit": null
+            },
+            "built_in_devices": {
+              "normalized_value": "speaker",
+              "raw_value": "Speaker",
+              "source_claim_ids": [
+                "34e4ea19c123f6e39aa74bd4"
+              ],
+              "unit": null
+            },
+            "color_supported": {
+              "normalized_value": "16.7 million colors",
+              "raw_value": "16.7 Million Colors",
+              "source_claim_ids": [
+                "a846c9f965a7120a690cca39"
+              ],
+              "unit": null
+            },
+            "condition": {
+              "normalized_value": "new: a brand-new, unused, unopened, undamaged item in its original packaging (where packaging is applicable). packaging should be the same as what is found in a retail store, unless the item is handmade or was packaged by the manufacturer in non-retail packaging, such as an unprinted box or plastic bag. see the seller's listing for full details. see all condition definitions- opens in a new window or tab ... read moreabout the condition unit of measure: ea",
+              "raw_value": "New: A brand-new, unused, unopened, undamaged item in its original packaging (where packaging is\napplicable). Packaging should be the same as what is found in a retail store, unless the item is handmade or was packaged by the manufacturer in non-retail packaging, such as an unprinted box or plastic bag. See the seller's listing for full details.\nSee all condition definitions- opens in a new window or tab\n... Read moreabout the condition\nUnit of Measure:\nEA",
+              "source_claim_ids": [
+                "2a7e2c8a684fd4466b487c83"
+              ],
+              "unit": null
+            },
+            "maximum_resolution": {
+              "normalized_value": "1280",
+              "raw_value": "1280 x 1024",
+              "source_claim_ids": [
+                "7abd6ae198128c7b83b69d0a"
+              ],
+              "unit": "px"
+            },
+            "number_of_screens": {
+              "normalized_value": "1",
+              "raw_value": "1",
+              "source_claim_ids": [
+                "27be53660c25ea138d38910b"
+              ],
+              "unit": null
+            },
+            "screen_mode": {
+              "normalized_value": "sxga",
+              "raw_value": "SXGA",
+              "source_claim_ids": [
+                "f63f0253eaa5d639e2154f8a"
+              ],
+              "unit": null
+            },
+            "upc": {
+              "normalized_value": "609585235779",
+              "raw_value": "609585235779",
+              "source_claim_ids": [
+                "c5663010ac7fe85ca8abc170"
+              ],
+              "unit": null
+            },
+            "vesa_mount_compatible": {
+              "normalized_value": "yes",
+              "raw_value": "Yes",
+              "source_claim_ids": [
+                "4fe5e73de5b8b5b85c008adb"
+              ],
+              "unit": null
+            }
+          },
+          "supported_aspect_ratio": "5:4",
+          "title": "Philips Brilliance 19B4LCB5 19\" LED LCD Monitor 5 4 5 MS IGRMTL5510 | eBay"
+        },
+        "raw_payload": {
+          "<page title>": "Philips Brilliance 19B4LCB5 19\" LED LCD Monitor 5 4 5 MS IGRMTL5510 | eBay",
+          "aspect ratio": "5:4",
+          "backlight technology": "LED",
+          "brand name": "Philips",
+          "brightness": "250 Nit",
+          "built-in devices": "Speaker",
+          "color supported": "16.7 Million Colors",
+          "condition": "New: A brand-new, unused, unopened, undamaged item in its original packaging (where packaging is\napplicable). Packaging should be the same as what is found in a retail store, unless the item is handmade or was packaged by the manufacturer in non-retail packaging, such as an unprinted box or plastic bag. See the seller's listing for full details.\nSee all condition definitions- opens in a new window or tab\n... Read moreabout the condition\nUnit of Measure:\nEA",
+          "contrast ratio": "20,000,000:1",
+          "maximum resolution": "1280 x 1024",
+          "number of screens": "1",
+          "response time": "5 ms",
+          "screen mode": "SXGA",
+          "screen size": "19\"",
+          "speakers": "Yes",
+          "upc": "609585235779",
+          "vesa mount compatible": "Yes"
+        },
+        "record_uid": "www.ebay.com:11038",
+        "source_id": "www.ebay.com",
+        "source_record_id": "11038"
+      }
+    ],
+    "stage": "clustering",
+    "system_output": {
+      "predicted_cluster_count": 6,
+      "predicted_entity_ids": [
+        "entity_000083",
+        "entity_000104",
+        "entity_000270",
+        "entity_000285",
+        "entity_000366",
+        "entity_000435"
+      ]
+    }
   }
 ]
