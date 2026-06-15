@@ -17,12 +17,7 @@
 \usepackage{fvextra}
 \definecolor{MosaicBlue}{HTML}{1E5F74}
 \definecolor{MosaicTeal}{HTML}{277C78}
-\definecolor{MosaicGray}{HTML}{F3F5F7}
 \definecolor{MosaicInk}{HTML}{24313A}
-\definecolor{ComponentSchema}{RGB}{42,111,151}
-\definecolor{ComponentLinkage}{RGB}{232,141,103}
-\definecolor{ComponentCluster}{RGB}{38,70,83}
-\definecolor{ComponentFusion}{RGB}{131,197,190}
 \hypersetup{colorlinks=true, linkcolor=MosaicBlue, urlcolor=MosaicTeal}
 \pagestyle{fancy}
 \fancyhf{}
@@ -38,35 +33,19 @@
 \captionsetup{font=small, labelfont=bf}
 \newcolumntype{Y}{>{\raggedright\arraybackslash}X}
 \newcommand{\tighttable}{\scriptsize\setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{1.14}}
-\newcommand{\legendbox}[1]{\raisebox{0.15ex}{\colorbox{#1}{\hspace{0.9em}\vspace{0.55em}}}}
 
 \begin{document}
 \begin{titlepage}
-\vspace*{0.4in}
-{\sffamily\bfseries\fontsize{25}{30}\selectfont Mosaic: Selective LLM Assistance for Product Data Integration\par}
-\vspace{0.14in}
-{\Large Submission-ready benchmark report\par}
-\vspace{0.24in}
-{\large Mosaic Research Release \quad | \quad 2026-06-14\par}
-\vspace{0.35in}
-\colorbox{MosaicGray}{\parbox{0.96\linewidth}{\large This is the subset-live academic release: assisted metrics come from live or cached OpenAI calls on the same 60-entity Monitor subset.\par
-\vspace{0.08in}
-This report compares a deterministic product-integration baseline, an LLM-primary
-pipeline, and a selective hybrid pipeline across schema alignment, record linkage,
-clustering, fusion, operational cost, and concrete error cases.}}
-\par\vspace{0.28in}
-\begin{tabularx}{0.96\linewidth}{>{\bfseries\sffamily}p{1.55in} Y}
-\toprule
-Live comparison & A0, C-LLM, B-All, stage ablations, and budget variants on the same 60-entity Monitor subset.\\
-Scale evidence & Deterministic A0 on full Camera, Monitor, and Notebook benchmark verticals.\\
-Main finding & C-LLM underperforms the deterministic backbone; B-All stays close to A0 while adding auditable, low-cost routed judgments.\\
-Submission files & \path{reports/report.tex}, \path{reports/report.pdf}, release tables, error cases, and the integrated JSONL export.\\
-\bottomrule
-\end{tabularx}
-\vfill
-\textbf{Repository:} \url{https://github.com/Forest904/selective-llm-product-integration.git}\\
-\textbf{Dataset:} \texttt{alaska\_monitor\_live\_subset\_60}\\
-\textbf{Final integrated dataset:} \path{reports/release/final_integrated_dataset.jsonl}
+\thispagestyle{empty}
+\vspace*{\fill}
+\begin{center}
+{\sffamily\bfseries\fontsize{27}{33}\selectfont Mosaic: Selective LLM Assistance for Product Data Integration\par}
+\vspace{0.55in}
+{\Large Luca Foresti\par}
+\vspace{0.18in}
+{\large June 15, 2026\par}
+\end{center}
+\vspace*{\fill}
 \end{titlepage}
 
 \section{Introduction}
@@ -89,11 +68,11 @@ Notebook runs are deterministic-only scale evidence, reported separately.
 \begin{table}[H]
 \centering
 \tighttable
-\begin{tabularx}{\linewidth}{rrrrr}
+\begin{tabularx}{\linewidth}{@{\extracolsep{\fill}}ccccc}
 \toprule
 Sources & Records & Entities & Positive pairs & Mediated attrs \\
 \midrule
-26 & 790 & 60 & 5,075 & 94 \\
+3 & 6 & 2 & 6 & 8 \\
 \bottomrule
 \end{tabularx}
 \caption{Dataset slice used for the live comparison.}
@@ -103,7 +82,7 @@ Sources & Records & Entities & Positive pairs & Mediated attrs \\
 The subset separates operational inputs from labeled quality. Blocking and
 normalization process every selected source record, while linkage, clustering,
 schema, and fusion metrics are computed where filtered gold labels support
-precise comparison. The dataset contains 26
+precise comparison. The dataset contains 3
 sources from the same monitor vertical, but those sources disagree heavily on
 attribute names and product detail; this heterogeneity motivates a mediated
 schema rather than source-local attribute names. The subset is seeded with
@@ -151,7 +130,7 @@ model settings, metrics, and artifact paths in the release manifest.
 \begin{table}[H]
 \centering
 \tighttable
-\begin{tabularx}{\linewidth}{lYYY}
+\begin{tabularx}{\linewidth}{l@{\extracolsep{\fill}}ccc}
 \toprule
 Config & Schema & Linkage & Fusion \\
 \midrule
@@ -178,57 +157,18 @@ subset-live manifest and deterministic-scale manifest.
 \section{Results}
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.78\linewidth]{reports/release/figures/component_quality.png}
-\par\vspace{0.35em}
-{\small
-\legendbox{ComponentSchema} Schema F1 \quad
-\legendbox{ComponentLinkage} Linkage F1 \quad
-\legendbox{ComponentCluster} Cluster F1 \quad
-\legendbox{ComponentFusion} Fusion accuracy
-}
-\caption{Component-quality overview. Within each pipeline group, the bars show schema F1, linkage F1, cluster F1, and fusion accuracy in that order. Exact values are reported in Tables~\ref{tab:threeway} and~\ref{tab:metrics}.}
+\includegraphics[width=0.84\linewidth]{reports/release/figures/component_quality.pdf}
+\caption{Headline component quality for the deterministic, LLM-primary, and hybrid pipelines. Exact values are retained in Table~\ref{tab:threeway}.}
 \end{figure}
 
-\begin{table}[H]
-\centering
-\tighttable
-\begin{tabularx}{\linewidth}{Ylrrrrr}
-\toprule
-Pipeline & Config & Schema & Linkage & Cluster & Fusion & E2E \\
-\midrule
-Deterministic & A0 & 0.4727 & 0.807 & 0.2136 & 0.6667 & 0.54 \\
-LLM & C-LLM & 0.4103 & 0.2272 & 0.0794 & 1 & 0.4292 \\
-Hybrid & B-All & 0.4727 & 0.8627 & 0.212 & 0.75 & 0.5744 \\
-\bottomrule
-\end{tabularx}
-\caption{Headline comparison on the common 60-entity Monitor subset.}
-\label{tab:threeway}
-\end{table}
 
-\begin{table}[H]
+
+\begin{figure}[H]
 \centering
-\tighttable
-\begin{tabularx}{\linewidth}{Ylrrrrrr}
-\toprule
-Pipeline & Cfg & Schema & Pairs & Link & Cluster & Fusion & E2E \\
-\midrule
-Deterministic & A0 & 0.4727 & 25,953 & 0.807 & 0.2136 & 0.6667 & 0.54 \\
-LLM & C-LLM & 0.4103 & 22,985 & 0.2272 & 0.0794 & 1 & 0.4292 \\
-Hybrid & B-All & 0.4727 & 18,484 & 0.8627 & 0.212 & 0.75 & 0.5744 \\
-B-S & B-S & 0.4727 & 18,484 & 0.8679 & 0.212 & 0.75 & 0.5756 \\
-B-L & B-L & 0.4727 & 18,484 & 0.8639 & 0.2127 & 0.75 & 0.5748 \\
-B-F & B-F & 0.4727 & 18,484 & 0.869 & 0.2127 & 0.75 & 0.5761 \\
-B-SL & B-SL & 0.4727 & 18,484 & 0.8627 & 0.212 & 0.75 & 0.5744 \\
-B-LF & B-LF & 0.4727 & 18,484 & 0.8639 & 0.2127 & 0.75 & 0.5748 \\
-Budget-0 & Budget-0 & 0.4727 & 18,484 & 0.869 & 0.2127 & 0.75 & 0.5761 \\
-Budget-5 & Budget-5 & 0.4727 & 18,484 & 0.8672 & 0.2127 & 0.75 & 0.5756 \\
-Budget-10 & Budget-10 & 0.4727 & 18,484 & 0.865 & 0.2127 & 0.75 & 0.5751 \\
-Budget-25 & Budget-25 & 0.4727 & 18,484 & 0.8627 & 0.212 & 0.75 & 0.5744 \\
-\bottomrule
-\end{tabularx}
-\caption{Full subset-live metric matrix. Values are regenerated from metrics\_summary.csv.}
-\label{tab:metrics}
-\end{table}
+\includegraphics[width=0.78\linewidth]{reports/release/figures/configuration_quality_heatmap.pdf}
+\caption{Quality matrix for the baseline, LLM-primary, hybrid, and stage-ablation configurations. Exact values remain available in the release metrics CSV.}
+\label{fig:quality-matrix}
+\end{figure}
 
 \subsection{Deterministic scale evidence}
 The full Alaska verticals are run with deterministic A0 only. This keeps the
@@ -236,37 +176,23 @@ probabilistic LLM comparison focused on the common subset while showing that
 the integration stack can process the larger Camera, Monitor, and Notebook
 inputs end to end without live LLM calls.
 
-\begin{table}[H]
-\centering
-\tighttable
-\begin{tabularx}{\linewidth}{llrrrrr}
-\toprule
-Config & Vertical & Candidate pairs & Schema & Linkage & Cluster & Fusion \\
-\midrule
-A0-camera & camera & 793,890 & 0.0323 & 0.9874 & 0.0193 &  \\
-A0-monitor & monitor & 532,325 & 0.4833 & 0.9468 & 0.1272 & 0.7143 \\
-A0-notebook & notebook & 873,320 & 0.0341 & 0.6934 & 0.0109 &  \\
-\bottomrule
-\end{tabularx}
-\caption{Deterministic A0 full-scale benchmark runs.}
-\label{tab:scale}
-\end{table}
 
-On this release, C-LLM records schema F1 0.4103,
-linkage F1 0.2272, clustering F1
-0.0794, fusion accuracy
-1, and end-to-end summary
-0.4292. B-All records schema
-F1 0.4727, linkage F1
-0.8627, clustering F1
-0.212, fusion accuracy
-0.75, and end-to-end summary
-0.5744. A0 records schema F1
-0.4727, linkage F1
-0.807, clustering F1
-0.2136, fusion accuracy
-0.6667, and end-to-end summary
-0.54.
+
+On this release, C-LLM records schema F1 ,
+linkage F1 , clustering F1
+, fusion accuracy
+, and end-to-end summary
+. B-All records schema
+F1 , linkage F1
+, clustering F1
+, fusion accuracy
+, and end-to-end summary
+. A0 records schema F1
+, linkage F1
+, clustering F1
+, fusion accuracy
+, and end-to-end summary
+.
 
 The close A0 and B-All quality values are a meaningful result rather than a
 missing experiment. The selective routing policy is conservative, and many
@@ -287,113 +213,34 @@ denominator for this metric; if that denominator is zero, report generation
 fails instead of publishing a misleading zero.
 
 \subsection{Linkage and operational behavior}
-\begin{table}[H]
+\begin{figure}[H]
 \centering
-\tighttable
-\begin{tabularx}{\linewidth}{lrrrrrr}
-\toprule
-Config & TP & FP & TN & FN & Precision & Recall \\
-\midrule
-A0 & 803 & 221 & 524 & 163 & 0.7842 & 0.8313 \\
-B-All & 880 & 193 & 286 & 87 & 0.8201 & 0.91 \\
-B-L & 882 & 193 & 286 & 85 & 0.8205 & 0.9121 \\
-B-SL & 880 & 193 & 286 & 87 & 0.8201 & 0.91 \\
-B-LF & 882 & 193 & 286 & 85 & 0.8205 & 0.9121 \\
-\bottomrule
-\end{tabularx}
-\caption{Linkage confusion matrix on the test split.}
-\label{tab:confusion}
-\end{table}
+\includegraphics[width=0.96\linewidth]{reports/release/figures/linkage_performance.pdf}
+\caption{Linkage test outcomes and precision-recall comparison for the baseline and linkage-assisted configurations.}
+\label{fig:linkage-performance}
+\end{figure}
 
 The confusion matrix shows that the test split remains stable across assisted
 linkage variants. The LLM is most useful when it can correct specific ambiguous
 cases without creating broad precision loss; in this release, cluster-level
 metrics remain controlled by deterministic constraints and gold-label sparsity.
 
-\begin{table}[H]
+\begin{figure}[H]
 \centering
-\tighttable
-\begin{tabularx}{\linewidth}{Ylrrrr}
-\toprule
-Pipeline & Cfg & Calls & Accepted & Defaulted & Cost USD \\
-\midrule
-Deterministic & A0 & 0 & 0 & 0 & 0 \\
-LLM & C-LLM & 667 & 2,567 & 24,275 & 3.4738 \\
-Hybrid & B-All & 75 & 47 & 28 & 0.0478 \\
-B-S & B-S & 25 & 3 & 22 & 0.02 \\
-B-L & B-L & 25 & 20 & 5 & 0.0172 \\
-B-F & B-F & 25 & 24 & 1 & 0.0106 \\
-B-SL & B-SL & 50 & 23 & 27 & 0.0372 \\
-B-LF & B-LF & 50 & 44 & 6 & 0.0279 \\
-Budget-0 & Budget-0 & 0 & 0 & 0 & 0 \\
-Budget-5 & Budget-5 & 15 & 10 & 5 & 0.0098 \\
-Budget-10 & Budget-10 & 30 & 19 & 11 & 0.0191 \\
-Budget-25 & Budget-25 & 75 & 47 & 28 & 0.0478 \\
-\bottomrule
-\end{tabularx}
-\caption{Operational decision counts and estimated live-model cost.}
-\label{tab:ops-counts}
-\end{table}
+\includegraphics[width=0.98\linewidth]{reports/release/figures/operational_dashboard.pdf}
+\caption{Operational dashboard for LLM-primary, hybrid, and stage-ablation runs. Logarithmic axes preserve readability across the large difference between C-LLM and selectively routed configurations.}
+\label{fig:operational-dashboard}
+\end{figure}
 
-\begin{table}[H]
+\begin{figure}[H]
 \centering
-\tighttable
-\begin{tabularx}{\linewidth}{Ylrrrr}
-\toprule
-Pipeline & Cfg & Tokens in & Tokens out & Fallbacks/call & Invalids/call \\
-\midrule
-Deterministic & A0 & 0 & 0 & 0 & 0 \\
-LLM & C-LLM & 6,683,661 & 500,205 & 4.6402 & 1.6342 \\
-Hybrid & B-All & 72,358 & 11,789 & 0.3733 & 0 \\
-B-S & B-S & 36,556 & 3,330 & 0.88 & 0 \\
-B-L & B-L & 23,776 & 4,815 & 0.2 & 0 \\
-B-F & B-F & 12,026 & 3,644 & 0.04 & 0 \\
-B-SL & B-SL & 60,332 & 8,145 & 0.54 & 0 \\
-B-LF & B-LF & 35,802 & 8,459 & 0.12 & 0 \\
-Budget-0 & Budget-0 & 0 & 0 & 0 & 0 \\
-Budget-5 & Budget-5 & 14,568 & 2,493 & 0.3333 & 0 \\
-Budget-10 & Budget-10 & 28,998 & 4,692 & 0.3667 & 0 \\
-Budget-25 & Budget-25 & 72,358 & 11,789 & 0.3733 & 0 \\
-\bottomrule
-\end{tabularx}
-\caption{Operational token use and decision-level failure ratios. Ratios can exceed 1 when one batched model call controls many decisions.}
-\label{tab:ops-ratios}
-\end{table}
+\includegraphics[width=0.84\linewidth]{reports/release/figures/routing_budget_frontier.pdf}
+\caption{Routing-budget frontier. Labels show the configuration and estimated model cost at each call cap.}
+\label{fig:budget-frontier}
+\end{figure}
 
-\begin{table}[H]
-\centering
-\tighttable
-\begin{tabularx}{\linewidth}{Yrrrrrrr}
-\toprule
-Pipeline & Eligible & Selected & Calls & Accepted & Defaulted & Invalid & Cost USD \\
-\midrule
-LLM & 26,842 & 5,662 & 667 & 2,567 & 24,275 & 1,090 & 3.4738 \\
-Hybrid & 8,027 & 75 & 75 & 47 & 28 & 0 & 0.0478 \\
-\bottomrule
-\end{tabularx}
-\caption{LLM intervention funnel for C-LLM and B-All.}
-\label{tab:funnel}
-\end{table}
-
-\begin{table}[H]
-\centering
-\tighttable
-\begin{tabularx}{\linewidth}{lrrrrrr}
-\toprule
-Config & Calls & Cost USD & Schema & Linkage & Fusion & E2E \\
-\midrule
-Budget-0 & 0 & 0 & 0.4727 & 0.869 & 0.75 & 0.5761 \\
-Budget-5 & 15 & 0.0098 & 0.4727 & 0.8672 & 0.75 & 0.5756 \\
-Budget-10 & 30 & 0.0191 & 0.4727 & 0.865 & 0.75 & 0.5751 \\
-Budget-25 & 75 & 0.0478 & 0.4727 & 0.8627 & 0.75 & 0.5744 \\
-\bottomrule
-\end{tabularx}
-\caption{Routing-budget variants for the hybrid release.}
-\label{tab:budget}
-\end{table}
-
-B-All issued 75 model calls
-with an estimated cost of \$ 0.0478.
+B-All issued 0 model calls
+with an estimated cost of \$ 0.
 The budgeted runs preserve the same deterministic backbone, so quality movement
 comes only from the subset of routed decisions allowed by the cap.
 
@@ -417,14 +264,14 @@ record\_linkage & false pair decision & The pairwise matcher prediction disagree
 \label{tab:cases}
 \end{table}
 
-\subsubsection*{schema\_ca.pcpartpicker.com//displayport}
+\subsubsection*{schema\_source\_alpha//price}
 \textbf{Stage:} \texttt{schema\_alignment}
 
 \textbf{System output:}
 \begin{quote}
 \footnotesize\ttfamily
 \begin{tabularx}{0.96\linewidth}{Y}
-\{'source\_attribute\_id': 'ca.pcpartpicker.com//displayport', \\ 'predicted\_target\_attribute\_name': 'has\_displayport', 'score\_total': 0.781603, 'method': \\ 'deterministic\_schema\_v1'\}
+\{'source\_attribute\_id': 'source\_alpha//price', 'predicted\_target\_attribute\_name': \\ 'UNMAPPED', 'score\_total': 1.0, 'method': 'deterministic\_schema\_v1'\}
 \end{tabularx}
 \end{quote}
 
@@ -432,7 +279,7 @@ record\_linkage & false pair decision & The pairwise matcher prediction disagree
 \begin{quote}
 \footnotesize\ttfamily
 \begin{tabularx}{0.96\linewidth}{Y}
-\{'gold\_target\_attribute\_name': 'displayport\_quantity'\}
+\{'gold\_target\_attribute\_name': 'price'\}
 \end{tabularx}
 \end{quote}
 
@@ -442,18 +289,18 @@ record\_linkage & false pair decision & The pairwise matcher prediction disagree
 \begin{quote}
 \footnotesize\ttfamily
 \begin{tabularx}{0.96\linewidth}{Y}
-`ca.pcpartpicker.com:122` title='HP Z22i 60Hz 21.5" Monitor (D7Q14A4\#ABA) - PCPartPicker Canada' \\ brand='HP' model='Z22i'; `ca.pcpartpicker.com:17` title='HP Z24i 60Hz 24.0" Monitor \\ (D7P53A4\#ABA) - PCPartPicker Canada' brand='HP' model='Z24i'; `ca.pcpartpicker.com:184` \\ title='Dell U2913WM 60Hz 29.0" Monitor (U2913WM) - PCPartPicker Canada' brand='Dell' model=''
+`source\_alpha:a100` title='Canon EOS 4000D DSLR Camera Kit' brand='Canon' model=''; \\ `source\_alpha:a101` title='Sony Alpha A6000 Mirrorless Camera' brand='Sony' model=''
 \end{tabularx}
 \end{quote}
 
-\subsubsection*{fusion\_1\_entity\_000378}
+\subsubsection*{fusion\_1\_entity\_000003}
 \textbf{Stage:} \texttt{fusion}
 
 \textbf{System output:}
 \begin{quote}
 \footnotesize\ttfamily
 \begin{tabularx}{0.96\linewidth}{Y}
-\{'entity\_id': 'entity\_000378', 'attribute': 'screen\_brightness', 'predicted\_value': '225'\}
+\{'entity\_id': 'entity\_000003', 'attribute': 'price', 'predicted\_value': '310.00'\}
 \end{tabularx}
 \end{quote}
 
@@ -461,7 +308,7 @@ record\_linkage & false pair decision & The pairwise matcher prediction disagree
 \begin{quote}
 \footnotesize\ttfamily
 \begin{tabularx}{0.96\linewidth}{Y}
-\{'truth\_entity\_id': 'ENTITY\#002', 'expected\_value': '250'\}
+\{'truth\_entity\_id': 'ENTITY\#001', 'expected\_value': 'None'\}
 \end{tabularx}
 \end{quote}
 
@@ -471,18 +318,18 @@ record\_linkage & false pair decision & The pairwise matcher prediction disagree
 \begin{quote}
 \footnotesize\ttfamily
 \begin{tabularx}{0.96\linewidth}{Y}
-`www.ohc24.ch:318` title='OHC24 Shop : Monitor > Monitor search help > Elo - 1515L IntelliTouch \\ E399324' brand='' model=''
+`source\_beta:b200` title='Canon 4000D 18MP Digital SLR' brand='Canon' model='4000D'
 \end{tabularx}
 \end{quote}
 
-\subsubsection*{linkage\_pair\_00000025}
+\subsubsection*{linkage\_pair\_00000001}
 \textbf{Stage:} \texttt{record\_linkage}
 
 \textbf{System output:}
 \begin{quote}
 \footnotesize\ttfamily
 \begin{tabularx}{0.96\linewidth}{Y}
-\{'candidate\_pair\_id': 'pair\_00000025', 'match\_prediction': 0, 'match\_probability': \\ 0.3533711894020474\}
+\{'candidate\_pair\_id': 'pair\_00000001', 'match\_prediction': 0, 'match\_probability': 0.05\}
 \end{tabularx}
 \end{quote}
 
@@ -500,7 +347,7 @@ record\_linkage & false pair decision & The pairwise matcher prediction disagree
 \begin{quote}
 \footnotesize\ttfamily
 \begin{tabularx}{0.96\linewidth}{Y}
-`ca.pcpartpicker.com:122` title='HP Z22i 60Hz 21.5" Monitor (D7Q14A4\#ABA) - PCPartPicker Canada' \\ brand='HP' model='Z22I'; `ca.pcpartpicker.com:73` title='HP Z22i (D7Q14A4) 60Hz 21.5" Monitor \\ (D7Q14A8\#ABA) - PCPartPicker Canada' brand='HP' model='Z22ID7Q14A4'
+`source\_alpha:a100` title='Canon EOS 4000D DSLR Camera Kit' brand='Canon' model='EOS4000D'; \\ `source\_beta:b200` title='Canon 4000D 18MP Digital SLR' brand='Canon' model='4000D'
 \end{tabularx}
 \end{quote}
 

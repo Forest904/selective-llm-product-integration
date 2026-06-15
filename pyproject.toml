@@ -5,6 +5,7 @@ description = "Selective LLM-assisted product data integration research scaffold
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+  "matplotlib>=3.10.0",
   "polars>=1.41.2",
   "pyarrow>=24.0.0",
   "pydantic>=2.13.4",

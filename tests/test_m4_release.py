@@ -128,6 +128,32 @@ def test_fixture_report_builder_writes_release_bundle(tmp_path: Path) -> None:
     assert outputs["release_manifest"] is not None and outputs["release_manifest"].exists()
     assert outputs["final_dataset"] is not None and outputs["final_dataset"].exists()
 
+    figure_names = [
+        "component_quality",
+        "configuration_quality_heatmap",
+        "linkage_performance",
+        "operational_dashboard",
+        "routing_budget_frontier",
+    ]
+    for figure_name in figure_names:
+        for suffix in (".png", ".pdf"):
+            figure_path = REPO_ROOT / "reports/release/figures" / f"{figure_name}{suffix}"
+            assert figure_path.exists()
+            assert figure_path.stat().st_size > 0
+
+    report_tex = (REPO_ROOT / "reports/report.tex").read_text(encoding="utf-8")
+    report_md = (REPO_ROOT / "reports/report.md").read_text(encoding="utf-8")
+    assert "Luca Foresti" in report_tex
+    assert "Submission-ready benchmark report" not in report_tex
+    assert "Mosaic Research Release" not in report_tex
+    assert "Full subset-live metric matrix" not in report_tex
+    assert "Linkage confusion matrix on the test split" not in report_tex
+    assert "Operational decision counts and estimated live-model cost" not in report_tex
+    assert "Routing-budget variants for the hybrid release" not in report_tex
+    for figure_name in figure_names:
+        assert f"figures/{figure_name}.pdf" in report_tex
+        assert f"figures/{figure_name}.png" in report_md
+
     error_cases = json.loads((REPO_ROOT / "reports/appendix/m4_error_cases.json").read_text())
     assert len(error_cases) >= 3
     assert "fusion" in {case["stage"] for case in error_cases}

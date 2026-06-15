@@ -1,13 +1,4 @@
 abstention_count,abstention_rate,accepted_count,average_latency_ms,cache_hit_count,configuration_id,defaulted_count,eligible_count,estimated_cost_usd,fallback_count,fallback_rate,input_tokens,invalid_output_count,invalid_output_rate,llm_call_count,output_tokens,report_label,run_id,selected_count,unselected_default_count,unsupported_value_count
-0,0.0,0,0.0,0,A0,0,0,0,0,0.0,0,0,0.0,0,0,Deterministic,run_20260614T141953Z_baseline_m2_alaska_monit_3f8ab8fb,0,0,0
-195,0.2924,2567,5967.63481175335,218,C-LLM,24275,26842,3.4737924000000002,3095,4.6402,6683661,1090,1.6342,667,500205,LLM,run_20260614T142015Z_m4_c_llm_primary_alaska__1911a3a7,5662,21180,1
-0,0.0,47,918.2933333333333,50,B-All,28,8027,0.047805600000000004,28,0.3733,72358,0,0.0,75,11789,Hybrid,run_20260614T153452Z_m4_b_all_alaska_monitor__50d1ed61,75,0,0
-0,0.0,3,0.0,25,B-S,22,3153,0.0199504,22,0.88,36556,0,0.0,25,3330,B-S,run_20260614T153616Z_m4_b_schema_only_alaska__391674fa,25,0,0
-0,0.0,20,0.0,25,B-L,5,8025,0.0172144,5,0.2,23776,0,0.0,25,4815,B-L,run_20260614T153629Z_m4_b_linkage_only_alaska_7d806c36,25,0,0
-0,0.0,24,0.0,25,B-F,1,3151,0.0106408,1,0.04,12026,0,0.0,25,3644,B-F,run_20260614T153644Z_m4_b_fusion_only_alaska__3de2ccf9,25,0,0
-0,0.0,23,0.0,50,B-SL,27,8027,0.0371648,27,0.54,60332,0,0.0,50,8145,B-SL,run_20260614T153657Z_m4_b_schema_linkage_alas_d7ab4f09,50,0,0
-0,0.0,44,0.0,50,B-LF,6,8025,0.027855200000000004,6,0.12,35802,0,0.0,50,8459,B-LF,run_20260614T153712Z_m4_b_linkage_fusion_alas_5b328ee9,50,0,0
-0,0.0,0,0.0,0,Budget-0,0,8025,0.0,0,0.0,0,0,0.0,0,0,Budget-0,run_20260614T153727Z_m4_budget_cap_0_alaska_m_94a25a58,0,0,0
-0,0.0,10,0.0,15,Budget-5,5,8025,0.009816000000000002,5,0.3333,14568,0,0.0,15,2493,Budget-5,run_20260614T153742Z_m4_budget_cap_5_alaska_m_1360abbd,15,0,0
-0,0.0,19,0.0,30,Budget-10,11,8025,0.019106400000000003,11,0.3667,28998,0,0.0,30,4692,Budget-10,run_20260614T153757Z_m4_budget_cap_10_alaska__5aeeac70,30,0,0
-0,0.0,47,0.0,75,Budget-25,28,8027,0.047805600000000004,28,0.3733,72358,0,0.0,75,11789,Budget-25,run_20260614T153812Z_m4_budget_cap_25_alaska__956adc1c,75,0,0
+0,0.0,0,0.0,0,fixture-A0,0,0,0,0,0.0,0,0,0.0,0,0,Deterministic,run_20260615T105727Z_baseline_m2_fixture_5e5c3ec8,0,0,0
+0,0.0,42,0.19047619047619047,20,fixture-C-LLM,0,42,0.0,0,0.0,26288,0,0.0,22,2471,LLM,run_20260615T105727Z_m4_c_llm_primary_fixture_841e64e8,42,0,0
+0,0.0,6,0.0,19,fixture-B-All,13,19,0.0,13,0.6842,11947,0,0.0,19,1096,Hybrid,run_20260615T105727Z_m3_llm_assisted_example_b14e41e8,19,0,5

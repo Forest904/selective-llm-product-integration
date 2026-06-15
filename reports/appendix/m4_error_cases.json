@@ -1,205 +1,126 @@
 [
   {
     "artifact_links": {
-      "schema_errors": "artifacts/runs/run_20260614T141953Z_baseline_m2_alaska_monit_3f8ab8fb/schema/schema_false_positives.parquet",
-      "schema_metrics": "artifacts/runs/run_20260614T153452Z_m4_b_all_alaska_monitor__50d1ed61/schema/assisted_schema_metrics.json"
+      "schema_errors": "artifacts/runs/run_20260615T105727Z_baseline_m2_fixture_5e5c3ec8/schema/schema_false_positives.parquet",
+      "schema_metrics": "artifacts/runs/run_20260615T105727Z_m3_llm_assisted_example_b14e41e8/schema/assisted_schema_metrics.json"
     },
-    "case_id": "schema_ca.pcpartpicker.com//displayport",
+    "case_id": "schema_source_alpha//price",
     "expected_output": {
-      "gold_target_attribute_name": "displayport_quantity"
+      "gold_target_attribute_name": "price"
     },
     "explanation": "The source attribute was mapped to the wrong mediated-schema field, which can propagate into normalization and fusion.",
     "source_records": [
       {
-        "attribute_name": "displayport",
-        "attribute_value": "1",
+        "attribute_name": "price",
+        "attribute_value": "299.00",
         "raw_payload": {
-          "<page title>": "HP Z22i 60Hz 21.5\" Monitor (D7Q14A4#ABA) - PCPartPicker Canada",
-          "aspect ratio": "16:9",
-          "brightness": "250 cd/m\u00b2",
-          "builtin speakers": "Yes",
-          "contrast ratio": "1000:1",
-          "displayport": "1",
-          "dvid duallink": "1",
-          "ips": "Yes",
-          "led": "Yes",
-          "manufacturer": "HP",
-          "model": "Z22i",
-          "part": "D7Q14A4#ABA",
-          "recommended resolution": "1920 x 1080",
-          "refresh rate": "60Hz",
-          "response time": "8 ms",
-          "screen size": "21.5\"",
-          "vga": "1",
-          "widescreen": "Yes"
+          "<page title>": "Canon EOS 4000D DSLR Camera Kit",
+          "brand": "Canon",
+          "category": "digital camera",
+          "color": "black",
+          "currency": "USD",
+          "description": "Entry level DSLR camera kit with lens.",
+          "model number": "EOS 4000D",
+          "price": "299.00",
+          "resolution": "18 MP"
         },
-        "record_uid": "ca.pcpartpicker.com:122",
-        "source_id": "ca.pcpartpicker.com",
-        "source_record_id": "122"
+        "record_uid": "source_alpha:a100",
+        "source_id": "source_alpha",
+        "source_record_id": "a100"
       },
       {
-        "attribute_name": "displayport",
-        "attribute_value": "1",
+        "attribute_name": "price",
+        "attribute_value": "548.00",
         "raw_payload": {
-          "<page title>": "HP Z24i 60Hz 24.0\" Monitor (D7P53A4#ABA) - PCPartPicker Canada",
-          "aspect ratio": "16:10",
-          "brightness": "300 cd/m\u00b2",
-          "builtin speakers": "Yes",
-          "contrast ratio": "1000:1",
-          "displayport": "1",
-          "dvid duallink": "1",
-          "ips": "Yes",
-          "led": "Yes",
-          "manufacturer": "HP",
-          "model": "Z24i",
-          "part": "D7P53A4#ABA",
-          "recommended resolution": "1920 x 1200",
-          "refresh rate": "60Hz",
-          "response time": "8 ms",
-          "screen size": "24\"",
-          "vga": "1",
-          "viewing angle": "178\u00b0 H x 178\u00b0 V",
-          "widescreen": "Yes"
+          "<page title>": "Sony Alpha A6000 Mirrorless Camera",
+          "brand": "Sony",
+          "category": "mirrorless camera",
+          "currency": "USD",
+          "description": "Compact mirrorless camera body.",
+          "model number": "A6000",
+          "price": "548.00",
+          "sensor": "24.3 MP APS-C"
         },
-        "record_uid": "ca.pcpartpicker.com:17",
-        "source_id": "ca.pcpartpicker.com",
-        "source_record_id": "17"
-      },
-      {
-        "attribute_name": "displayport",
-        "attribute_value": "2",
-        "raw_payload": {
-          "<page title>": "Dell U2913WM 60Hz 29.0\" Monitor (U2913WM) - PCPartPicker Canada",
-          "aspect ratio": "21:9",
-          "brightness": "300 cd/m\u00b2",
-          "builtin speakers": "No",
-          "contrast ratio": "DC 2,000,000:1 (1000:1)",
-          "display colors": "16700000",
-          "displayport": "2",
-          "dvi": "1",
-          "hdmi": "1",
-          "ips": "Yes",
-          "led": "Yes",
-          "manufacturer": "Dell",
-          "part": "U2913WM",
-          "recommended resolution": "2560 x 1080",
-          "refresh rate": "60Hz",
-          "response time": "8 ms",
-          "screen size": "29\"",
-          "vga": "1",
-          "viewing angle": "178\u00b0 H x 178\u00b0 V",
-          "widescreen": "Yes"
-        },
-        "record_uid": "ca.pcpartpicker.com:184",
-        "source_id": "ca.pcpartpicker.com",
-        "source_record_id": "184"
+        "record_uid": "source_alpha:a101",
+        "source_id": "source_alpha",
+        "source_record_id": "a101"
       }
     ],
     "stage": "schema_alignment",
     "system_output": {
       "method": "deterministic_schema_v1",
-      "predicted_target_attribute_name": "has_displayport",
-      "score_total": 0.781603,
-      "source_attribute_id": "ca.pcpartpicker.com//displayport"
+      "predicted_target_attribute_name": "UNMAPPED",
+      "score_total": 1.0,
+      "source_attribute_id": "source_alpha//price"
     }
   },
   {
     "artifact_links": {
-      "fused_values": "artifacts/runs/run_20260614T153452Z_m4_b_all_alaska_monitor__50d1ed61/fusion/assisted_fused_values.parquet",
-      "fusion_metrics": "artifacts/runs/run_20260614T153452Z_m4_b_all_alaska_monitor__50d1ed61/fusion/assisted_fusion_metrics.json"
+      "fused_values": "artifacts/runs/run_20260615T105727Z_m3_llm_assisted_example_b14e41e8/fusion/assisted_fused_values.parquet",
+      "fusion_metrics": "artifacts/runs/run_20260615T105727Z_m3_llm_assisted_example_b14e41e8/fusion/assisted_fusion_metrics.json"
     },
-    "case_id": "fusion_1_entity_000378",
+    "case_id": "fusion_1_entity_000003",
     "expected_output": {
-      "expected_value": "250",
-      "truth_entity_id": "ENTITY#002"
+      "expected_value": "None",
+      "truth_entity_id": "ENTITY#001"
     },
     "explanation": "The fused value disagrees with the curated or bootstrap fusion gold value, usually because conflicting source claims normalize to close but not identical values.",
     "source_records": [
       {
         "normalized_payload": {
-          "category": "monitor",
-          "color": "dark grey",
-          "contrast_ratio_static": "500:1",
-          "description": "Elo 1515L IntelliTouch - LCD monitor - 15\"",
-          "monitor_weight": "4.8",
-          "monitor_width_with_stand": "35",
-          "number_of_colors": "16.7 million colours",
-          "response_time": "11.7",
-          "screen_brightness": "225",
+          "brand": "Canon",
+          "category": "dslr camera",
+          "description": "Canon DSLR with 18 megapixel sensor.",
+          "model_number": "4000D",
+          "price": "310.00",
           "specifications": {
-            "builtin_devices": {
-              "normalized_value": "touch-screen",
-              "raw_value": "Touch-screen",
+            "body_colour": {
+              "normalized_value": "black",
+              "raw_value": "black",
               "source_claim_ids": [
-                "7a93ff7d96cab93473322794"
+                "2a1459a59f9344530cc4234f"
               ],
               "unit": null
             },
-            "compliant_standards": {
-              "normalized_value": "ul, vcci, c-tick, cul, mpr iii, semko, ic, fcc, rohs",
-              "raw_value": "UL, VCCI, C-Tick, cUL, MPR III, SEMKO, IC, FCC, RoHS",
+            "resolution": {
+              "normalized_value": "18",
+              "raw_value": "18.0 megapixels",
               "source_claim_ids": [
-                "be8cd2cea945c51f74fa0829"
+                "0519f046fc7fdfa798c21eab"
               ],
-              "unit": null
-            },
-            "input_connectors": {
-              "normalized_value": "vga",
-              "raw_value": "VGA",
-              "source_claim_ids": [
-                "676f325f5b93986c98e6a16c"
-              ],
-              "unit": null
-            },
-            "screen_coating": {
-              "normalized_value": "anti-glare",
-              "raw_value": "Anti-glare",
-              "source_claim_ids": [
-                "fb63e56d447ffa409d83d6a4"
-              ],
-              "unit": null
+              "unit": "MP"
             }
           },
-          "supported_aspect_ratio": "4:3",
-          "supported_resolution": "1024",
-          "title": "OHC24 Shop : Monitor > Monitor search help > Elo - 1515L IntelliTouch E399324"
+          "title": "Canon 4000D 18MP Digital SLR"
         },
         "raw_payload": {
-          "<page title>": "OHC24 Shop : Monitor > Monitor search help > Elo - 1515L IntelliTouch E399324",
-          "aspect ratio": "4:3",
-          "brightness": "225 cd/m2",
-          "builtin devices": "Touch-screen",
-          "colour": "Dark grey",
-          "colour support": "16.7 million colours",
-          "compliant standards": "UL, VCCI, C-Tick, cUL, MPR III, SEMKO, IC, FCC, RoHS",
-          "contrast ratio": "500:1",
-          "device type": "LCD monitor - 15\"",
-          "dimensions wxdxh": "35 cm x 17.5 cm x 31 cm",
-          "input connectors": "VGA",
-          "native resolution": "1024 x 768 at 75 Hz",
-          "product description": "Elo 1515L IntelliTouch - LCD monitor - 15\"",
-          "response time": "11.7 ms",
-          "screen coating": "Anti-glare",
-          "weight": "4.8 kg"
+          "<page title>": "Canon 4000D 18MP Digital SLR",
+          "body colour": "black",
+          "manufacturer": "Canon",
+          "model": "4000D",
+          "product type": "DSLR",
+          "resolution": "18.0 megapixels",
+          "sale price": "$310",
+          "short description": "Canon DSLR with 18 megapixel sensor."
         },
-        "record_uid": "www.ohc24.ch:318",
-        "source_id": "www.ohc24.ch",
-        "source_record_id": "318"
+        "record_uid": "source_beta:b200",
+        "source_id": "source_beta",
+        "source_record_id": "b200"
       }
     ],
     "stage": "fusion",
     "system_output": {
-      "attribute": "screen_brightness",
-      "entity_id": "entity_000378",
-      "predicted_value": "225"
+      "attribute": "price",
+      "entity_id": "entity_000003",
+      "predicted_value": "310.00"
     }
   },
   {
     "artifact_links": {
-      "linkage_metrics": "artifacts/runs/run_20260614T153452Z_m4_b_all_alaska_monitor__50d1ed61/matching/assisted_linkage_metrics.json",
-      "pair_predictions": "artifacts/runs/run_20260614T153452Z_m4_b_all_alaska_monitor__50d1ed61/matching/assisted_pair_predictions.parquet"
+      "linkage_metrics": "artifacts/runs/run_20260615T105727Z_m3_llm_assisted_example_b14e41e8/matching/assisted_linkage_metrics.json",
+      "pair_predictions": "artifacts/runs/run_20260615T105727Z_m3_llm_assisted_example_b14e41e8/matching/assisted_pair_predictions.parquet"
     },
-    "case_id": "linkage_pair_00000025",
+    "case_id": "linkage_pair_00000001",
     "expected_output": {
       "ground_truth_label": 1
     },
@@ -207,130 +128,94 @@
     "source_records": [
       {
         "normalized_payload": {
-          "brand": "HP",
-          "contrast_ratio_static": "1000:1",
-          "has_displayport": "true",
-          "has_speakers": "true",
-          "has_vga_port": "true",
-          "model_number": "Z22I",
-          "response_time": "8",
-          "screen_brightness": "250",
-          "screen_size_diagonal": "21.5",
-          "screen_type": "yes",
+          "brand": "Canon",
+          "category": "camera",
+          "currency": "USD",
+          "description": "Entry level DSLR camera kit with lens.",
+          "model_number": "EOS4000D",
+          "price": "299.00",
           "specifications": {
-            "dvid_duallink": {
-              "normalized_value": "1",
-              "raw_value": "1",
+            "color": {
+              "normalized_value": "black",
+              "raw_value": "black",
               "source_claim_ids": [
-                "fbb6d01e2ec2724b9d15eb97"
+                "240d702844d79a56f7d35144"
               ],
               "unit": null
             },
-            "widescreen": {
-              "normalized_value": "yes",
-              "raw_value": "Yes",
+            "resolution": {
+              "normalized_value": "18",
+              "raw_value": "18 MP",
               "source_claim_ids": [
-                "0076d6a5d07951f9c10c595a"
+                "10947c0cd57fdd639e54a511"
               ],
-              "unit": null
+              "unit": "MP"
             }
           },
-          "supported_aspect_ratio": "16:9",
-          "supported_resolution": "1920",
-          "title": "HP Z22i 60Hz 21.5\" Monitor (D7Q14A4#ABA) - PCPartPicker Canada",
-          "vertical_refresh_rate_range": "60"
+          "title": "Canon EOS 4000D DSLR Camera Kit"
         },
         "raw_payload": {
-          "<page title>": "HP Z22i 60Hz 21.5\" Monitor (D7Q14A4#ABA) - PCPartPicker Canada",
-          "aspect ratio": "16:9",
-          "brightness": "250 cd/m\u00b2",
-          "builtin speakers": "Yes",
-          "contrast ratio": "1000:1",
-          "displayport": "1",
-          "dvid duallink": "1",
-          "ips": "Yes",
-          "led": "Yes",
-          "manufacturer": "HP",
-          "model": "Z22i",
-          "part": "D7Q14A4#ABA",
-          "recommended resolution": "1920 x 1080",
-          "refresh rate": "60Hz",
-          "response time": "8 ms",
-          "screen size": "21.5\"",
-          "vga": "1",
-          "widescreen": "Yes"
+          "<page title>": "Canon EOS 4000D DSLR Camera Kit",
+          "brand": "Canon",
+          "category": "digital camera",
+          "color": "black",
+          "currency": "USD",
+          "description": "Entry level DSLR camera kit with lens.",
+          "model number": "EOS 4000D",
+          "price": "299.00",
+          "resolution": "18 MP"
         },
-        "record_uid": "ca.pcpartpicker.com:122",
-        "source_id": "ca.pcpartpicker.com",
-        "source_record_id": "122"
+        "record_uid": "source_alpha:a100",
+        "source_id": "source_alpha",
+        "source_record_id": "a100"
       },
       {
         "normalized_payload": {
-          "brand": "HP",
-          "contrast_ratio_static": "dc 5,000,000:1 (1000:1)",
-          "has_displayport": "true",
-          "has_dvi_port": "true",
-          "has_speakers": "false",
-          "has_vga_port": "true",
-          "model_number": "Z22ID7Q14A4",
-          "response_time": "8",
-          "screen_brightness": "250",
-          "screen_size_diagonal": "21.5",
-          "screen_type": "yes",
+          "brand": "Canon",
+          "category": "dslr camera",
+          "description": "Canon DSLR with 18 megapixel sensor.",
+          "model_number": "4000D",
+          "price": "310.00",
           "specifications": {
-            "viewing_angle": {
-              "normalized_value": "178\u00b0 h x 178\u00b0 v",
-              "raw_value": "178\u00b0 H x 178\u00b0 V",
+            "body_colour": {
+              "normalized_value": "black",
+              "raw_value": "black",
               "source_claim_ids": [
-                "084d7e2acfa2014bc1b213dc"
+                "2a1459a59f9344530cc4234f"
               ],
               "unit": null
             },
-            "widescreen": {
-              "normalized_value": "yes",
-              "raw_value": "Yes",
+            "resolution": {
+              "normalized_value": "18",
+              "raw_value": "18.0 megapixels",
               "source_claim_ids": [
-                "f25341fc5beb3e95b2288826"
+                "0519f046fc7fdfa798c21eab"
               ],
-              "unit": null
+              "unit": "MP"
             }
           },
-          "supported_aspect_ratio": "16:9",
-          "supported_resolution": "1920",
-          "title": "HP Z22i (D7Q14A4) 60Hz 21.5\" Monitor (D7Q14A8#ABA) - PCPartPicker Canada",
-          "vertical_refresh_rate_range": "60"
+          "title": "Canon 4000D 18MP Digital SLR"
         },
         "raw_payload": {
-          "<page title>": "HP Z22i (D7Q14A4) 60Hz 21.5\" Monitor (D7Q14A8#ABA) - PCPartPicker Canada",
-          "aspect ratio": "16:9",
-          "brightness": "250 cd/m\u00b2",
-          "builtin speakers": "No",
-          "contrast ratio": "DC 5,000,000:1 (1000:1)",
-          "displayport": "1",
-          "dvi": "1",
-          "ips": "Yes",
-          "led": "Yes",
-          "manufacturer": "HP",
-          "model": "Z22i (D7Q14A4)",
-          "part": "D7Q14A8#ABA",
-          "recommended resolution": "1920 x 1080",
-          "refresh rate": "60Hz",
-          "response time": "8 ms",
-          "screen size": "21.5\"",
-          "vga": "1",
-          "viewing angle": "178\u00b0 H x 178\u00b0 V",
-          "widescreen": "Yes"
+          "<page title>": "Canon 4000D 18MP Digital SLR",
+          "body colour": "black",
+          "manufacturer": "Canon",
+          "model": "4000D",
+          "product type": "DSLR",
+          "resolution": "18.0 megapixels",
+          "sale price": "$310",
+          "short description": "Canon DSLR with 18 megapixel sensor."
         },
-        "record_uid": "ca.pcpartpicker.com:73",
-        "source_id": "ca.pcpartpicker.com",
-        "source_record_id": "73"
+        "record_uid": "source_beta:b200",
+        "source_id": "source_beta",
+        "source_record_id": "b200"
       }
     ],
     "stage": "record_linkage",
     "system_output": {
-      "candidate_pair_id": "pair_00000025",
+      "candidate_pair_id": "pair_00000001",
       "match_prediction": 0,
-      "match_probability": 0.3533711894020474
+      "match_probability": 0.05
     }
   }
 ]

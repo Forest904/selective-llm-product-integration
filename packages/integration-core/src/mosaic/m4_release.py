@@ -6,16 +6,20 @@ import csv
 import json
 import os
 import shutil
-import struct
 import subprocess
 import textwrap
-import zlib
 from collections.abc import Iterable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
 
+import matplotlib
 import polars as pl
+
+matplotlib.use("Agg")
+
+import matplotlib.pyplot as plt  # noqa: E402
+from matplotlib.figure import Figure  # noqa: E402
 
 from mosaic.alaska import (
     ALASKA_VERTICALS,
@@ -329,24 +333,26 @@ def build_m4_report(
     if scale_summaries:
         _write_table(tables_dir / "deterministic_scale.csv", scale_summaries)
 
-    _write_bar_png(
+    _write_component_quality_figures(
         figures_dir / "component_quality.png",
-        [
-            (
-                row["configuration_id"],
-                [
-                    float(row.get("schema_f1") or 0),
-                    float(row.get("linkage_test_f1") or 0),
-                    float(row.get("cluster_f1") or 0),
-                    float(row.get("fusion_accuracy") or 0),
-                ],
-            )
-            for row in summaries[:4]
-        ],
+        summaries,
     )
-    _write_line_png(
+    _write_quality_heatmap_figures(
+        figures_dir / "configuration_quality_heatmap.png",
+        summaries,
+    )
+    _write_linkage_performance_figures(
+        figures_dir / "linkage_performance.png",
+        summaries,
+    )
+    _write_operational_dashboard_figures(
+        figures_dir / "operational_dashboard.png",
+        operational,
+    )
+    _write_routing_budget_figures(
         figures_dir / "routing_budget_frontier.png",
-        _routing_frontier_points(manifest, repo_root),
+        summaries,
+        operational,
     )
 
     release_manifest_copy = release_dir / "m4_release_manifest.json"
@@ -1258,38 +1264,6 @@ def _report_markdown(
             }
         ]
     )
-    metrics_table = _markdown_table(
-        [
-            {
-                "pipeline": row["report_label"],
-                "config": row["configuration_id"],
-                "schema_f1": row["schema_f1"],
-                "pairs": row["candidate_pairs"],
-                "linkage_f1": row["linkage_test_f1"],
-                "cluster_f1": row["cluster_f1"],
-                "fusion_acc": row["fusion_accuracy"],
-                "e2e": row["end_to_end_quality"],
-            }
-            for row in summaries
-        ]
-    )
-    operational_table = _markdown_table(
-        [
-            {
-                "pipeline": row["report_label"],
-                "config": row["configuration_id"],
-                "calls": row["llm_call_count"],
-                "accepted": row["accepted_count"],
-                "defaulted": row["defaulted_count"],
-                "tokens_in": row["input_tokens"],
-                "tokens_out": row["output_tokens"],
-                "cost_usd": _round(row["estimated_cost_usd"]),
-                "fallbacks_per_call": row["fallback_rate"],
-                "invalids_per_call": row["invalid_output_rate"],
-            }
-            for row in operational
-        ]
-    )
     cases_table = _markdown_table(
         [
             {
@@ -1331,7 +1305,6 @@ def _report_markdown(
     baseline = summary_by_config.get("A0", {})
     llm_primary = summary_by_config.get("C-LLM", {})
     assisted = summary_by_config.get("B-All", {})
-    llm_ops = operational_by_config.get("C-LLM", {})
     assisted_ops = operational_by_config.get("B-All", {})
     three_way_table = _markdown_table(
         [
@@ -1346,58 +1319,6 @@ def _report_markdown(
             }
             for row in (baseline, llm_primary, assisted)
             if row
-        ]
-    )
-    funnel_table = _markdown_table(
-        [
-            {
-                "pipeline": row.get("report_label"),
-                "eligible": row.get("eligible_count"),
-                "selected": row.get("selected_count"),
-                "calls": row.get("llm_call_count"),
-                "accepted": row.get("accepted_count"),
-                "defaulted": row.get("defaulted_count"),
-                "invalid": row.get("invalid_output_count"),
-                "cost_usd": _round(row.get("estimated_cost_usd")),
-            }
-            for row in (llm_ops, assisted_ops)
-            if row
-        ]
-    )
-    confusion_table = _markdown_table(
-        [
-            {
-                "config": row["configuration_id"],
-                "tp": row["linkage_tp"],
-                "fp": row["linkage_fp"],
-                "tn": row["linkage_tn"],
-                "fn": row["linkage_fn"],
-                "precision": row["linkage_test_precision"],
-                "recall": row["linkage_test_recall"],
-            }
-            for row in summaries
-            if row["configuration_id"] in {"A0", "B-All", "B-L", "B-SL", "B-LF"}
-        ]
-    )
-    budget_table = _markdown_table(
-        [
-            {
-                "config": row["configuration_id"],
-                "calls": operational_by_config.get(row["configuration_id"], {}).get(
-                    "llm_call_count", 0
-                ),
-                "cost_usd": _round(
-                    operational_by_config.get(row["configuration_id"], {}).get(
-                        "estimated_cost_usd", 0
-                    )
-                ),
-                "schema_f1": row["schema_f1"],
-                "linkage_f1": row["linkage_test_f1"],
-                "fusion_acc": row["fusion_accuracy"],
-                "e2e": row["end_to_end_quality"],
-            }
-            for row in summaries
-            if str(row["configuration_id"]).startswith("Budget")
         ]
     )
     traceability_table = _markdown_table(
@@ -1442,8 +1363,8 @@ def _report_markdown(
     case_details = _case_details_markdown(error_cases)
     return f"""---
 title: "Mosaic: Selective LLM Assistance for Product Data Integration"
-author: "Mosaic Research Release"
-date: "{datetime.now(UTC).date().isoformat()}"
+author: "Luca Foresti"
+date: "{_report_build_date()}"
 geometry: margin=1in
 fontsize: 10pt
 ---
@@ -1625,9 +1546,9 @@ how much quality is retained when the number of routed calls is capped.
 
 {three_way_table}
 
-{metrics_table}
+![Quality across configurations]({M4_RELEASE_DIR.as_posix()}/figures/configuration_quality_heatmap.png)
 
-Full metric tables are written to
+Exact values for the full configuration matrix are written to
 `{M4_RELEASE_DIR.as_posix()}/tables/metrics_summary.csv`.
 
 ## Deterministic Scale Evidence
@@ -1678,9 +1599,9 @@ to a predicted fused value. The `fusion_evaluated_values` column is therefore
 the denominator for this metric; if that denominator is zero, report generation
 fails instead of publishing a misleading zero.
 
-## Linkage Confusion Matrix
+## Linkage Performance
 
-{confusion_table}
+![Linkage test outcomes, precision, and recall]({M4_RELEASE_DIR.as_posix()}/figures/linkage_performance.png)
 
 The linkage confusion matrix shows that the test split remains stable across
 the assisted linkage variants. This is desirable when routed examples are
@@ -1692,7 +1613,7 @@ the underlying gold-label sparsity.
 
 Operational metrics summarize cost and reliability of selective LLM use.
 
-{operational_table}
+![Operational LLM dashboard]({M4_RELEASE_DIR.as_posix()}/figures/operational_dashboard.png)
 
 The operational columns `fallbacks_per_call` and `invalids_per_call` are
 decision-level counts divided by provider call count. They can exceed 1 for
@@ -1701,13 +1622,9 @@ one invalid batch can default many downstream decisions. The B-All hybrid rows
 are easier to interpret as per-call rates because routing caps the selected
 cases much more tightly.
 
-## LLM Intervention Funnel
-
-{funnel_table}
-
 ## Routing Budget Results
 
-{budget_table}
+![Routing budget quality frontier]({M4_RELEASE_DIR.as_posix()}/figures/routing_budget_frontier.png)
 
 The routing-budget variants show the cost envelope for the live release.
 B-All issued {assisted_ops.get("llm_call_count", 0)} model calls with an
@@ -1938,14 +1855,6 @@ def _report_latex(
     fixture: bool,
     scale_summaries: list[dict[str, Any]],
 ) -> str:
-    mode_note = (
-        "This is a fixture-equivalent reproduction report, not the final live submission."
-        if fixture
-        else (
-            "This is the subset-live academic release: assisted metrics come from live or "
-            "cached OpenAI calls on the same 60-entity Monitor subset."
-        )
-    )
     final_dataset_text = (
         repo_relative(final_dataset, final_dataset.parents[2])
         if final_dataset is not None
@@ -1956,12 +1865,8 @@ def _report_latex(
     baseline = summary_by_config.get("A0", {})
     llm_primary = summary_by_config.get("C-LLM", {})
     assisted = summary_by_config.get("B-All", {})
-    llm_ops = operational_by_config.get("C-LLM", {})
     assisted_ops = operational_by_config.get("B-All", {})
-    repo_url = str(
-        dataset.get("repository_url") or "https://github.com/Forest904/selective-llm-product-integration"
-    )
-    today = datetime.now(UTC).date().isoformat()
+    today = _report_build_date()
 
     dataset_rows = [
         {
@@ -1995,19 +1900,6 @@ def _report_latex(
         for row in (baseline, llm_primary, assisted)
         if row
     ]
-    metrics_rows = [
-        {
-            "pipeline": row["report_label"],
-            "config": row["configuration_id"],
-            "schema_f1": row["schema_f1"],
-            "pairs": row["candidate_pairs"],
-            "linkage_f1": row["linkage_test_f1"],
-            "cluster_f1": row["cluster_f1"],
-            "fusion_acc": row["fusion_accuracy"],
-            "e2e": row["end_to_end_quality"],
-        }
-        for row in summaries
-    ]
     scale_rows = [
         {
             "config": row["configuration_id"],
@@ -2019,89 +1911,6 @@ def _report_latex(
             "fusion_acc": row["fusion_accuracy"],
         }
         for row in scale_summaries
-    ]
-    confusion_rows = [
-        {
-            "config": row["configuration_id"],
-            "tp": row["linkage_tp"],
-            "fp": row["linkage_fp"],
-            "tn": row["linkage_tn"],
-            "fn": row["linkage_fn"],
-            "precision": row["linkage_test_precision"],
-            "recall": row["linkage_test_recall"],
-        }
-        for row in summaries
-        if row["configuration_id"] in {"A0", "B-All", "B-L", "B-SL", "B-LF"}
-    ]
-    operational_rows = [
-        {
-            "pipeline": row["report_label"],
-            "config": row["configuration_id"],
-            "calls": row["llm_call_count"],
-            "accepted": row["accepted_count"],
-            "defaulted": row["defaulted_count"],
-            "tokens_in": row["input_tokens"],
-            "tokens_out": row["output_tokens"],
-            "cost": _round(row["estimated_cost_usd"]),
-            "fallbacks/call": row["fallback_rate"],
-            "invalids/call": row["invalid_output_rate"],
-        }
-        for row in operational
-    ]
-    operational_decision_rows = [
-        {
-            "pipeline": row["pipeline"],
-            "config": row["config"],
-            "calls": row["calls"],
-            "accepted": row["accepted"],
-            "defaulted": row["defaulted"],
-            "cost": row["cost"],
-        }
-        for row in operational_rows
-    ]
-    operational_token_rows = [
-        {
-            "pipeline": row["pipeline"],
-            "config": row["config"],
-            "tokens_in": row["tokens_in"],
-            "tokens_out": row["tokens_out"],
-            "fallbacks/call": row["fallbacks/call"],
-            "invalids/call": row["invalids/call"],
-        }
-        for row in operational_rows
-    ]
-    funnel_rows = [
-        {
-            "pipeline": row.get("report_label"),
-            "eligible": row.get("eligible_count"),
-            "selected": row.get("selected_count"),
-            "calls": row.get("llm_call_count"),
-            "accepted": row.get("accepted_count"),
-            "defaulted": row.get("defaulted_count"),
-            "invalid": row.get("invalid_output_count"),
-            "cost": _round(row.get("estimated_cost_usd")),
-        }
-        for row in (llm_ops, assisted_ops)
-        if row
-    ]
-    budget_rows = [
-        {
-            "config": row["configuration_id"],
-            "calls": operational_by_config.get(row["configuration_id"], {}).get(
-                "llm_call_count", 0
-            ),
-            "cost": _round(
-                operational_by_config.get(row["configuration_id"], {}).get(
-                    "estimated_cost_usd", 0
-                )
-            ),
-            "schema_f1": row["schema_f1"],
-            "linkage_f1": row["linkage_test_f1"],
-            "fusion_acc": row["fusion_accuracy"],
-            "e2e": row["end_to_end_quality"],
-        }
-        for row in summaries
-        if str(row["configuration_id"]).startswith("Budget")
     ]
     case_rows = [
         {
@@ -2163,12 +1972,7 @@ def _report_latex(
 \usepackage{{fvextra}}
 \definecolor{{MosaicBlue}}{{HTML}}{{1E5F74}}
 \definecolor{{MosaicTeal}}{{HTML}}{{277C78}}
-\definecolor{{MosaicGray}}{{HTML}}{{F3F5F7}}
 \definecolor{{MosaicInk}}{{HTML}}{{24313A}}
-\definecolor{{ComponentSchema}}{{RGB}}{{42,111,151}}
-\definecolor{{ComponentLinkage}}{{RGB}}{{232,141,103}}
-\definecolor{{ComponentCluster}}{{RGB}}{{38,70,83}}
-\definecolor{{ComponentFusion}}{{RGB}}{{131,197,190}}
 \hypersetup{{colorlinks=true, linkcolor=MosaicBlue, urlcolor=MosaicTeal}}
 \pagestyle{{fancy}}
 \fancyhf{{}}
@@ -2184,35 +1988,19 @@ def _report_latex(
 \captionsetup{{font=small, labelfont=bf}}
 \newcolumntype{{Y}}{{>{{\raggedright\arraybackslash}}X}}
 \newcommand{{\tighttable}}{{\scriptsize\setlength{{\tabcolsep}}{{3pt}}\renewcommand{{\arraystretch}}{{1.14}}}}
-\newcommand{{\legendbox}}[1]{{\raisebox{{0.15ex}}{{\colorbox{{#1}}{{\hspace{{0.9em}}\vspace{{0.55em}}}}}}}}
 
 \begin{{document}}
 \begin{{titlepage}}
-\vspace*{{0.4in}}
-{{\sffamily\bfseries\fontsize{{25}}{{30}}\selectfont Mosaic: Selective LLM Assistance for Product Data Integration\par}}
-\vspace{{0.14in}}
-{{\Large Submission-ready benchmark report\par}}
-\vspace{{0.24in}}
-{{\large Mosaic Research Release \quad | \quad {_latex_escape(today)}\par}}
-\vspace{{0.35in}}
-\colorbox{{MosaicGray}}{{\parbox{{0.96\linewidth}}{{\large {_latex_escape(mode_note)}\par
-\vspace{{0.08in}}
-This report compares a deterministic product-integration baseline, an LLM-primary
-pipeline, and a selective hybrid pipeline across schema alignment, record linkage,
-clustering, fusion, operational cost, and concrete error cases.}}}}
-\par\vspace{{0.28in}}
-\begin{{tabularx}}{{0.96\linewidth}}{{>{{\bfseries\sffamily}}p{{1.55in}} Y}}
-\toprule
-Live comparison & A0, C-LLM, B-All, stage ablations, and budget variants on the same 60-entity Monitor subset.\\
-Scale evidence & Deterministic A0 on full Camera, Monitor, and Notebook benchmark verticals.\\
-Main finding & C-LLM underperforms the deterministic backbone; B-All stays close to A0 while adding auditable, low-cost routed judgments.\\
-Submission files & \path{{reports/report.tex}}, \path{{reports/report.pdf}}, release tables, error cases, and the integrated JSONL export.\\
-\bottomrule
-\end{{tabularx}}
-\vfill
-\textbf{{Repository:}} \url{{{repo_url}}}\\
-\textbf{{Dataset:}} \texttt{{{_latex_escape(str(dataset["dataset_id"]))}}}\\
-\textbf{{Final integrated dataset:}} \path{{{_latex_path(final_dataset_text)}}}
+\thispagestyle{{empty}}
+\vspace*{{\fill}}
+\begin{{center}}
+{{\sffamily\bfseries\fontsize{{27}}{{33}}\selectfont Mosaic: Selective LLM Assistance for Product Data Integration\par}}
+\vspace{{0.55in}}
+{{\Large Luca Foresti\par}}
+\vspace{{0.18in}}
+{{\large {_latex_escape(today)}\par}}
+\end{{center}}
+\vspace*{{\fill}}
 \end{{titlepage}}
 
 \section{{Introduction}}
@@ -2232,7 +2020,7 @@ Running A0, C-LLM, and B-All on the same subset keeps the probabilistic
 comparison fair and keeps live model cost bounded. Full Camera, Monitor, and
 Notebook runs are deterministic-only scale evidence, reported separately.
 
-{_latex_table(dataset_rows, [("sources", "Sources", "r"), ("records", "Records", "r"), ("entities", "Entities", "r"), ("positive_pairs", "Positive pairs", "r"), ("attributes", "Mediated attrs", "r")], "Dataset slice used for the live comparison.", "tab:dataset")}
+{_latex_table(dataset_rows, [("sources", "Sources", r"@{\extracolsep{\fill}}c"), ("records", "Records", "c"), ("entities", "Entities", "c"), ("positive_pairs", "Positive pairs", "c"), ("attributes", "Mediated attrs", "c")], "Dataset slice used for the live comparison.", "tab:dataset")}
 
 The subset separates operational inputs from labeled quality. Blocking and
 normalization process every selected source record, while linkage, clustering,
@@ -2282,7 +2070,7 @@ routing-budget variants, and C-LLM as the practical LLM-primary comparison
 point. Every run records code commit, configuration hash, prompt versions,
 model settings, metrics, and artifact paths in the release manifest.
 
-{_latex_table(experiment_rows, [("config", "Config", "l"), ("schema", "Schema", "Y"), ("linkage", "Linkage", "Y"), ("fusion", "Fusion", "Y")], "Experiment matrix for the subset-live comparison.", "tab:matrix")}
+{_latex_table(experiment_rows, [("config", "Config", r"l@{\extracolsep{\fill}}"), ("schema", "Schema", "c"), ("linkage", "Linkage", "c"), ("fusion", "Fusion", "c")], "Experiment matrix for the subset-live comparison.", "tab:matrix")}
 
 Invalid JSON, missing fields, hallucinated or unsupported values, empty
 responses, abstentions, and timeouts are treated as measured failures unless
@@ -2293,20 +2081,18 @@ subset-live manifest and deterministic-scale manifest.
 \section{{Results}}
 \begin{{figure}}[H]
 \centering
-\includegraphics[width=0.78\linewidth]{{reports/release/figures/component_quality.png}}
-\par\vspace{{0.35em}}
-{{\small
-\legendbox{{ComponentSchema}} Schema F1 \quad
-\legendbox{{ComponentLinkage}} Linkage F1 \quad
-\legendbox{{ComponentCluster}} Cluster F1 \quad
-\legendbox{{ComponentFusion}} Fusion accuracy
-}}
-\caption{{Component-quality overview. Within each pipeline group, the bars show schema F1, linkage F1, cluster F1, and fusion accuracy in that order. Exact values are reported in Tables~\ref{{tab:threeway}} and~\ref{{tab:metrics}}.}}
+\includegraphics[width=0.84\linewidth]{{reports/release/figures/component_quality.pdf}}
+\caption{{Headline component quality for the deterministic, LLM-primary, and hybrid pipelines. Exact values are retained in Table~\ref{{tab:threeway}}.}}
 \end{{figure}}
 
 {_latex_table(three_way_rows, [("pipeline", "Pipeline", "Y"), ("config", "Config", "l"), ("schema_f1", "Schema", "r"), ("linkage_f1", "Linkage", "r"), ("cluster_f1", "Cluster", "r"), ("fusion_acc", "Fusion", "r"), ("e2e", "E2E", "r")], "Headline comparison on the common 60-entity Monitor subset.", "tab:threeway")}
 
-{_latex_table(metrics_rows, [("pipeline", "Pipeline", "Y"), ("config", "Cfg", "l"), ("schema_f1", "Schema", "r"), ("pairs", "Pairs", "r"), ("linkage_f1", "Link", "r"), ("cluster_f1", "Cluster", "r"), ("fusion_acc", "Fusion", "r"), ("e2e", "E2E", "r")], "Full subset-live metric matrix. Values are regenerated from metrics_summary.csv.", "tab:metrics")}
+\begin{{figure}}[H]
+\centering
+\includegraphics[width=0.78\linewidth]{{reports/release/figures/configuration_quality_heatmap.pdf}}
+\caption{{Quality matrix for the baseline, LLM-primary, hybrid, and stage-ablation configurations. Exact values remain available in the release metrics CSV.}}
+\label{{fig:quality-matrix}}
+\end{{figure}}
 
 \subsection{{Deterministic scale evidence}}
 The full Alaska verticals are run with deterministic A0 only. This keeps the
@@ -2351,20 +2137,31 @@ denominator for this metric; if that denominator is zero, report generation
 fails instead of publishing a misleading zero.
 
 \subsection{{Linkage and operational behavior}}
-{_latex_table(confusion_rows, [("config", "Config", "l"), ("tp", "TP", "r"), ("fp", "FP", "r"), ("tn", "TN", "r"), ("fn", "FN", "r"), ("precision", "Precision", "r"), ("recall", "Recall", "r")], "Linkage confusion matrix on the test split.", "tab:confusion")}
+\begin{{figure}}[H]
+\centering
+\includegraphics[width=0.96\linewidth]{{reports/release/figures/linkage_performance.pdf}}
+\caption{{Linkage test outcomes and precision-recall comparison for the baseline and linkage-assisted configurations.}}
+\label{{fig:linkage-performance}}
+\end{{figure}}
 
 The confusion matrix shows that the test split remains stable across assisted
 linkage variants. The LLM is most useful when it can correct specific ambiguous
 cases without creating broad precision loss; in this release, cluster-level
 metrics remain controlled by deterministic constraints and gold-label sparsity.
 
-{_latex_table(operational_decision_rows, [("pipeline", "Pipeline", "Y"), ("config", "Cfg", "l"), ("calls", "Calls", "r"), ("accepted", "Accepted", "r"), ("defaulted", "Defaulted", "r"), ("cost", "Cost USD", "r")], "Operational decision counts and estimated live-model cost.", "tab:ops-counts")}
+\begin{{figure}}[H]
+\centering
+\includegraphics[width=0.98\linewidth]{{reports/release/figures/operational_dashboard.pdf}}
+\caption{{Operational dashboard for LLM-primary, hybrid, and stage-ablation runs. Logarithmic axes preserve readability across the large difference between C-LLM and selectively routed configurations.}}
+\label{{fig:operational-dashboard}}
+\end{{figure}}
 
-{_latex_table(operational_token_rows, [("pipeline", "Pipeline", "Y"), ("config", "Cfg", "l"), ("tokens_in", "Tokens in", "r"), ("tokens_out", "Tokens out", "r"), ("fallbacks/call", "Fallbacks/call", "r"), ("invalids/call", "Invalids/call", "r")], "Operational token use and decision-level failure ratios. Ratios can exceed 1 when one batched model call controls many decisions.", "tab:ops-ratios")}
-
-{_latex_table(funnel_rows, [("pipeline", "Pipeline", "Y"), ("eligible", "Eligible", "r"), ("selected", "Selected", "r"), ("calls", "Calls", "r"), ("accepted", "Accepted", "r"), ("defaulted", "Defaulted", "r"), ("invalid", "Invalid", "r"), ("cost", "Cost USD", "r")], "LLM intervention funnel for C-LLM and B-All.", "tab:funnel")}
-
-{_latex_table(budget_rows, [("config", "Config", "l"), ("calls", "Calls", "r"), ("cost", "Cost USD", "r"), ("schema_f1", "Schema", "r"), ("linkage_f1", "Linkage", "r"), ("fusion_acc", "Fusion", "r"), ("e2e", "E2E", "r")], "Routing-budget variants for the hybrid release.", "tab:budget")}
+\begin{{figure}}[H]
+\centering
+\includegraphics[width=0.84\linewidth]{{reports/release/figures/routing_budget_frontier.pdf}}
+\caption{{Routing-budget frontier. Labels show the configuration and estimated model cost at each call cap.}}
+\label{{fig:budget-frontier}}
+\end{{figure}}
 
 B-All issued {_latex_value(assisted_ops.get("llm_call_count", 0))} model calls
 with an estimated cost of \$ {_latex_value(_round(assisted_ops.get("estimated_cost_usd", 0)))}.
@@ -2759,7 +2556,7 @@ def _render_pdf_check(repo_root: Path, pdf_path: Path) -> None:
     output_prefix = repo_root / "artifacts" / "reports" / "m4" / "report_render"
     output_prefix.parent.mkdir(parents=True, exist_ok=True)
     subprocess.run(
-        [pdftoppm, "-png", "-f", "1", "-l", "1", str(pdf_path), str(output_prefix)],
+        [pdftoppm, "-png", "-r", "120", str(pdf_path), str(output_prefix)],
         cwd=repo_root,
         check=True,
         capture_output=True,
@@ -2870,138 +2667,261 @@ def _flat_error_case(case: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _routing_frontier_points(manifest: dict[str, Any], repo_root: Path) -> list[tuple[int, float]]:
-    points: list[tuple[int, float]] = []
-    for run in manifest["runs"]:
-        if not run["configuration_id"].startswith("Budget-"):
-            continue
-        summary = _summarize_run(run, repo_root)
-        ops = _operational_summary(run, repo_root)
-        points.append((int(ops["llm_call_count"]), float(summary.get("end_to_end_quality") or 0)))
-    return sorted(points)
+_CHART_COLORS = {
+    "blue": "#2A6F97",
+    "orange": "#E88D67",
+    "ink": "#264653",
+    "teal": "#83C5BE",
+    "gold": "#E9C46A",
+    "gray": "#8D99AE",
+}
 
 
-def _write_bar_png(path: Path, series: list[tuple[str, list[float]]]) -> None:
-    width, height = 900, 420
-    image = _blank_image(width, height, (255, 255, 255))
-    colors = [(42, 111, 151), (232, 141, 103), (38, 70, 83), (131, 197, 190)]
-    margin = 50
-    plot_width = width - margin * 2
-    plot_height = height - margin * 2
-    _line(image, margin, margin, margin, height - margin, (40, 40, 40))
-    _line(image, margin, height - margin, width - margin, height - margin, (40, 40, 40))
-    if not series:
-        _write_png(path, image)
-        return
-    group_width = plot_width / max(len(series), 1)
-    bar_width = max(6, int(group_width / 7))
-    for group_index, (_, values) in enumerate(series):
-        base_x = int(margin + group_index * group_width + group_width * 0.2)
-        for value_index, value in enumerate(values):
-            bar_height = int(max(0, min(1, value)) * plot_height)
-            x0 = base_x + value_index * (bar_width + 3)
-            y0 = height - margin - bar_height
-            _rect(image, x0, y0, x0 + bar_width, height - margin, colors[value_index % len(colors)])
-    _write_png(path, image)
+def _chart_context() -> Any:
+    return {
+        "font.family": "DejaVu Sans",
+        "font.size": 9,
+        "axes.titlesize": 11,
+        "axes.labelsize": 9,
+        "axes.spines.top": False,
+        "axes.spines.right": False,
+        "axes.edgecolor": "#64727A",
+        "axes.titleweight": "bold",
+        "axes.grid": True,
+        "grid.color": "#D9E0E4",
+        "grid.linewidth": 0.65,
+        "grid.alpha": 0.75,
+        "legend.frameon": False,
+        "figure.facecolor": "white",
+        "savefig.facecolor": "white",
+    }
 
 
-def _write_line_png(path: Path, points: list[tuple[int, float]]) -> None:
-    width, height = 900, 420
-    image = _blank_image(width, height, (255, 255, 255))
-    margin = 50
-    _line(image, margin, margin, margin, height - margin, (40, 40, 40))
-    _line(image, margin, height - margin, width - margin, height - margin, (40, 40, 40))
-    if len(points) < 2:
-        _write_png(path, image)
-        return
-    max_x = max(point[0] for point in points) or 1
-    scaled = [
-        (
-            int(margin + (x / max_x) * (width - 2 * margin)),
-            int(height - margin - max(0, min(1, y)) * (height - 2 * margin)),
-        )
-        for x, y in points
-    ]
-    for left, right in zip(scaled, scaled[1:], strict=False):
-        _line(image, left[0], left[1], right[0], right[1], (42, 111, 151))
-    for x, y in scaled:
-        _rect(image, x - 4, y - 4, x + 4, y + 4, (232, 141, 103))
-    _write_png(path, image)
-
-
-def _blank_image(
-    width: int,
-    height: int,
-    color: tuple[int, int, int],
-) -> list[list[tuple[int, int, int]]]:
-    return [[color for _ in range(width)] for _ in range(height)]
-
-
-def _rect(
-    image: list[list[tuple[int, int, int]]],
-    x0: int,
-    y0: int,
-    x1: int,
-    y1: int,
-    color: tuple[int, int, int],
-) -> None:
-    height = len(image)
-    width = len(image[0])
-    for y in range(max(0, y0), min(height, y1 + 1)):
-        row = image[y]
-        for x in range(max(0, x0), min(width, x1 + 1)):
-            row[x] = color
-
-
-def _line(
-    image: list[list[tuple[int, int, int]]],
-    x0: int,
-    y0: int,
-    x1: int,
-    y1: int,
-    color: tuple[int, int, int],
-) -> None:
-    dx = abs(x1 - x0)
-    dy = -abs(y1 - y0)
-    sx = 1 if x0 < x1 else -1
-    sy = 1 if y0 < y1 else -1
-    error = dx + dy
-    x, y = x0, y0
-    while True:
-        if 0 <= y < len(image) and 0 <= x < len(image[0]):
-            image[y][x] = color
-        if x == x1 and y == y1:
-            break
-        error2 = 2 * error
-        if error2 >= dy:
-            error += dy
-            x += sx
-        if error2 <= dx:
-            error += dx
-            y += sy
-
-
-def _write_png(path: Path, image: list[list[tuple[int, int, int]]]) -> None:
+def _save_figure(fig: Figure, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    height = len(image)
-    width = len(image[0])
-    raw = b"".join(b"\x00" + bytes(channel for pixel in row for channel in pixel) for row in image)
+    fig.savefig(path, dpi=240, bbox_inches="tight", pad_inches=0.08)
+    fig.savefig(path.with_suffix(".pdf"), bbox_inches="tight", pad_inches=0.08)
+    plt.close(fig)
 
-    def chunk(kind: bytes, data: bytes) -> bytes:
-        return (
-            struct.pack(">I", len(data))
-            + kind
-            + data
-            + struct.pack(">I", zlib.crc32(kind + data) & 0xFFFFFFFF)
+
+def _rows_by_configuration(rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    return {str(row.get("configuration_id")): row for row in rows}
+
+
+def _metric_value(row: dict[str, Any], key: str) -> float:
+    value = row.get(key)
+    return float(str(value)) if value not in (None, "") else float("nan")
+
+
+def _write_component_quality_figures(path: Path, summaries: list[dict[str, Any]]) -> None:
+    configs = ["A0", "C-LLM", "B-All"]
+    metrics = [
+        ("schema_f1", "Schema F1", _CHART_COLORS["blue"]),
+        ("linkage_test_f1", "Linkage F1", _CHART_COLORS["orange"]),
+        ("cluster_f1", "Cluster F1", _CHART_COLORS["ink"]),
+        ("fusion_accuracy", "Fusion accuracy", _CHART_COLORS["teal"]),
+    ]
+    rows = _rows_by_configuration(summaries)
+    with plt.rc_context(_chart_context()):
+        fig, ax = plt.subplots(figsize=(8.8, 4.4))
+        width = 0.18
+        centers = list(range(len(configs)))
+        for metric_index, (key, label, color) in enumerate(metrics):
+            positions = [center + (metric_index - 1.5) * width for center in centers]
+            values = [_metric_value(rows.get(config, {}), key) for config in configs]
+            bars = ax.bar(positions, values, width=width, label=label, color=color)
+            ax.bar_label(bars, labels=[f"{value:.3f}" for value in values], padding=2, fontsize=7)
+        ax.set_title("Headline component quality")
+        ax.set_ylabel("Score")
+        ax.set_xticks(centers, configs)
+        ax.set_ylim(0, 1.1)
+        ax.grid(axis="x", visible=False)
+        ax.legend(ncols=4, loc="upper center", bbox_to_anchor=(0.5, -0.12))
+        fig.subplots_adjust(bottom=0.22)
+        _save_figure(fig, path)
+
+
+def _write_quality_heatmap_figures(path: Path, summaries: list[dict[str, Any]]) -> None:
+    configs = ["A0", "C-LLM", "B-All", "B-S", "B-L", "B-F", "B-SL", "B-LF"]
+    metrics = [
+        ("schema_f1", "Schema"),
+        ("linkage_test_f1", "Linkage"),
+        ("cluster_f1", "Cluster"),
+        ("fusion_accuracy", "Fusion"),
+        ("end_to_end_quality", "E2E"),
+    ]
+    rows = _rows_by_configuration(summaries)
+    values = [
+        [_metric_value(rows.get(config, {}), key) for key, _ in metrics] for config in configs
+    ]
+    with plt.rc_context(_chart_context()):
+        fig, ax = plt.subplots(figsize=(8.2, 5.0))
+        image = ax.imshow(values, cmap="Blues", vmin=0, vmax=1, aspect="auto")
+        ax.grid(False)
+        ax.set_title("Quality across configurations")
+        ax.set_xticks(range(len(metrics)), [label for _, label in metrics])
+        ax.set_yticks(range(len(configs)), configs)
+        for row_index, row_values in enumerate(values):
+            for column_index, value in enumerate(row_values):
+                label = "n/a" if value != value else f"{value:.3f}"
+                color = "white" if value == value and value >= 0.58 else "#1F2933"
+                ax.text(column_index, row_index, label, ha="center", va="center", color=color)
+        colorbar = fig.colorbar(image, ax=ax, fraction=0.035, pad=0.03)
+        colorbar.set_label("Score")
+        _save_figure(fig, path)
+
+
+def _write_linkage_performance_figures(path: Path, summaries: list[dict[str, Any]]) -> None:
+    configs = ["A0", "B-All", "B-L", "B-SL", "B-LF"]
+    rows = _rows_by_configuration(summaries)
+    outcome_metrics = [
+        ("linkage_tp", "TP", _CHART_COLORS["blue"]),
+        ("linkage_fp", "FP", _CHART_COLORS["orange"]),
+        ("linkage_tn", "TN", _CHART_COLORS["teal"]),
+        ("linkage_fn", "FN", _CHART_COLORS["gray"]),
+    ]
+    with plt.rc_context(_chart_context()):
+        fig, (counts_ax, quality_ax) = plt.subplots(1, 2, figsize=(10.0, 4.3))
+        width = 0.19
+        centers = list(range(len(configs)))
+        for metric_index, (key, label, color) in enumerate(outcome_metrics):
+            positions = [center + (metric_index - 1.5) * width for center in centers]
+            values = [float(rows.get(config, {}).get(key) or 0) for config in configs]
+            counts_ax.bar(positions, values, width=width, label=label, color=color)
+        counts_ax.set_title("Test-split outcomes")
+        counts_ax.set_ylabel("Pair count")
+        counts_ax.set_xticks(centers, configs, rotation=20)
+        counts_ax.grid(axis="x", visible=False)
+        counts_ax.legend(ncols=4, loc="upper center", bbox_to_anchor=(0.5, -0.2))
+
+        for key, label, color, marker in [
+            ("linkage_test_precision", "Precision", _CHART_COLORS["blue"], "o"),
+            ("linkage_test_recall", "Recall", _CHART_COLORS["orange"], "s"),
+        ]:
+            values = [_metric_value(rows.get(config, {}), key) for config in configs]
+            quality_ax.plot(configs, values, marker=marker, linewidth=2, label=label, color=color)
+            for index, value in enumerate(values):
+                quality_ax.annotate(f"{value:.3f}", (index, value), xytext=(0, 7), textcoords="offset points", ha="center", fontsize=7)
+        quality_ax.set_title("Precision and recall")
+        quality_ax.set_ylabel("Score")
+        quality_ax.set_ylim(0.72, 0.96)
+        quality_ax.tick_params(axis="x", rotation=20)
+        quality_ax.grid(axis="x", visible=False)
+        quality_ax.legend(loc="lower right")
+        fig.subplots_adjust(bottom=0.23, wspace=0.28)
+        _save_figure(fig, path)
+
+
+def _write_operational_dashboard_figures(
+    path: Path, operational: list[dict[str, Any]]
+) -> None:
+    configs = ["C-LLM", "B-All", "B-S", "B-L", "B-F", "B-SL", "B-LF"]
+    rows = _rows_by_configuration(operational)
+    with plt.rc_context(_chart_context()):
+        fig, axes = plt.subplots(2, 2, figsize=(10.2, 7.0))
+        decision_ax, cost_ax, token_ax, failure_ax = axes.flatten()
+        centers = list(range(len(configs)))
+
+        accepted = [float(rows.get(config, {}).get("accepted_count") or 0) for config in configs]
+        defaulted = [float(rows.get(config, {}).get("defaulted_count") or 0) for config in configs]
+        decision_ax.bar(configs, accepted, label="Accepted", color=_CHART_COLORS["blue"])
+        decision_ax.bar(configs, defaulted, bottom=accepted, label="Defaulted", color=_CHART_COLORS["gray"])
+        decision_ax.set_title("Decision outcomes")
+        decision_ax.set_ylabel("Decision count")
+        decision_ax.set_yscale("symlog", linthresh=10)
+        decision_ax.tick_params(axis="x", rotation=25)
+        decision_ax.grid(axis="x", visible=False)
+        decision_ax.legend()
+
+        calls = [float(rows.get(config, {}).get("llm_call_count") or 0) for config in configs]
+        costs = [float(rows.get(config, {}).get("estimated_cost_usd") or 0) for config in configs]
+        cost_ax.bar(configs, calls, color=_CHART_COLORS["teal"], label="Calls")
+        cost_ax.set_title("Calls and estimated cost")
+        cost_ax.set_ylabel("Model calls")
+        cost_ax.tick_params(axis="x", rotation=25)
+        cost_ax.grid(axis="x", visible=False)
+        cost_line_ax = cost_ax.twinx()
+        cost_line_ax.plot(centers, costs, color=_CHART_COLORS["orange"], marker="o", linewidth=2)
+        cost_line_ax.set_ylabel("Cost (USD)")
+        cost_line_ax.grid(False)
+        for index, cost in enumerate(costs):
+            cost_line_ax.annotate(f"${cost:.3f}", (index, cost), xytext=(0, 6), textcoords="offset points", ha="center", fontsize=7)
+
+        width = 0.38
+        tokens_in = [float(rows.get(config, {}).get("input_tokens") or 0) for config in configs]
+        tokens_out = [float(rows.get(config, {}).get("output_tokens") or 0) for config in configs]
+        token_ax.bar([value - width / 2 for value in centers], tokens_in, width=width, label="Input", color=_CHART_COLORS["blue"])
+        token_ax.bar([value + width / 2 for value in centers], tokens_out, width=width, label="Output", color=_CHART_COLORS["gold"])
+        token_ax.set_title("Token usage")
+        token_ax.set_ylabel("Tokens (log-like scale)")
+        token_ax.set_yscale("symlog", linthresh=1)
+        token_ax.set_xticks(centers, configs, rotation=25)
+        token_ax.grid(axis="x", visible=False)
+        token_ax.legend()
+
+        fallback = [float(rows.get(config, {}).get("fallback_rate") or 0) for config in configs]
+        invalid = [float(rows.get(config, {}).get("invalid_output_rate") or 0) for config in configs]
+        failure_ax.bar([value - width / 2 for value in centers], fallback, width=width, label="Fallbacks/call", color=_CHART_COLORS["orange"])
+        failure_ax.bar([value + width / 2 for value in centers], invalid, width=width, label="Invalids/call", color=_CHART_COLORS["ink"])
+        failure_ax.set_title("Decision-level failure ratios")
+        failure_ax.set_ylabel("Events per provider call")
+        failure_ax.set_xticks(centers, configs, rotation=25)
+        failure_ax.grid(axis="x", visible=False)
+        failure_ax.legend()
+
+        fig.subplots_adjust(hspace=0.48, wspace=0.32)
+        _save_figure(fig, path)
+
+
+def _write_routing_budget_figures(
+    path: Path,
+    summaries: list[dict[str, Any]],
+    operational: list[dict[str, Any]],
+) -> None:
+    summary_rows = _rows_by_configuration(summaries)
+    operational_rows = _rows_by_configuration(operational)
+    configs = ["Budget-0", "Budget-5", "Budget-10", "Budget-25"]
+    points = [
+        (
+            config,
+            int(operational_rows.get(config, {}).get("llm_call_count") or 0),
+            _metric_value(summary_rows.get(config, {}), "end_to_end_quality"),
+            _metric_value(summary_rows.get(config, {}), "linkage_test_f1"),
+            float(operational_rows.get(config, {}).get("estimated_cost_usd") or 0),
         )
-
-    png = (
-        b"\x89PNG\r\n\x1a\n"
-        + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0))
-        + chunk(b"IDAT", zlib.compress(raw, level=9))
-        + chunk(b"IEND", b"")
-    )
-    path.write_bytes(png)
+        for config in configs
+    ]
+    points.sort(key=lambda point: point[1])
+    with plt.rc_context(_chart_context()):
+        fig, ax = plt.subplots(figsize=(8.8, 4.5))
+        calls = [point[1] for point in points]
+        for value_index, (label, color, marker) in enumerate(
+            [
+                ("End-to-end quality", _CHART_COLORS["blue"], "o"),
+                ("Linkage F1", _CHART_COLORS["orange"], "s"),
+            ]
+        ):
+            values = [point[2 + value_index] for point in points]
+            ax.plot(calls, values, color=color, marker=marker, linewidth=2.2, label=label)
+        for config, call_count, e2e, _, cost in points:
+            ax.annotate(
+                f"{config}\n${cost:.3f}",
+                (call_count, e2e),
+                xytext=(0, 8),
+                textcoords="offset points",
+                ha="center",
+                fontsize=7,
+            )
+        ax.set_title("Routing budget quality frontier")
+        ax.set_xlabel("Model calls allowed")
+        ax.set_ylabel("Score")
+        ax.set_ylim(0.54, 0.89)
+        ax.set_xticks(calls)
+        ax.margins(x=0.08)
+        ax.grid(axis="x", visible=False)
+        ax.legend(loc="center right")
+        fig.subplots_adjust(bottom=0.24)
+        _save_figure(fig, path)
 
 
 def _repository_url(repo_root: Path) -> str | None:
@@ -3061,6 +2981,10 @@ def _decode_json(value: Any) -> Any:
 
 def _resolve(repo_root: Path, path: Path) -> Path:
     return path if path.is_absolute() else repo_root / path
+
+
+def _report_build_date() -> str:
+    return datetime.now().astimezone().strftime("%B %d, %Y").replace(" 0", " ")
 
 
 def _round(value: Any) -> float:
